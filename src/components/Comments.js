@@ -29,6 +29,7 @@ const MAX_RECORD_SECONDS = 120;
 const COUNTDOWN_START = 3;
 const DEFAULT_SAMPLE_RATE = 16000;
 const DEFAULT_BITRATE = 128000;
+const SAME_CARD_RESPONSE_COOLDOWN_SECONDS = 120;
 
 // Prefer WebM/Opus when supported, then fall back through safer recorder formats.
 const RECORDING_FORMATS = [
@@ -273,6 +274,8 @@ export default function Comments({ requestId, ownerId = null }) {
   const [recordSeconds, setRecordSeconds] = useState(0);
   const [recordError, setRecordError] = useState("");
   const [submittingResponse, setSubmittingResponse] = useState(false);
+  const [responseCooldownUntil, setResponseCooldownUntil] = useState(0);
+  const [cooldownSecondsLeft, setCooldownSecondsLeft] = useState(0);
 
   // Recorder refs
   const mediaRecorderRef = useRef(null);
@@ -350,6 +353,25 @@ export default function Comments({ requestId, ownerId = null }) {
     const timer = window.setTimeout(() => setActionNotice(""), 2800);
     return () => window.clearTimeout(timer);
   }, [actionNotice]);
+
+  useEffect(() => {
+    if (!responseCooldownUntil) {
+      setCooldownSecondsLeft(0);
+      return undefined;
+    }
+
+    const updateCooldown = () => {
+      const nextSeconds = Math.max(0, Math.ceil((responseCooldownUntil - Date.now()) / 1000));
+      setCooldownSecondsLeft(nextSeconds);
+      if (nextSeconds === 0) {
+        setResponseCooldownUntil(0);
+      }
+    };
+
+    updateCooldown();
+    const timer = window.setInterval(updateCooldown, 1000);
+    return () => window.clearInterval(timer);
+  }, [responseCooldownUntil]);
 
   // Auto-stop once the recording reaches the time limit.
   useEffect(() => {
@@ -576,6 +598,11 @@ export default function Comments({ requestId, ownerId = null }) {
   const submitResponse = async () => {
     if (recording || submittingResponse) return false;
     if (!text.trim() && !audioBlobRef.current) return false;
+    if (cooldownSecondsLeft > 0) {
+      setActionNotice(`你剛剛已經送出回應，請約 ${cooldownSecondsLeft} 秒後再送出下一則。`);
+      setActionNoticeType("error");
+      return false;
+    }
 
     setSubmittingResponse(true);
 
@@ -602,7 +629,14 @@ export default function Comments({ requestId, ownerId = null }) {
     try {
       const res = await fetch("/api/responses", { method: "POST", body: formData });
       if (!res.ok) {
-        throw new Error("送出回應失敗，請稍後再試。");
+        const data = await res.json().catch(() => ({}));
+        if (res.status === 429) {
+          const retryAfterHeader = Number(res.headers.get("Retry-After"));
+          const retryAfterSeconds =
+            Number(data?.retryAfterSeconds) || retryAfterHeader || SAME_CARD_RESPONSE_COOLDOWN_SECONDS;
+          setResponseCooldownUntil(Date.now() + retryAfterSeconds * 1000);
+        }
+        throw new Error(data?.error || "回應送出失敗，請稍後再試。");
       }
 
       const saved = await res.json();
@@ -616,6 +650,9 @@ export default function Comments({ requestId, ownerId = null }) {
       resetRecording();
       setIsRecorderModalOpen(false);
       setRecorderStep("idle");
+      setResponseCooldownUntil(Date.now() + SAME_CARD_RESPONSE_COOLDOWN_SECONDS * 1000);
+      setActionNotice("");
+      setActionNoticeType("success");
       return true;
     } catch (err) {
       setActionNotice(err?.message || "送出回應失敗，請稍後再試。");
@@ -687,8 +724,8 @@ export default function Comments({ requestId, ownerId = null }) {
                 <button type="button" className="cp-button cp-button--ghost" onClick={useRecordedAudio} disabled={submittingResponse}>
                   保留並關閉
                 </button>
-                <button type="button" className="cp-button" onClick={submitFromRecorderModal} disabled={submittingResponse}>
-                  {submittingResponse ? "送出中..." : "送出回應"}
+                <button type="button" className="cp-button" onClick={submitFromRecorderModal} disabled={isResponseSubmitDisabled}>
+                  {submittingResponse ? "送出中..." : cooldownSecondsLeft > 0 ? `請稍等 ${cooldownSecondsLeft} 秒` : "送出回應"}
                 </button>
               </div>
             </>
@@ -699,6 +736,7 @@ export default function Comments({ requestId, ownerId = null }) {
   };
 
   const hasAudio = Boolean(audioUrl);
+  const isResponseSubmitDisabled = recording || submittingResponse || cooldownSecondsLeft > 0;
 
   const visibleResponses = responses.filter(
     (response) => !response.isBlocked && Number(response.reportCount ?? 0) === 0
@@ -724,7 +762,9 @@ export default function Comments({ requestId, ownerId = null }) {
 
       {!authUser && (
         <div className="alert alert-warning">
-          請先 <Link href="/login">登入</Link> 後才能留言或檢舉。
+          登入後可以匿名留下文字、錄一段語音，或管理自己曾經回應過的代禱。
+          {" "}
+          <Link href="/login">前往登入</Link>
         </div>
       )}
 
@@ -732,8 +772,8 @@ export default function Comments({ requestId, ownerId = null }) {
         {pendingReviewCount ? (
           <span className="comments__review-status">{pendingReviewCount} 則回應審核中</span>
         ) : null}
-        <h3>禱告回應</h3>
-        <p className="comments__subtitle">留下文字或語音，成為彼此的支持。</p>
+          <h3>禱告回應</h3>
+        <p className="comments__subtitle">只留一句話也可以。你的回應會成為這個人的支持。</p>
       </div>
 
       {actionNotice ? (
@@ -753,9 +793,19 @@ export default function Comments({ requestId, ownerId = null }) {
         </p>
       ) : null}
 
+      {cooldownSecondsLeft > 0 ? (
+        <p className="cp-alert cp-alert--success comments__notice" role="status">
+          已送出你的回應。若要再次回應同一則代禱，請稍等約 {cooldownSecondsLeft} 秒。
+        </p>
+      ) : null}
+
       <div className="comments__list" aria-live="polite">
           {loading ? (
-            <p>載入回應中...</p>
+            <div className="comments__skeleton" role="status" aria-label="載入回應中">
+              <span />
+              <span />
+              <span />
+            </div>
           ) : error ? (
             <p className="cp-alert cp-alert--error">{error}</p>
           ) : visibleResponses.length === 0 ? (
@@ -868,7 +918,7 @@ export default function Comments({ requestId, ownerId = null }) {
       {authUser ? (
         <>
           <h3 className="comments__composer-title">立即回應</h3>
-          <form className="comment-form" onSubmit={handleSubmit}>
+          <form id="response-composer" className="comment-form" onSubmit={handleSubmit}>
             <div className="prayer-response-modes" aria-label="選擇禱告回應模式">
               {responseModes.map((mode) => (
                 <button
@@ -934,14 +984,15 @@ export default function Comments({ requestId, ownerId = null }) {
                     <button type="button" className="btn btn-glass" onClick={resetRecording}>
                       <i className="fa-solid fa-rotate-right"></i> 重新錄音
                     </button>
-                    <button type="submit" className="btn btn-primary" disabled={recording || submittingResponse}>
-                      <i className="fa-solid fa-paper-plane"></i> {submittingResponse ? "送出中..." : "送出回應"}
+                    <button type="submit" className="btn btn-primary" disabled={isResponseSubmitDisabled}>
+                      <i className="fa-solid fa-paper-plane"></i>{" "}
+                      {submittingResponse ? "送出中..." : cooldownSecondsLeft > 0 ? `請稍等 ${cooldownSecondsLeft} 秒` : "送出回應"}
                     </button>
                   </div>
                 </div>
               ) : (
-                <button type="submit" className="btn btn-primary" disabled={recording || submittingResponse} style={{ marginTop: "10px" }}>
-                  {submittingResponse ? "送出中..." : "送出回應"}
+                <button type="submit" className="btn btn-primary" disabled={isResponseSubmitDisabled} style={{ marginTop: "10px" }}>
+                  {submittingResponse ? "送出中..." : cooldownSecondsLeft > 0 ? `請稍等 ${cooldownSecondsLeft} 秒` : "送出回應"}
                 </button>
               )}
             </div>

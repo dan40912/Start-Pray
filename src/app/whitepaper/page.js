@@ -1,107 +1,94 @@
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 
 export const metadata = {
-  title: "使用條款 | Start Pray 一起禱告吧",
-  description: "了解 Start Pray 的使用方式、隱私保護、內容截圖分享與安全提醒。",
+  title: "平台原則與信任說明 | Start Pray",
+  description:
+    "了解 Start Pray 如何處理匿名代禱、語音回應、位置隱私、內容檢舉與平台安全。",
 };
 
-const TERMS = [
+const PRINCIPLES = [
   {
-    title: "平台用途",
+    title: "人的需要優先",
     body:
-      "Start Pray 是提供代禱、陪伴與回應的社群平台。你可以分享代禱事項，也可以用文字或語音回應別人的需要。請用尊重、真實、不傷害他人的方式使用這個平台。",
+      "Start Pray 處理的不是冷冰冰的資料，而是一個人的需要。每一則代禱背後，都可能是正在脆弱時刻的人，所以我們會優先考量清楚、溫柔與安全。",
   },
   {
-    title: "不是專業服務",
+    title: "可以匿名被代禱",
     body:
-      "平台上的內容與回應不等同於醫療、法律、心理諮商、財務或其他專業建議。如果你正在面對緊急危機，請立即聯絡當地緊急服務、可信任的親友、教會同工或專業人員。",
+      "你可以選擇匿名發佈，也可以匿名回應。公開頁不要求你暴露真實姓名，也不鼓勵填寫不必要的個人資料。",
   },
   {
-    title: "內容責任",
+    title: "語音是禱告，不是表演",
     body:
-      "使用者需自行確認分享內容是否適合公開。請不要公開他人的個人資料、聯絡方式、住址、醫療紀錄、家庭細節或任何可能造成危險的資訊。",
-  },
-];
-
-const PRIVACY = [
-  {
-    title: "我們不會販售個人資訊",
-    body:
-      "Start Pray 不會販售、出租或交換你的個人資訊。平台只會在提供登入、建立代禱卡、顯示回應、管理內容與維護安全所需的範圍內使用資料。",
-  },
-  {
-    title: "請盡量保護自己",
-    body:
-      "如果你希望降低被辨識的可能，建議使用匿名名稱註冊，避免使用真實姓名、個人照片、私人地址、電話或可追蹤到你現實身分的資訊。",
-  },
-  {
-    title: "私密代禱",
-    body:
-      "建立代禱卡時，你可以選擇私密模式。私密代禱不會公開標題、內容、圖片、上傳者與詳情頁，只會保留匿名的大致位置光點，讓社群知道有人需要被守望。",
+      "語音功能是為了讓人聽見真實的代禱，不是為了比較誰說得比較好。平台不會用聲量、排名或競賽包裝禱告內容。",
   },
 ];
 
-const SHARING = [
+const SAFETY_ITEMS = [
+  "私密代禱不會在公開頁顯示標題、描述、圖片、擁有者或詳情連結。",
+  "全球禱告室只呈現大致位置光點，不顯示精準住址。",
+  "公開內容與回應皆可被檢舉，管理員可審核與封鎖不合適內容。",
+  "圖片只接受站內上傳或平台產生的縮圖，避免不明外部圖片進入資料庫。",
+];
+
+const DATA_ITEMS = [
   {
-    title: "可能會被截圖分享",
-    body:
-      "公開頁面上的代禱內容、回應、得勝故事或平台畫面，可能會被使用者、管理者或社群成員截圖，並分享到社群網站、通訊軟體或教會群組中。",
+    title: "公開顯示",
+    body: "公開代禱會顯示標題、描述、分類、圖片、回應數，以及你選擇顯示的名稱。",
   },
   {
-    title: "平台宣傳與見證整理",
-    body:
-      "為了介紹平台、分享見證或邀請更多人一起代禱，Start Pray 可能會使用公開頁面的截圖或畫面片段。若涉及敏感內容，我們會盡量避免呈現可辨識個人身分的資訊。",
+    title: "可選擇隱藏",
+    body: "真實姓名、精準位置、個人簡介與是否匿名回應，應該由你自己有意識地選擇。",
   },
   {
-    title: "如果你不希望被公開",
-    body:
-      "請使用匿名帳號、避免填寫可辨識資訊，並優先使用私密代禱。若你發現不適合公開的內容，請聯絡我們協助處理。",
+    title: "平台維護使用",
+    body: "登入狀態、檢舉紀錄與必要的管理紀錄，只用於安全、協助與維護，不會拿來當成公開宣傳。",
   },
 ];
 
-const SAFETY = [
-  "不要公開住址、電話、身分證件、醫療紀錄、金融資訊或他人的私人資料。",
-  "不要冒用他人身分，也不要替別人公開敏感故事。",
-  "遇到疑似騷擾、詐騙、冒用或不適當內容，請使用檢舉功能或聯絡管理者。",
-  "平台會盡力維護資料安全，但網路服務不可能保證永遠不中斷或完全沒有錯誤。",
+const EARLY_CONCEPTS = [
+  "早期文件曾提到代幣、NFT、DAO 或其他金融資產式設計。",
+  "這些內容不代表目前 Start Pray 的公開產品定位。",
+  "目前最重要的是禱告、陪伴、隱私，以及一個可以被信任的互動空間。",
 ];
 
-export default function TermsPage() {
+export default function TrustPage() {
   return (
     <>
       <SiteHeader activePath="/whitepaper" />
       <main className="whitepaper-page">
         <section className="whitepaper-hero">
           <div>
-            <p className="whitepaper-hero__eyebrow">Terms & Safety</p>
-            <h1>Start Pray 使用條款</h1>
+            <p className="whitepaper-hero__eyebrow">Trust & Safety</p>
+            <h1>平台原則與信任說明</h1>
             <p>
-              這份條款用簡單的方式說明平台如何使用、我們如何看待隱私，以及你在分享代禱事項前需要知道的安全提醒。
+              Start Pray 不是一般產品頁，也不是金融資產專案。這裡處理的是人的需要、回應、隱私與信任。
+              這一頁整理我們目前怎麼看待這個空間。
             </p>
           </div>
-          <div className="whitepaper-hero__stats" aria-label="條款重點">
+          <div className="whitepaper-hero__stats" aria-label="平台信任重點">
             <div>
               <span>Privacy</span>
-              <strong>不販售個資</strong>
+              <strong>可匿名代禱</strong>
             </div>
             <div>
               <span>Safety</span>
-              <strong>建議匿名</strong>
+              <strong>可檢舉審核</strong>
             </div>
             <div>
-              <span>Sharing</span>
-              <strong>公開內容可能被截圖</strong>
+              <span>Location</span>
+              <strong>不顯示精準位置</strong>
             </div>
           </div>
         </section>
 
         <section className="whitepaper-section">
           <div className="whitepaper-section__header">
-            <h2>使用原則</h2>
-            <p>Start Pray 是為了陪伴與守望而存在。請讓你的使用方式也保留這份溫柔。</p>
+            <h2>我們如何看待這個平台</h2>
+            <p>Start Pray 不是為了製造流量，而是希望讓有需要的人，可以比較安全地被看見。</p>
           </div>
           <div className="whitepaper-grid">
-            {TERMS.map((item) => (
+            {PRINCIPLES.map((item) => (
               <article key={item.title} className="whitepaper-card">
                 <h3>{item.title}</h3>
                 <p>{item.body}</p>
@@ -112,54 +99,52 @@ export default function TermsPage() {
 
         <section className="whitepaper-section">
           <div className="whitepaper-section__header">
-            <h2>個人資訊與匿名建議</h2>
-            <p>你可以分享需要，但不需要把自己的真實身分完全暴露出來。</p>
-          </div>
-          <div className="whitepaper-grid">
-            {PRIVACY.map((item) => (
-              <article key={item.title} className="whitepaper-card whitepaper-card--outline">
-                <h3>{item.title}</h3>
-                <p>{item.body}</p>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <section className="whitepaper-section">
-          <div className="whitepaper-section__header">
-            <h2>公開內容與截圖分享</h2>
-            <p>請把公開頁面視為可能被轉傳的內容。分享前，先替自己和身邊的人多想一步。</p>
-          </div>
-          <div className="whitepaper-grid">
-            {SHARING.map((item) => (
-              <article key={item.title} className="whitepaper-card">
-                <h3>{item.title}</h3>
-                <p>{item.body}</p>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <section className="whitepaper-section">
-          <div className="whitepaper-section__header">
-            <h2>安全提醒</h2>
-            <p>這些提醒不是為了讓你害怕，而是為了讓平台可以更安全地承載真實需要。</p>
+            <h2>隱私與安全邊界</h2>
+            <p>公開頁面必須尊重使用者的選擇，尤其是私密代禱與位置資訊。</p>
           </div>
           <div className="whitepaper-card whitepaper-card--outline">
             <ul>
-              {SAFETY.map((item) => (
+              {SAFETY_ITEMS.map((item) => (
                 <li key={item}>{item}</li>
               ))}
             </ul>
           </div>
         </section>
 
+        <section className="whitepaper-section">
+          <div className="whitepaper-section__header">
+            <h2>資料會如何被看見</h2>
+            <p>我們盡量用清楚的方式說明，哪些內容會公開，哪些只用於帳號與維護。</p>
+          </div>
+          <div className="whitepaper-grid">
+            {DATA_ITEMS.map((item) => (
+              <article key={item.title} className="whitepaper-card">
+                <h3>{item.title}</h3>
+                <p>{item.body}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="whitepaper-section">
+          <div className="whitepaper-section__header">
+            <h2>早期概念說明</h2>
+            <p>以下只是釐清過去的脈絡，不代表目前的產品體驗或公開承諾。</p>
+          </div>
+          <details className="whitepaper-card whitepaper-card--outline">
+            <summary>查看早期概念註記</summary>
+            <ul>
+              {EARLY_CONCEPTS.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </details>
+        </section>
+
         <section className="whitepaper-download">
           <div>
-            <h2>需要協助？</h2>
-            <p>
-              如果你想刪除內容、回報不適當截圖、處理隱私疑慮，或需要管理者協助，請聯絡我們。
-            </p>
+            <h2>需要協助或通報問題？</h2>
+            <p>如果你看到不合適內容、有隱私疑慮，或需要帳號協助，可以直接聯絡 Start Pray。</p>
           </div>
           <div className="whitepaper-download__actions">
             <a className="button button--primary" href="mailto:startpraynow@gmail.com">

@@ -9,11 +9,12 @@ import { normalizeAudioUrl } from "@/lib/media-url";
 const FALLBACK_SPEAKER = "Anonymous";
 const FALLBACK_TITLE = "Prayer Audio";
 
-function normalizePrimaryTrack(track, prayerTitle) {
+function normalizePrimaryTrack(track, prayerTitle, homeCardId = null) {
   const voiceUrl = normalizeAudioUrl(track?.voiceUrl);
   if (!voiceUrl) return null;
   return {
     id: track.id ?? "primary-track",
+    homeCardId: track.homeCardId ?? homeCardId,
     voiceUrl,
     speaker: track.speaker?.trim() || FALLBACK_SPEAKER,
     message: track.message?.trim() || "",
@@ -23,12 +24,13 @@ function normalizePrimaryTrack(track, prayerTitle) {
   };
 }
 
-function normalizeResponseTrack(item, index, prayerTitle, fallbackCoverImage = "") {
+function normalizeResponseTrack(item, index, prayerTitle, fallbackCoverImage = "", homeCardId = null) {
   const voiceUrl = normalizeAudioUrl(item?.voiceUrl);
   if (!voiceUrl) return null;
   const isAnonymous = Boolean(item.isAnonymous);
   return {
     id: item.id ?? `response-${index}`,
+    homeCardId: item.homeCardId ?? homeCardId,
     voiceUrl,
     speaker: isAnonymous
       ? FALLBACK_SPEAKER
@@ -71,8 +73,8 @@ export default function DetailAudioQueueBootstrap({
   const { setQueue, setIsExpanded } = useAudio();
 
   const primaryTrack = useMemo(
-    () => normalizePrimaryTrack(initialTrack, prayerTitle),
-    [initialTrack, prayerTitle]
+    () => normalizePrimaryTrack(initialTrack, prayerTitle, requestId),
+    [initialTrack, prayerTitle, requestId]
   );
 
   const loadQueue = useCallback(async () => {
@@ -86,7 +88,9 @@ export default function DetailAudioQueueBootstrap({
       const responseTracks = Array.isArray(data)
         ? data
             .filter(isValidResponse)
-            .map((item, index) => normalizeResponseTrack(item, index, prayerTitle, primaryTrack?.coverImage || ""))
+            .map((item, index) =>
+              normalizeResponseTrack(item, index, prayerTitle, primaryTrack?.coverImage || "", requestId)
+            )
             .filter(Boolean)
         : [];
 

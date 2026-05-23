@@ -41,7 +41,7 @@ const WORLD_VIEW = {
 };
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
-const PRIVATE_PRAYER_DESCRIPTION = "這個城市有人需要被守望。";
+const PRIVATE_PRAYER_DESCRIPTION = "這個城市有人正需要被記念。";
 const URGENT_RESPONSE_THRESHOLD = 2;
 const FULL_GLOBE_MIN_HEIGHT = 220000;
 const FULL_GLOBE_MAX_HEIGHT = 22000000;
@@ -826,6 +826,8 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
     onHoverCluster,
     staticView = false,
     heroMap = false,
+    allowAutoRotate = false,
+    initialView,
   },
   ref
 ) {
@@ -878,7 +880,7 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
         const controller = viewer.scene.screenSpaceCameraController;
         const isCompactViewport = window.matchMedia?.("(max-width: 767px)")?.matches;
         const minCameraHeight = heroMap ? HERO_GLOBE_MIN_HEIGHT : FULL_GLOBE_MIN_HEIGHT;
-        const maxCameraHeight = heroMap ? HERO_GLOBE_MAX_HEIGHT : FULL_GLOBE_MAX_HEIGHT;
+        const maxCameraHeight = heroMap && !allowAutoRotate ? HERO_GLOBE_MAX_HEIGHT : FULL_GLOBE_MAX_HEIGHT;
         if (staticView) {
           controller.enableInputs = false;
           controller.enableRotate = false;
@@ -979,8 +981,9 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
         }
 
         // Put the camera somewhere useful before any network tiles exist, so first paint is not blank.
-        if (heroMap) {
-          viewer.camera.setView(buildTopDownView(TAIWAN_VIEW));
+        const firstView = initialView || (heroMap ? TAIWAN_VIEW : null);
+        if (firstView) {
+          viewer.camera.setView(buildTopDownView(firstView));
         } else {
           viewer.camera.setView({
             destination: staticView
@@ -1201,7 +1204,7 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
         }, 1200);
 
         function setAutoRotate(value) {
-          autoRotateRef.current = staticView || heroMap ? false : Boolean(value);
+          autoRotateRef.current = staticView || (heroMap && !allowAutoRotate) ? false : Boolean(value);
           onAutoRotateChange?.(autoRotateRef.current);
         }
 
@@ -1295,7 +1298,7 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
           if (
             !rotationReadyRef.current ||
             staticView ||
-            heroMap ||
+            (heroMap && !allowAutoRotate) ||
             !autoRotateRef.current ||
             viewer.camera.positionCartographic.height < 1800000
           ) {
@@ -1304,7 +1307,9 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
 
           viewer.scene.camera.rotate(
             Cesium.Cartesian3.UNIT_Z,
-            isCompactViewport ? -0.000055 : -0.00012
+            heroMap && allowAutoRotate
+              ? (isCompactViewport ? -0.000026 : -0.000038)
+              : (isCompactViewport ? -0.000055 : -0.00012)
           );
           clampCameraHeight();
         };
@@ -1446,7 +1451,9 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
     };
   }, [
     clusters,
+    allowAutoRotate,
     heroMap,
+    initialView,
     onAutoRotateChange,
     onBlankClick,
     onHoverCluster,
@@ -4270,7 +4277,7 @@ export function GlobalPrayerRoomPageExperience({ prayers = [] }) {
   const [countrySearchMessage, setCountrySearchMessage] = useState("");
   const activeLayers = useMemo(() => new Set(PRAYER_LAYERS.map((layer) => layer.key)), []);
   const [searchQuery, setSearchQuery] = useState("");
-  const [drawerMode, setDrawerMode] = useState("pray");
+  const [drawerMode, setDrawerMode] = useState("summary");
   const [replyText, setReplyText] = useState("");
   const [replyNotice, setReplyNotice] = useState("");
   const [replySubmitting, setReplySubmitting] = useState(false);
@@ -4376,6 +4383,9 @@ export function GlobalPrayerRoomPageExperience({ prayers = [] }) {
     if (!cluster) return;
     setSelectedCluster(cluster);
     setModalCluster(cluster);
+    setDrawerMode("summary");
+    setReplyText("");
+    setReplyNotice("");
     globeRef.current?.focusCluster?.(cluster);
   }, []);
 
@@ -4433,6 +4443,7 @@ export function GlobalPrayerRoomPageExperience({ prayers = [] }) {
     if (prayer.voiceHref) {
       queue.push({
         id: `card-${prayer.id}`,
+        homeCardId: prayer.id,
         voiceUrl: prayer.voiceHref,
         speaker: prayer.owner?.name || prayer.owner?.username || "Prayer Partner",
         message: getPrayerTitle(prayer),
@@ -4450,6 +4461,7 @@ export function GlobalPrayerRoomPageExperience({ prayers = [] }) {
             if (queue.some((track) => track.voiceUrl === item.voiceUrl)) return;
             queue.push({
               id: item.id,
+              homeCardId: prayer.id,
               voiceUrl: item.voiceUrl,
               speaker: item.isAnonymous
                 ? "Anonymous Prayer"
@@ -4461,14 +4473,14 @@ export function GlobalPrayerRoomPageExperience({ prayers = [] }) {
       }
 
       if (!queue.length) {
-        setReplyNotice("目前還沒有可播放的語音禱告。");
+        setReplyNotice("這個光點還沒有語音。你可以先留下一句代禱。");
         return;
       }
 
       setQueue(queue, 0);
       playTrack(queue[0]);
       setIsExpanded?.(true);
-      setReplyNotice("正在播放這個代禱事項的語音。");
+      setReplyNotice("正在播放這則代禱的語音。");
     } catch {
       setReplyNotice("語音暫時無法載入，請稍後再試。");
     }
@@ -4478,7 +4490,7 @@ export function GlobalPrayerRoomPageExperience({ prayers = [] }) {
     async ({ message, audioFile }) => {
       if (!drawerPrayer || replySubmitting || audioUploading) return;
       if (!authUser) {
-        setReplyNotice("請先登入，才能回覆或上傳語音禱告。");
+        setReplyNotice("請先登入，才能留下回應或上傳語音禱告。");
         return;
       }
 
@@ -4502,7 +4514,7 @@ export function GlobalPrayerRoomPageExperience({ prayers = [] }) {
         const saved = await response.json();
         window.dispatchEvent(new CustomEvent(PRAYER_RESPONSE_CREATED, { detail: saved }));
         setReplyText("");
-      setReplyNotice(audioFile ? "語音禱告已上傳。" : "已送出你的禱告回應。");
+      setReplyNotice(audioFile ? "語音禱告已送出。" : "已送出你的代禱。");
         setFlashClusterId(modalCluster?.id || selectedCluster?.id || null);
         window.setTimeout(() => setFlashClusterId(null), 1800);
       } catch (error) {
@@ -4524,7 +4536,7 @@ export function GlobalPrayerRoomPageExperience({ prayers = [] }) {
       } else if (navigator.clipboard) {
         await navigator.clipboard.writeText(url);
       }
-      setReplyNotice("分享連結已準備好。");
+      setReplyNotice("分享連結已準備好，可以邀請小組一起禱告。");
     } catch (error) {
       if (error?.name !== "AbortError") setReplyNotice("分享失敗，請稍後再試。");
     }
@@ -4542,8 +4554,8 @@ export function GlobalPrayerRoomPageExperience({ prayers = [] }) {
             <header className="gpr-page__intro">
               <div>
                 <p className="gpr-page__eyebrow">全球禱告室</p>
-                <h1 id="gpr-page-title">看見世界正在被守望</h1>
-                <p>看見全球正在被守望的禱告光點，快速定位國家、聆聽語音並加入代禱。</p>
+                <h1 id="gpr-page-title">從台灣開始，為世界禱告</h1>
+                <p>地球會慢慢轉動。你可以從台灣出發，看見世界上還有哪些人正需要被記念。</p>
               </div>
               <Link className="gpr-page__intro-link" href="/customer-portal/create">
                 新增代禱
@@ -4551,10 +4563,9 @@ export function GlobalPrayerRoomPageExperience({ prayers = [] }) {
             </header>
             {showGuide ? (
               <div className="gpr-guide" role="status">
-                <span>拖曳地球</span>
-                <span>點擊光點</span>
-                <span>播放語音</span>
-                <span>加入禱告</span>
+                <span>選一個光點</span>
+                <span>聽聽他的需要</span>
+                <span>留下一句代禱</span>
                 <button type="button" onClick={dismissGuide}>
                   我知道了
                 </button>
@@ -4576,7 +4587,7 @@ export function GlobalPrayerRoomPageExperience({ prayers = [] }) {
                     setSearchQuery(event.target.value);
                     setCountrySearchMessage("");
                   }}
-                  placeholder="搜尋國家、城市或代禱事項"
+                  placeholder="搜尋國家、城市或代禱"
                   autoComplete="off"
                 />
                 <button type="submit">前往</button>
@@ -4587,11 +4598,13 @@ export function GlobalPrayerRoomPageExperience({ prayers = [] }) {
               ref={globeRef}
               clusters={displayClusters}
               heroMap
+              allowAutoRotate
+              initialView={TAIWAN_VIEW}
               onSelectCluster={handleSelectCluster}
               onBlankClick={closePopup}
               onHoverCluster={setHoveredCluster}
               onAutoRotateChange={() => {}}
-              onReady={() => globeRef.current?.showTaiwan?.()}
+              onReady={() => globeRef.current?.setAutoRotate?.(true)}
             />
             {hoveredCluster ? (
               <div className="gpr-page__tooltip" role="status">
@@ -4665,12 +4678,7 @@ export function GlobalPrayerRoomPageExperience({ prayers = [] }) {
               <span>{formatRelativeTime(drawerPrayer?.createdAt || modalCluster.latestCreatedAt)}</span>
               {drawerPrayer?.isUrgent ? <span className="is-urgent">需要守望</span> : null}
             </div>
-            <p>{getPrayerDescription(drawerPrayer) || "這個城市有人需要被守望。"}</p>
-            {drawerPrayer?.id && !drawerPrayer?.isPrivate ? (
-              <Link className="gpr-drawer__detail-link" href={`/prayfor/${drawerPrayer.id}`} prefetch={false}>
-                查看禱告詳情
-              </Link>
-            ) : null}
+            <p>{getPrayerDescription(drawerPrayer) || "這個城市有人正需要被記念。"}</p>
             <div className="gpr-drawer__metrics">
               <article>
                 <strong>{drawerPrayer?.prayerCount || 1}</strong>
@@ -4687,81 +4695,91 @@ export function GlobalPrayerRoomPageExperience({ prayers = [] }) {
             </div>
             <div className="gpr-modal__actions">
               <button type="button" onClick={() => handlePlayAudio(drawerPrayer)}>
-                播放語音
+                聽聽這則代禱
               </button>
-              <button type="button" onClick={() => submitPrayerResponse({ message: "我已代禱" })}>
-                我已代禱
-              </button>
-              <button type="button" onClick={() => setDrawerMode("prayer")}>
-                回應
+              <button type="button" onClick={() => {
+                setDrawerMode("prayer");
+                setReplyText("");
+              }}>
+                留下一句代禱
               </button>
               <button type="button" onClick={handleSharePrayer}>
-                分享
-              </button>
-              <button type="button" onClick={() => setReplyNotice("檢舉流程沿用既有詳細頁權限與審核規則，未改動 API。")}>
-                檢舉
+                分享給小組一起禱告
               </button>
             </div>
-            <div className="gpr-response-modes" aria-label="回覆類型">
-              {[
-                ["pray", "我已代禱"],
-                ["prayer", "留下禱告"],
-                ["record", "錄製禱告"],
-                ["encouragement", "鼓勵"],
-                ["testimony", "見證"],
-              ].map(([key, label]) => (
-                <button
-                  key={key}
-                  type="button"
-                  className={drawerMode === key ? "is-active" : ""}
-                  onClick={() => {
-                    setDrawerMode(key);
-                    if (key === "pray") setReplyText("我已代禱");
-                    if (key === "encouragement") setReplyText("願你得著安慰、力量與平安。");
-                    if (key === "testimony") setReplyText("我想分享一段見證：");
-                  }}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-            {drawerMode === "record" ? (
-              <label className="gpr-audio-upload">
-                <span>{audioUploading ? "上傳中..." : "上傳語音禱告"}</span>
-                <input
-                  type="file"
-                  accept="audio/*"
-                  disabled={audioUploading}
-                  onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    if (file) submitPrayerResponse({ message: "", audioFile: file });
-                    event.target.value = "";
-                  }}
-                />
-              </label>
-            ) : (
-              <form
-                className="gpr-reply-form"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  submitPrayerResponse({ message: replyText });
-                }}
-              >
-                <textarea
-                  value={replyText}
-                  onChange={(event) => setReplyText(event.target.value)}
-                  placeholder="寫下一段簡短禱告、鼓勵或見證。"
-                  rows={3}
-                />
-                <button type="submit" disabled={replySubmitting || !replyText.trim()}>
-                  {replySubmitting ? "送出中..." : "送出回應"}
-                </button>
-              </form>
-            )}
+            {drawerMode !== "summary" ? (
+              <div className="gpr-reply-panel">
+                <div className="gpr-response-modes" aria-label="回覆類型">
+                  {[
+                    ["pray", "我已代禱"],
+                    ["prayer", "代禱"],
+                    ["record", "語音"],
+                    ["encouragement", "鼓勵"],
+                    ["testimony", "見證"],
+                  ].map(([key, label]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      className={drawerMode === key ? "is-active" : ""}
+                      onClick={() => {
+                        setDrawerMode(key);
+                        if (key === "pray") setReplyText("我已代禱");
+                        if (key === "prayer") setReplyText("");
+                        if (key === "encouragement") setReplyText("願你得著安慰、力量與平安。");
+                        if (key === "testimony") setReplyText("我想分享一段見證：");
+                      }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                  <button type="button" className="is-quiet" onClick={() => setDrawerMode("summary")}>
+                    收合
+                  </button>
+                </div>
+                {drawerMode === "record" ? (
+                  <label className="gpr-audio-upload">
+                    <span>{audioUploading ? "上傳中..." : "上傳一段語音禱告"}</span>
+                    <input
+                      type="file"
+                      accept="audio/*"
+                      disabled={audioUploading}
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (file) submitPrayerResponse({ message: "", audioFile: file });
+                        event.target.value = "";
+                      }}
+                    />
+                  </label>
+                ) : (
+                  <form
+                    className="gpr-reply-form"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      submitPrayerResponse({ message: replyText });
+                    }}
+                  >
+                    <textarea
+                      value={replyText}
+                      onChange={(event) => setReplyText(event.target.value)}
+                      placeholder="寫下一段簡短代禱、鼓勵或見證。"
+                      rows={3}
+                    />
+                    <button type="submit" disabled={replySubmitting || !replyText.trim()}>
+                      {replySubmitting ? "送出中..." : "送出回應"}
+                    </button>
+                  </form>
+                )}
+              </div>
+            ) : null}
             {replyNotice ? <p className="gpr-drawer__notice" role="status">{replyNotice}</p> : null}
+            {drawerPrayer?.id && !drawerPrayer?.isPrivate ? (
+              <Link className="gpr-drawer__detail-link" href={`/prayfor/${drawerPrayer.id}`} prefetch={false}>
+                查看完整代禱
+              </Link>
+            ) : null}
             <div className="gpr-drawer__footnote">
-              <span>登入用戶可建立新代禱事項。</span>
-              <span>訪客目前可瀏覽與分享；語音上傳沿用既有回覆 API 權限。</span>
+              <span>登入後可以建立新的代禱，也可以留下文字或語音回應。</span>
+              <span>訪客可以先瀏覽與分享，把需要帶給更多願意代禱的人。</span>
             </div>
           </article>
         </div>
@@ -5604,16 +5622,18 @@ export function GlobalPrayerRoomPageExperience({ prayers = [] }) {
           position: absolute;
           top: clamp(1rem, 3vw, 2rem);
           right: clamp(1rem, 3vw, 2rem);
-          bottom: clamp(1rem, 3vw, 2rem);
-          width: min(430px, calc(100vw - 2rem));
+          bottom: auto;
+          width: min(410px, calc(100vw - 2rem));
+          max-height: calc(100svh - 2rem);
           overflow: auto;
           border: 1px solid rgba(34, 211, 238, 0.22);
-          border-radius: 0.85rem;
-          padding: 1rem;
-          background: rgba(15, 23, 42, 0.96);
-          box-shadow: 0 30px 110px rgba(2, 6, 23, 0.55);
-          backdrop-filter: blur(22px);
+          border-radius: 1.15rem;
+          padding: 1rem 1rem 0.9rem;
+          background: linear-gradient(180deg, rgba(8, 15, 30, 0.96), rgba(3, 8, 20, 0.98));
+          box-shadow: 0 26px 90px rgba(2, 6, 23, 0.62);
+          backdrop-filter: blur(20px);
           pointer-events: auto;
+          scrollbar-width: thin;
         }
 
         .gpr-modal__close {
@@ -5636,22 +5656,24 @@ export function GlobalPrayerRoomPageExperience({ prayers = [] }) {
         }
 
         .gpr-modal__card h2 {
-          margin: 0.75rem 0 0;
+          margin: 0.55rem 0 0;
           color: #f8fafc;
-          font-size: 1.35rem;
+          font-size: clamp(1.15rem, 2vw, 1.34rem);
+          line-height: 1.32;
         }
 
         .gpr-modal__card p {
-          margin: 0.75rem 0 0;
+          margin: 0.72rem 0 0;
           color: #cbd5e1;
-          line-height: 1.75;
+          font-size: 0.93rem;
+          line-height: 1.72;
         }
 
         .gpr-modal__actions {
-          display: flex;
-          gap: 0.65rem;
-          flex-wrap: wrap;
-          margin-top: 1rem;
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 0.55rem;
+          margin-top: 0.9rem;
         }
 
         .gpr-modal__actions button,
@@ -5671,6 +5693,13 @@ export function GlobalPrayerRoomPageExperience({ prayers = [] }) {
           cursor: pointer;
         }
 
+        .gpr-modal__actions button:first-child {
+          border-color: rgba(125, 211, 252, 0.5);
+          color: #ecfeff;
+          background: linear-gradient(135deg, rgba(14, 116, 144, 0.74), rgba(8, 47, 73, 0.9));
+          box-shadow: 0 14px 30px rgba(8, 145, 178, 0.16);
+        }
+
         .gpr-drawer__location {
           display: block;
           padding-right: 4rem;
@@ -5681,17 +5710,16 @@ export function GlobalPrayerRoomPageExperience({ prayers = [] }) {
           align-items: center;
           justify-content: center;
           width: fit-content;
-          min-height: 42px;
-          margin-top: 0.85rem;
-          border: 1px solid rgba(253, 230, 138, 0.42);
+          min-height: 34px;
+          margin-top: 0.8rem;
+          border: 1px solid rgba(148, 163, 184, 0.22);
           border-radius: 999px;
-          padding: 0 1rem;
-          color: #241a05;
-          font-size: 0.86rem;
+          padding: 0 0.85rem;
+          color: #bae6fd;
+          font-size: 0.78rem;
           font-weight: 900;
           text-decoration: none;
-          background: #f7d77a;
-          box-shadow: 0 14px 34px rgba(250, 204, 21, 0.16);
+          background: rgba(15, 23, 42, 0.56);
         }
 
         .gpr-drawer__chips,
@@ -5726,12 +5754,14 @@ export function GlobalPrayerRoomPageExperience({ prayers = [] }) {
         .gpr-drawer__metrics {
           display: grid;
           grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 0.5rem;
+          margin-top: 0.85rem;
         }
 
         .gpr-drawer__metrics article {
           border: 1px solid rgba(148, 163, 184, 0.12);
           border-radius: 0.8rem;
-          padding: 0.65rem;
+          padding: 0.58rem;
           background: rgba(2, 6, 23, 0.28);
         }
 
@@ -5739,6 +5769,14 @@ export function GlobalPrayerRoomPageExperience({ prayers = [] }) {
           display: block;
           color: #fde68a;
           font-size: 1.25rem;
+        }
+
+        .gpr-reply-panel {
+          margin-top: 0.85rem;
+          border: 1px solid rgba(148, 163, 184, 0.14);
+          border-radius: 0.95rem;
+          padding: 0.72rem;
+          background: rgba(2, 6, 23, 0.32);
         }
 
         .gpr-drawer__metrics span,
@@ -5787,6 +5825,19 @@ export function GlobalPrayerRoomPageExperience({ prayers = [] }) {
           padding: 0.65rem;
           color: #fef3c7;
           background: rgba(120, 53, 15, 0.18);
+        }
+
+        .gpr-response-modes .is-quiet {
+          margin-left: auto;
+          border-color: rgba(148, 163, 184, 0.16);
+          color: #cbd5e1;
+          background: rgba(15, 23, 42, 0.32);
+        }
+
+        .gpr-drawer__footnote {
+          margin-top: 0.75rem;
+          padding-top: 0.72rem;
+          border-top: 1px solid rgba(148, 163, 184, 0.1);
         }
 
         .gpr-page__stage :global(.global-room__canvas) {
@@ -6120,7 +6171,7 @@ export function GlobalPrayerRoomPageExperience({ prayers = [] }) {
         }
 
         .gpr-modal__card {
-          background: rgba(4, 10, 22, 0.92);
+          background: linear-gradient(180deg, rgba(8, 15, 30, 0.96), rgba(3, 8, 20, 0.98));
         }
 
         .gpr-focus-listening {
@@ -6430,8 +6481,44 @@ export function GlobalPrayerRoomPageExperience({ prayers = [] }) {
             right: 0.5rem;
             bottom: 0.5rem;
             width: auto;
-            max-height: 72vh;
+            max-height: min(68vh, 620px);
             overflow: auto;
+            border-radius: 18px;
+            padding: 0.9rem;
+          }
+
+          .gpr-modal__card h2 {
+            padding-right: 3.7rem;
+            font-size: 1.1rem;
+          }
+
+          .gpr-modal__card p {
+            font-size: 0.86rem;
+            line-height: 1.62;
+          }
+
+          .gpr-drawer__metrics {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+          }
+
+          .gpr-drawer__metrics article {
+            padding: 0.48rem;
+          }
+
+          .gpr-drawer__metrics strong {
+            font-size: 1.05rem;
+          }
+
+          .gpr-modal__actions {
+            grid-template-columns: 1fr;
+          }
+
+          .gpr-response-modes {
+            gap: 0.35rem;
+          }
+
+          .gpr-response-modes button {
+            flex: 1 1 auto;
           }
 
           .gpr-page__side {

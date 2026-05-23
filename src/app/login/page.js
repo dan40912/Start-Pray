@@ -13,6 +13,12 @@ export const metadata = buildPageMetadata({
 });
 
 export default function LoginPage() {
+  const trustBullets = [
+    "你可以用暱稱或匿名回應，不一定要公開真實姓名。",
+    "登入後可以留下文字，也可以用語音為人禱告。",
+    "你可以管理自己建立的代禱和回應。",
+  ];
+
   return (
     <>
       <SiteHeader activePath="/login" />
@@ -23,8 +29,14 @@ export default function LoginPage() {
             <section className="auth-card">
               <div>
                 <h1>歡迎回來</h1>
-                <p>登入後即可管理禱告內容、追蹤互動數據並整理個人資料。</p>
+                <p>登入後，你可以建立代禱、留下回應，也可以用聲音為正在需要的人禱告。</p>
               </div>
+
+              <ul className="auth-trust-list">
+                {trustBullets.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
 
               {/* <div className="social-buttons">
                 <button className="social-button google" type="button">

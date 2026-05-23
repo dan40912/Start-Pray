@@ -17,6 +17,7 @@ const MIN_MESSAGE_LENGTH_WITHOUT_AUDIO = 8;
 const RECENT_WINDOW_MINUTES = 10;
 const SAME_CARD_COOLDOWN_MINUTES = 2;
 const MAX_RECENT_RESPONSES = 8;
+const SAME_CARD_COOLDOWN_SECONDS = SAME_CARD_COOLDOWN_MINUTES * 60;
 
 function resolveVoiceFolder(requestId) {
   const normalized = typeof requestId === "string" ? requestId.trim() : "";
@@ -109,15 +110,21 @@ export async function POST(req) {
 
     if (recentResponsesCount >= MAX_RECENT_RESPONSES) {
       return NextResponse.json(
-        { error: "Too many responses in a short period. Please try again later." },
+        { error: "短時間內送出的回應較多，請稍後再試。" },
         { status: 429 }
       );
     }
 
     if (sameCardRecentCount > 0) {
       return NextResponse.json(
-        { error: "Please wait before posting another response to this prayer card." },
-        { status: 429 }
+        {
+          error: "你剛剛已經回應過這則代禱，請約 2 分鐘後再送出下一則。",
+          retryAfterSeconds: SAME_CARD_COOLDOWN_SECONDS,
+        },
+        {
+          status: 429,
+          headers: { "Retry-After": String(SAME_CARD_COOLDOWN_SECONDS) },
+        }
       );
     }
 

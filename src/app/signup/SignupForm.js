@@ -246,7 +246,7 @@ export default function SignupForm() {
       <div className="form-grid columns-2">
         <div className="form-group">
           <label className="form-label" htmlFor="full-name">
-            暱稱 <span className="required-badge">必填</span>
+            顯示名稱（可用暱稱） <span className="required-badge">必填</span>
           </label>
           <input
             className="form-control"
@@ -257,11 +257,11 @@ export default function SignupForm() {
             onChange={updateField("fullName")}
             required
           />
-          <span className="form-helper">此欄位為公開暱稱，不是法律姓名。</span>
+          <span className="form-helper">這會顯示在公開頁。請用暱稱，不需要填真實姓名。</span>
         </div>
         <div className="form-group">
           <label className="form-label" htmlFor="username">
-            Username <span className="required-badge">必填</span>
+            站內識別 <span className="required-badge">必填</span>
           </label>
           <input
             className="form-control"
@@ -272,7 +272,7 @@ export default function SignupForm() {
             onChange={updateField("username")}
             required
           />
-          <span className="form-helper">將顯示於禱告牆與分享連結。</span>
+          <span className="form-helper">用於個人頁與分享連結，可先用暱稱格式。</span>
         </div>
         <div className="form-group">
           <label className="form-label" htmlFor="faith">
@@ -329,6 +329,9 @@ export default function SignupForm() {
       </div>
 
       <span className="form-section-title">帳戶資料</span>
+      <p className="form-privacy-note">
+        公開頁只會顯示你選擇的顯示名稱與公開內容；電子信箱不會公開。
+      </p>
       <div className="form-grid columns-2">
         <div className="form-group">
           <label className="form-label" htmlFor="signup-email">
@@ -388,7 +391,7 @@ export default function SignupForm() {
           className="form-label"
           style={{ fontWeight: 500, fontSize: "0.9rem", color: "var(--text-primary)" }}
         >
-          我已詳閱並同意 <a href="/whitepaper" target="_blank" rel="noreferrer">使用條款</a>
+          我已詳閱並同意 <a href="/whitepaper" target="_blank" rel="noreferrer">平台原則與信任說明</a>
         </label>
       </div>
 

@@ -24,6 +24,8 @@ const COMPANION_ACTIVE_CLASS = "is-companion-active";
 const COMPANION_BODY_CLASS = "companion-mode-active";
 const COMPANION_OVERLAY_CLASS = "companion-overlay-open";
 const GLOBAL_PLAYER_DEBUG_TAG = "[GlobalPlayer]";
+const COMPANION_COMMENT_LIMIT = 20;
+const COMPANION_COMMENT_MAX_LENGTH = 64;
 
 function logGlobalPlayer(event, details = {}) {
   console.log(`${GLOBAL_PLAYER_DEBUG_TAG} ${event}`, details);
@@ -70,6 +72,37 @@ function getTrackIdentity(track) {
   return null;
 }
 
+function getTrackHomeCardId(track) {
+  const value = Number(track?.homeCardId);
+  return Number.isInteger(value) && value > 0 ? value : null;
+}
+
+function truncateCompanionComment(value) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  if (text.length <= COMPANION_COMMENT_MAX_LENGTH) return text;
+  return `${text.slice(0, COMPANION_COMMENT_MAX_LENGTH).trim()}...`;
+}
+
+function getCompanionCommentAuthor(response) {
+  if (response?.isAnonymous) return "匿名代禱者";
+  const responder = response?.responder;
+  if (responder?.isBlocked) return "代禱者";
+  return responder?.name?.trim?.() || responder?.username?.trim?.() || "代禱者";
+}
+
+function normalizeCompanionComment(response, homeCardId) {
+  if (!response || response.isBlocked || Number(response.reportCount ?? 0) > 0) return null;
+  const message = truncateCompanionComment(response.message);
+  if (!message) return null;
+  return {
+    id: `${homeCardId}-${response.id}`,
+    homeCardId,
+    author: getCompanionCommentAuthor(response),
+    message,
+    createdAt: response.createdAt || null,
+  };
+}
+
 export default function GlobalPlayer() {
   const pathname = usePathname() || "";
   const prayerId = useMemo(() => parsePrayerId(pathname), [pathname]);
@@ -104,6 +137,10 @@ export default function GlobalPlayer() {
   const progressBarRef = useRef(null);
   const [isOverlayDismissed, setIsOverlayDismissed] = useState(false);
   const [overlayBackground, setOverlayBackground] = useState("");
+  const [companionComments, setCompanionComments] = useState([]);
+  const [companionCommentsLoading, setCompanionCommentsLoading] = useState(false);
+  const [companionCommentsError, setCompanionCommentsError] = useState("");
+  const companionCommentCacheRef = useRef(new Map());
   const previousTrackIdentityRef = useRef(null);
   const previousPhaseRef = useRef(playerPhase);
 
@@ -251,6 +288,29 @@ export default function GlobalPlayer() {
     !isQueueEnded &&
     !isOverlayDismissed;
 
+  const companionHomeCardIds = useMemo(() => {
+    const ids = new Set();
+    [currentTrack, ...playlist].forEach((track) => {
+      const id = getTrackHomeCardId(track);
+      if (id) ids.add(id);
+    });
+    const fallbackPrayerId = Number(prayerId);
+    if (isPrayerDetailPage && Number.isInteger(fallbackPrayerId) && fallbackPrayerId > 0) {
+      ids.add(fallbackPrayerId);
+    }
+    return Array.from(ids).slice(0, 8);
+  }, [currentTrack, isPrayerDetailPage, playlist, prayerId]);
+
+  const companionCommentLanes = useMemo(() => {
+    if (!companionComments.length) return [];
+    const firstLane = companionComments.filter((_, index) => index % 2 === 0);
+    const secondLane = companionComments.filter((_, index) => index % 2 === 1);
+    return [
+      firstLane.length ? firstLane : companionComments,
+      secondLane.length ? secondLane : companionComments.slice().reverse(),
+    ];
+  }, [companionComments]);
+
   useEffect(() => {
     if (!isPrayerDetailPage) {
       setOverlayBackground("");
@@ -306,6 +366,81 @@ export default function GlobalPlayer() {
       document.body.classList.remove(COMPANION_OVERLAY_CLASS);
     };
   }, [showCompanionOverlay]);
+
+  useEffect(() => {
+    if (!showCompanionOverlay) return undefined;
+
+    let cancelled = false;
+
+    async function loadCompanionComments() {
+      if (!companionHomeCardIds.length) {
+        setCompanionComments([]);
+        setCompanionCommentsLoading(false);
+        setCompanionCommentsError("");
+        return;
+      }
+
+      setCompanionCommentsLoading(true);
+      setCompanionCommentsError("");
+
+      try {
+        const commentGroups = await Promise.all(
+          companionHomeCardIds.map(async (homeCardId) => {
+            if (companionCommentCacheRef.current.has(homeCardId)) {
+              return companionCommentCacheRef.current.get(homeCardId);
+            }
+
+            const response = await fetch(`/api/responses/${homeCardId}`, { cache: "no-store" });
+            if (!response.ok) {
+              companionCommentCacheRef.current.set(homeCardId, []);
+              return [];
+            }
+
+            const payload = await response.json();
+            const comments = Array.isArray(payload)
+              ? payload
+                  .map((item) => normalizeCompanionComment(item, homeCardId))
+                  .filter(Boolean)
+              : [];
+            companionCommentCacheRef.current.set(homeCardId, comments);
+            return comments;
+          })
+        );
+
+        if (cancelled) return;
+
+        const seen = new Set();
+        const comments = commentGroups
+          .flat()
+          .sort((left, right) => {
+            const leftTime = left.createdAt ? new Date(left.createdAt).getTime() : 0;
+            const rightTime = right.createdAt ? new Date(right.createdAt).getTime() : 0;
+            return rightTime - leftTime;
+          })
+          .filter((comment) => {
+            if (seen.has(comment.id)) return false;
+            seen.add(comment.id);
+            return true;
+          })
+          .slice(0, COMPANION_COMMENT_LIMIT);
+
+        setCompanionComments(comments);
+      } catch (error) {
+        if (cancelled) return;
+        console.warn("[GlobalPlayer] failed to load companion comments", error);
+        setCompanionComments([]);
+        setCompanionCommentsError("文字留言暫時無法載入，語音仍可播放。");
+      } finally {
+        if (!cancelled) setCompanionCommentsLoading(false);
+      }
+    }
+
+    loadCompanionComments();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [companionHomeCardIds, showCompanionOverlay]);
 
   const handleProgressClick = (event) => {
     if (!hasQueue || !progressBarRef.current || effectiveDuration <= 0) return;
@@ -495,6 +630,37 @@ export default function GlobalPlayer() {
                 </div>
               </article>
             </div>
+
+            <section className="companion-overlay__comments" aria-label="播放清單中的文字陪伴">
+              {companionCommentLanes.length ? (
+                <div className="companion-overlay__marquee" aria-live="polite">
+                  {companionCommentLanes.map((lane, laneIndex) => (
+                    <div
+                      className={`companion-overlay__marquee-lane is-lane-${laneIndex + 1}`}
+                      key={`lane-${laneIndex}`}
+                    >
+                      <div className="companion-overlay__marquee-track">
+                        {[...lane, ...lane].map((comment, index) => (
+                          <span
+                            className="companion-overlay__comment-pill"
+                            key={`${comment.id}-${laneIndex}-${index}`}
+                          >
+                            <b>{comment.author}</b>
+                            <span>{comment.message}</span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="companion-overlay__comment-empty" role="status">
+                  {companionCommentsLoading
+                    ? "正在整理文字陪伴..."
+                    : companionCommentsError || "還在等第一句文字陪伴。"}
+                </p>
+              )}
+            </section>
           </div>
         </section>
       ) : null}

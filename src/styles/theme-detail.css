@@ -1443,11 +1443,127 @@
 }
 
 .pdv2-content-card,
-.pdv2-comments-card {
+.pdv2-comments-card,
+.pdv2-companion-panel {
   background: rgba(6, 14, 28, 0.86);
   border: 1px solid rgba(148, 163, 184, 0.22);
   border-radius: 22px;
   box-shadow: 0 20px 44px -34px rgba(2, 10, 28, 0.82);
+}
+
+.pdv2-companion-panel {
+  display: grid;
+  gap: 1rem;
+  padding: clamp(1rem, 2.3vw, 1.35rem);
+}
+
+.pdv2-companion-panel__intro {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.pdv2-companion-panel__intro span {
+  width: fit-content;
+  border: 1px solid rgba(125, 211, 252, 0.32);
+  border-radius: 999px;
+  padding: 0.18rem 0.62rem;
+  color: rgba(186, 230, 253, 0.96);
+  background: rgba(14, 165, 233, 0.14);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.pdv2-companion-panel__intro h2,
+.pdv2-companion-panel__intro p {
+  margin: 0;
+}
+
+.pdv2-companion-panel__intro h2 {
+  color: #f8fbff;
+  font-size: clamp(1.25rem, 2.2vw, 1.65rem);
+}
+
+.pdv2-companion-panel__intro p {
+  color: rgba(226, 232, 240, 0.84);
+  line-height: 1.7;
+}
+
+.pdv2-companion-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.pdv2-companion-action {
+  display: grid;
+  gap: 0.35rem;
+  align-content: start;
+  min-height: 136px;
+  border: 1px solid rgba(148, 163, 184, 0.26);
+  border-radius: 14px;
+  padding: 0.9rem;
+  color: rgba(241, 245, 249, 0.96);
+  background: rgba(15, 23, 42, 0.62);
+  text-decoration: none;
+}
+
+.pdv2-companion-action:hover,
+.pdv2-companion-action:focus-visible {
+  border-color: rgba(125, 211, 252, 0.62);
+}
+
+.pdv2-companion-action strong {
+  color: #f8fbff;
+  font-size: 1rem;
+}
+
+.pdv2-companion-action span {
+  color: rgba(203, 213, 225, 0.86);
+  line-height: 1.55;
+  font-size: 0.9rem;
+}
+
+.pdv2-companion-action--share .pray-actions {
+  margin-top: auto;
+}
+
+.pdv2-companion-action--share .pray-actions__row {
+  justify-content: flex-start;
+}
+
+.pdv2-sticky-actions {
+  position: sticky;
+  bottom: max(0.75rem, env(safe-area-inset-bottom));
+  z-index: 130;
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  width: min(560px, calc(100% - 1.5rem));
+  margin: 1rem auto 0;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 999px;
+  padding: 0.45rem;
+  background: rgba(4, 12, 26, 0.92);
+  box-shadow: 0 22px 48px -30px rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(12px);
+}
+
+.pdv2-sticky-actions a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  border-radius: 999px;
+  padding: 0 0.9rem;
+  color: rgba(241, 245, 249, 0.96);
+  font-size: 0.86rem;
+  font-weight: 800;
+  background: rgba(15, 23, 42, 0.78);
+}
+
+.pdv2-sticky-actions a:first-child {
+  background: linear-gradient(135deg, #1d4ed8, #0ea5e9);
+  color: #fff;
 }
 
 .pdv2-content-card {
@@ -1497,6 +1613,28 @@
 
 .pdv2-comments-card .comments__subtitle {
   color: rgba(191, 219, 254, 0.82);
+}
+
+.comments__skeleton {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.comments__skeleton span {
+  display: block;
+  height: 58px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background:
+    linear-gradient(90deg, rgba(15, 23, 42, 0.72), rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.72));
+  background-size: 220% 100%;
+  animation: pdv2-skeleton 1.4s ease-in-out infinite;
+}
+
+@keyframes pdv2-skeleton {
+  50% {
+    background-position: 100% 0;
+  }
 }
 
 .pdv2-comments-card .comments__list {
@@ -1863,6 +2001,14 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .pdv2-companion-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .pdv2-companion-action {
+    min-height: 0;
+  }
+
   .pdv2-player {
     width: calc(100% - 12px);
     padding: 0.7rem 0.7rem 0.78rem;
@@ -1980,8 +2126,19 @@
   .pdv2-hero-card,
   .pdv2-content-card,
   .pdv2-comments-card,
+  .pdv2-companion-panel,
   .pdv2-related-section {
     border-radius: 16px;
+  }
+
+  .pdv2-sticky-actions {
+    width: calc(100% - 1rem);
+    border-radius: 16px;
+  }
+
+  .pdv2-sticky-actions a {
+    flex: 1 1 0;
+    padding: 0 0.55rem;
   }
 
   .pdv2-hero-image-wrap {

@@ -190,6 +190,15 @@ function filterFallbackCards(options = {}) {
       const bCount = b?._count?.responses ?? b?.responsesCount ?? 0;
       return bCount - aCount;
     });
+  } else if (sort === "needsPrayer") {
+    results.sort((a, b) => {
+      const aCount = a?._count?.responses ?? a?.responsesCount ?? 0;
+      const bCount = b?._count?.responses ?? b?.responsesCount ?? 0;
+      if (aCount !== bCount) return aCount - bCount;
+      const aDate = a?.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const bDate = b?.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return bDate - aDate;
+    });
   } else if (sort === "recent" || sort === "created") {
     results.sort((a, b) => {
       const aDate = a?.createdAt ? new Date(a.createdAt).getTime() : 0;

@@ -128,7 +128,9 @@ function rewriteLegacyRequest(request) {
   if (pathname === "/legacy" || pathname === "/legacy/") {
     const url = nextUrl.clone();
     url.pathname = "/legacy/index.html";
-    return NextResponse.rewrite(url);
+    const response = NextResponse.rewrite(url);
+    response.headers.set("X-Robots-Tag", "noindex, nofollow");
+    return response;
   }
 
   if (!pathname.startsWith("/legacy/")) {
@@ -148,7 +150,9 @@ function rewriteLegacyRequest(request) {
 
   const url = nextUrl.clone();
   url.pathname = `${pathname}.html`;
-  return NextResponse.rewrite(url);
+  const response = NextResponse.rewrite(url);
+  response.headers.set("X-Robots-Tag", "noindex, nofollow");
+  return response;
 }
 
 export async function middleware(request) {
@@ -160,6 +164,12 @@ export async function middleware(request) {
   const legacyResponse = rewriteLegacyRequest(request);
   if (legacyResponse) {
     return legacyResponse;
+  }
+
+  if (request.nextUrl.pathname.startsWith("/legacy/")) {
+    const response = NextResponse.next();
+    response.headers.set("X-Robots-Tag", "noindex, nofollow");
+    return response;
   }
 
   return NextResponse.next();

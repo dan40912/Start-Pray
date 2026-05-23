@@ -116,6 +116,7 @@ export default async function PrayerDetailPage({ params }) {
   const initialTrack = normalizedVoiceHref
     ? {
         id: `primary-${card.id}`,
+        homeCardId: card.id,
         voiceUrl: normalizedVoiceHref,
         speaker: ownerName,
         message: card.title,
@@ -169,7 +170,7 @@ export default async function PrayerDetailPage({ params }) {
                 <h1>{card.title}</h1>
                 <div className="pdv2-hero-actions">
                   <Link href="#responses-panel" prefetch={false} className="pdv2-follow-btn">
-                    留下回應
+                    留下一句代禱
                   </Link>
                   <PrayerRequestActions
                     cardId={card.id}
@@ -177,6 +178,7 @@ export default async function PrayerDetailPage({ params }) {
                     title={card.title}
                     description={plainDescription}
                     reportCount={card.reportCount}
+                    shareLabel="分享給小組"
                   />
                 </div>
               </div>
@@ -189,6 +191,36 @@ export default async function PrayerDetailPage({ params }) {
               </div>
             </div>
           </article>
+
+          <section className="pdv2-companion-panel" aria-labelledby="companion-actions-title">
+            <div className="pdv2-companion-panel__intro">
+              <span>下一步可以這樣做</span>
+              <h2 id="companion-actions-title">你可以怎麼為他禱告</h2>
+              <p>不需要寫得很長。一句禱告、一段短短的聲音，或把這則需要帶回小組，都可能成為他的支持。</p>
+            </div>
+            <div className="pdv2-companion-actions">
+              <Link href="#response-composer" prefetch={false} className="pdv2-companion-action">
+                <strong>留下一句代禱</strong>
+                <span>可以是一句祝福、一段經文，或很簡短的禱告。</span>
+              </Link>
+              <Link href="#response-composer" prefetch={false} className="pdv2-companion-action">
+                <strong>錄一段語音</strong>
+                <span>登入後可以錄下一小段聲音，讓對方真的聽見有人為他禱告。</span>
+              </Link>
+              <div className="pdv2-companion-action pdv2-companion-action--share">
+                <strong>分享給小組</strong>
+                <span>把連結帶給信任的人，一起為這件事禱告。</span>
+                <PrayerRequestActions
+                  cardId={card.id}
+                  canonicalUrl={`/prayfor/${card.id}`}
+                  title={card.title}
+                  description={plainDescription}
+                  reportCount={card.reportCount}
+                  shareLabel="複製分享連結"
+                />
+              </div>
+            </div>
+          </section>
 
           <article className="pdv2-content-card">
             <div className="pdv2-content-body" dangerouslySetInnerHTML={{ __html: descriptionHtml }} />
@@ -276,6 +308,18 @@ export default async function PrayerDetailPage({ params }) {
               </div>
             </section>
           ) : null}
+        </div>
+
+        <div className="pdv2-sticky-actions" aria-label="快速陪伴行動">
+          <Link href="#response-composer" prefetch={false}>
+            留下一句代禱
+          </Link>
+          <Link href="#response-composer" prefetch={false}>
+            錄語音
+          </Link>
+          <Link href={`/login?next=/prayfor/${card.id}`} prefetch={false}>
+            登入回應
+          </Link>
         </div>
       </main>
 

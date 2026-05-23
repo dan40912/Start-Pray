@@ -17,6 +17,8 @@ export default function LoginForm() {
   const searchParams = useSearchParams();
   const [form, setForm] = useState(initialForm);
   const [status, setStatus] = useState({ state: "idle", message: "" });
+  const [showPassword, setShowPassword] = useState(false);
+  const [capsLockOn, setCapsLockOn] = useState(false);
 
   const updateField = (field) => (event) => {
     setForm((prev) => ({ ...prev, [field]: event.target.value }));
@@ -76,34 +78,41 @@ export default function LoginForm() {
         </label>
         <input
           className="form-control"
-          type="password"
+          type={showPassword ? "text" : "password"}
           id="login-password"
           placeholder="至少 8 碼"
           value={form.password}
           onChange={updateField("password")}
+          onKeyUp={(event) => setCapsLockOn(Boolean(event.getModifierState?.("CapsLock")))}
+          onBlur={() => setCapsLockOn(false)}
           required
         />
+        <button
+          type="button"
+          className="auth-inline-button"
+          onClick={() => setShowPassword((prev) => !prev)}
+          aria-pressed={showPassword}
+        >
+          {showPassword ? "隱藏密碼" : "顯示密碼"}
+        </button>
         <span className="form-helper">
           忘記密碼？{" "}
           <Link href="/forgot-password" prefetch={false}>
             前往重設密碼
           </Link>
         </span>
+        {capsLockOn ? <span className="form-helper form-helper--warning">Caps Lock 已開啟。</span> : null}
       </div>
-      {status.message && (
-        <div
-          role="alert"
-          style={{
-            marginBottom: "1rem",
-            padding: "0.9rem 1rem",
-            borderRadius: "0.75rem",
-            background: status.state === "success" ? "rgba(34,197,94,0.15)" : "rgba(248,113,113,0.15)",
-            color: status.state === "success" ? "#166534" : "#991b1b",
-          }}
-        >
-          {status.message}
-        </div>
-      )}
+      <div className="auth-status-slot" aria-live="polite">
+        {status.message ? (
+          <div
+            role="alert"
+            className={`auth-status auth-status--${status.state === "success" ? "success" : "error"}`}
+          >
+            {status.message}
+          </div>
+        ) : null}
+      </div>
       <button type="submit" className="btn btn-primary" style={{ width: "100%", justifyContent: "center" }} disabled={status.state === "loading"}>
         {status.state === "loading" ? "驗證中" : "登入會員中心"}
       </button>

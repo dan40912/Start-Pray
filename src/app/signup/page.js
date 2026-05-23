@@ -6,7 +6,7 @@ import SignupForm from "./SignupForm";
 
 export const metadata = buildPageMetadata({
   title: "註冊",
-  description: "建立 Start Pray 帳號，開始發佈禱告內容並用文字或語音彼此陪伴。",
+  description: "建立 Start Pray 帳號，分享代禱需要，也用文字或語音為人禱告。",
   path: "/signup",
   noIndex: true,
 });
@@ -15,17 +15,17 @@ const stepItems = [
   {
     index: "1",
     title: "分享你的聲音",
-    description: "錄下禱告或心聲，勇敢說出你的需要。"
+    description: "可以先說出你的禱告或心聲，不需要一次講得很完整。"
   },
   {
     index: "2",
     title: "有人會聽見",
-    description: "你的聲音不會孤單，社群會真實回應。"
+    description: "你的聲音不會只是留在原地，願意代禱的人可以真實回應。"
   },
   {
     index: "3",
     title: "彼此陪伴",
-    description: "透過語音與文字交流，建立溫暖的連結。"
+    description: "透過文字和語音，一起參與別人的負擔。"
   }
 ];
 
@@ -43,8 +43,8 @@ export default function SignupPage() {
                 <span className="badge-mini">STEP 1 · 分享你的聲音</span>
                 <h1>讓你的聲音被聽見</h1>
                 <p>
-                  只要幾分鐘，分享你的禱告或心聲，別人就能透過語音回應，
-                  給你真實的陪伴與支持。
+                  只要幾分鐘，分享你的禱告或心聲，別人就能用文字或聲音回應你，
+                  讓你知道有人正在一起禱告。
                 </p>
               </div>
 
@@ -75,7 +75,7 @@ export default function SignupPage() {
               <div>
                 <h1>建立 Start Pray 帳戶</h1>
                 <p>
-                  註冊後你可以立即錄下禱告，讓別人聽見並回應，從陪伴中獲得力量。
+                  可以先用暱稱建立帳戶。公開頁只會顯示你選擇的名稱，電子信箱只用於登入與帳號通知。
                 </p>
               </div>
 {/* 

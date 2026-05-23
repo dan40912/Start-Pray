@@ -60,6 +60,9 @@ function buildOrder(sort) {
   if (sort === "responses") {
     return [{ responses: { _count: "desc" } }, { createdAt: "desc" }];
   }
+  if (sort === "needsPrayer") {
+    return [{ responses: { _count: "asc" } }, { createdAt: "desc" }];
+  }
   if (sort === "recent" || sort === "created") {
     return [{ createdAt: "desc" }];
   }

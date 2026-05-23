@@ -4,21 +4,25 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 
 import { GlobalPrayerRoomEmbed } from "@/components/GlobalPrayerRoom";
+import { useAuthSession } from "@/hooks/useAuthSession";
 
 const TEXT = {
   eyebrow: "全球禱告室",
-  kicker: "一起守望世界",
-  headline: "看見世界正在被守望",
-  subheadline: "每一個光點，都是一個人、一座城市，或一個正在被主記念的需要。",
-  primaryCta: "分享代禱需要",
+  kicker: "一起為世界禱告",
+  headline: "看見世界正在被記念",
+  subheadline: "每一個光點，可能是一個人、一座城市，或一個還不知道怎麼開口的需要。你可以先看見，再聽聽，然後用你的方式參與。",
+  primaryCta: "分享我的代禱",
+  guestPrimaryCta: "先看禱告牆",
   roomCta: "進入全球禱告室",
   totalPrayers: "代禱事項",
   locationLights: "地點光點",
   todayNew: "24 小時內新增",
   audioPrayers: "語音禱告",
   emptyTitle: "還沒有可顯示的禱告光點",
-  emptyCopy: "分享第一個代禱事項，讓世界地圖亮起來。",
+  emptyCopy: "你可以分享第一個代禱，讓地圖先亮起一個光點。",
 };
+
+const TRUST_CHIPS = ["可匿名", "可語音", "不顯示精準位置"];
 
 function isMappablePrayer(prayer) {
   return Number.isFinite(Number(prayer?.locationLat)) && Number.isFinite(Number(prayer?.locationLng));
@@ -46,14 +50,14 @@ function toPlainText(value) {
 }
 
 function getPrayerTitle(prayer) {
-  if (!prayer) return "待守望的禱告";
+  if (!prayer) return "等待被記念的禱告";
   return prayer.isPrivate ? "匿名代禱" : prayer.title || "未命名代禱";
 }
 
 function getPrayerExcerpt(prayer) {
-  if (!prayer) return "點擊地球上的光點後，這裡會整理出該地點的禱告內容。";
-  if (prayer.isPrivate) return "這是一則私密代禱，請以溫柔與尊重守望。";
-  return toPlainText(prayer.description).slice(0, 96) || "這則代禱尚未提供更多細節。";
+  if (!prayer) return "點擊地球上的光點後，這裡會整理出這個地點的代禱內容。";
+  if (prayer.isPrivate) return "這是一則私密代禱，請用溫柔和尊重為他禱告。";
+  return toPlainText(prayer.description).slice(0, 96) || "這則代禱還沒有寫下更多細節。";
 }
 
 function getPrayerLocation(prayer, cluster) {
@@ -106,6 +110,7 @@ export default function HomeGlobeHero({
   secondaryHref = "/customer-portal/create",
   stats = {},
 }) {
+  const authUser = useAuthSession();
   const globeRef = useRef(null);
   const [selectedCluster, setSelectedCluster] = useState(null);
   const [activePrayerId, setActivePrayerId] = useState(null);
@@ -118,6 +123,8 @@ export default function HomeGlobeHero({
   const liveCount = Number(String(stats.todayNew || 0).replace(/,/g, ""));
   const modalPrayers = selectedCluster?.prayers || [];
   const modalLocation = selectedCluster?.fullLabel || getPrayerLocation(latestPrayer, null);
+  const primaryCtaHref = authUser ? secondaryHref : "/prayfor";
+  const primaryCtaLabel = authUser ? TEXT.primaryCta : TEXT.guestPrimaryCta;
 
   useEffect(() => {
     if (!activePrayerId && latestPrayer?.id) setActivePrayerId(latestPrayer.id);
@@ -171,9 +178,14 @@ export default function HomeGlobeHero({
         <span className="home-intel-brief__kicker">{TEXT.kicker}</span>
         <h1 id="home-map-title">{TEXT.headline}</h1>
         <span>{TEXT.subheadline}</span>
+        <div className="home-intel-trust" aria-label="Start Pray 使用保障">
+          {TRUST_CHIPS.map((chip) => (
+            <span key={chip}>{chip}</span>
+          ))}
+        </div>
         <div className="home-intel-brief__actions">
-          <Link href={secondaryHref} className="button button--primary" prefetch={false}>
-            {TEXT.primaryCta}
+          <Link href={primaryCtaHref} className="button button--primary" prefetch={false}>
+            {primaryCtaLabel}
           </Link>
           <Link href={primaryHref} className="button button--ghost" prefetch={false}>
             {TEXT.roomCta}
@@ -186,7 +198,7 @@ export default function HomeGlobeHero({
           <span><b>{stats.audioPrayers}</b> {TEXT.audioPrayers}</span>
         </div>
         <p className="home-intel-brief__hint">
-          已鎖定最新上傳的禱告光點。點擊地球上的光點，右側會整理出該地點的禱告事項。
+          你可以點擊地球上的光點，看看那個地方現在有哪些代禱需要。
         </p>
       </div>
 
@@ -204,9 +216,9 @@ export default function HomeGlobeHero({
           <button className="home-prayer-modal__close" type="button" onClick={closeModal}>
             關閉
           </button>
-          <span className="home-prayer-modal__eyebrow">此地點的代禱</span>
+          <span className="home-prayer-modal__eyebrow">這裡的代禱</span>
           <h2>{modalLocation}</h2>
-          <p>這個光點目前集合了 {modalPrayers.length} 筆代禱。你可以先看簡短內容，再進入完整頁面。</p>
+          <p>這個光點目前有 {modalPrayers.length} 筆代禱。你可以先看一下內容，再決定要不要進入完整頁面。</p>
           <div className="home-prayer-modal__list">
             {modalPrayers.length ? (
               modalPrayers.slice(0, 6).map((prayer) => (
@@ -223,8 +235,8 @@ export default function HomeGlobeHero({
               ))
             ) : (
               <article>
-                <h3>尚未找到公開內容</h3>
-                <p>這個光點仍值得被守望，請為此地的人與需要安靜代禱。</p>
+                <h3>目前還沒有公開內容</h3>
+                <p>即使還沒有細節，這個地方仍然可以被記念。請為這裡的人安靜禱告。</p>
               </article>
             )}
           </div>
@@ -235,12 +247,13 @@ export default function HomeGlobeHero({
         <div className="home-map-hero__empty">
           <strong>{TEXT.emptyTitle}</strong>
           <span>{TEXT.emptyCopy}</span>
-          <Link href={secondaryHref}>{TEXT.primaryCta}</Link>
+          <Link href={primaryCtaHref}>{primaryCtaLabel}</Link>
         </div>
       ) : null}
 
       <style jsx>{`
         .home-map-hero {
+          --home-hero-body-size: 1rem;
           position: relative;
           left: 50%;
           right: 50%;
@@ -343,9 +356,9 @@ export default function HomeGlobeHero({
         .home-intel-brief p,
         .home-intel-brief__kicker {
           color: #67e8f9;
-          font-size: 0.66rem;
+          font-size: var(--home-hero-body-size);
           font-weight: 900;
-          letter-spacing: 0.14em;
+          letter-spacing: 0;
           text-transform: uppercase;
         }
 
@@ -353,7 +366,7 @@ export default function HomeGlobeHero({
           display: block;
           margin-top: 0.48rem;
           color: rgba(253, 230, 138, 0.92);
-          letter-spacing: 0.08em;
+          letter-spacing: 0;
         }
 
         .home-intel-brief h1 {
@@ -370,7 +383,7 @@ export default function HomeGlobeHero({
           margin-top: 0.75rem;
           max-width: 34rem;
           color: rgba(255, 247, 237, 0.86);
-          font-size: clamp(0.98rem, 1.35vw, 1.12rem);
+          font-size: var(--home-hero-body-size);
           line-height: 1.72;
         }
 
@@ -382,6 +395,28 @@ export default function HomeGlobeHero({
           align-items: center;
         }
 
+        .home-intel-trust {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.45rem;
+          margin-top: 0.95rem;
+        }
+
+        .home-intel-trust span {
+          display: inline-flex;
+          align-items: center;
+          min-height: 28px;
+          border: 1px solid rgba(125, 211, 252, 0.32);
+          border-radius: 999px;
+          padding: 0.18rem 0.68rem;
+          color: rgba(248, 250, 252, 0.92);
+          background: rgba(15, 23, 42, 0.52);
+          font-size: var(--home-hero-body-size);
+          font-weight: 800;
+          letter-spacing: 0 !important;
+          text-transform: none !important;
+        }
+
         .home-intel-brief__actions :global(.button) {
           display: inline-flex;
           align-items: center;
@@ -389,7 +424,7 @@ export default function HomeGlobeHero({
           min-height: 42px;
           border-radius: 999px;
           padding: 0 1rem;
-          font-size: 0.88rem;
+          font-size: var(--home-hero-body-size);
           font-weight: 900;
           line-height: 1;
           text-align: center;
@@ -421,13 +456,13 @@ export default function HomeGlobeHero({
           display: grid;
           gap: 0.08rem;
           color: rgba(226, 232, 240, 0.72);
-          font-size: 0.76rem;
+          font-size: var(--home-hero-body-size);
           letter-spacing: 0.02em;
         }
 
         .home-intel-stats b {
           color: #fde68a;
-          font-size: 1rem;
+          font-size: inherit;
         }
 
         .home-intel-brief__hint {
@@ -436,7 +471,7 @@ export default function HomeGlobeHero({
           border-radius: 16px;
           padding: 0.8rem;
           color: rgba(255, 247, 237, 0.8) !important;
-          font-size: 0.88rem !important;
+          font-size: var(--home-hero-body-size) !important;
           line-height: 1.6;
           background: rgba(255, 247, 237, 0.08);
           letter-spacing: 0 !important;
@@ -647,10 +682,28 @@ export default function HomeGlobeHero({
 
           .home-intel-brief > p,
           .home-intel-brief__kicker,
-          .home-intel-brief > span:not(.home-intel-brief__kicker),
           .home-intel-stats,
           .home-intel-brief__hint {
             display: none;
+          }
+
+          .home-intel-brief > span:not(.home-intel-brief__kicker) {
+            display: block;
+            margin-top: 0.55rem;
+            max-width: 100%;
+            font-size: var(--home-hero-body-size);
+            line-height: 1.5;
+          }
+
+          .home-intel-trust {
+            margin-top: 0.7rem;
+            gap: 0.35rem;
+          }
+
+          .home-intel-trust span {
+            min-height: 26px;
+            padding: 0.16rem 0.56rem;
+            font-size: var(--home-hero-body-size);
           }
 
           .home-intel-brief h1 {
@@ -670,7 +723,7 @@ export default function HomeGlobeHero({
             width: 100%;
             min-height: 44px;
             padding: 0 0.75rem;
-            font-size: 0.86rem;
+            font-size: var(--home-hero-body-size);
           }
 
           .home-prayer-modal {

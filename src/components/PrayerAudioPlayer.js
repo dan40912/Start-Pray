@@ -16,6 +16,7 @@ export default function PrayerAudioPlayer({ requestId, initialTrack = null, pray
     if (!initialTrack || !initialTrack.voiceUrl) return null;
     return {
       id: initialTrack.id ?? "primary-track",
+      homeCardId: initialTrack.homeCardId ?? requestId,
       voiceUrl: initialTrack.voiceUrl,
       speaker: initialTrack.speaker?.trim() || FALLBACK_SPEAKER,
       message: initialTrack.message?.trim() || "",
@@ -23,7 +24,7 @@ export default function PrayerAudioPlayer({ requestId, initialTrack = null, pray
       responderId: initialTrack.responderId ?? null,
       requestTitle: initialTrack.requestTitle || prayerTitle || "社群禱告",
     };
-  }, [initialTrack, prayerTitle]);
+  }, [initialTrack, prayerTitle, requestId]);
 
   const fetchResponseTracks = useCallback(async () => {
     const res = await fetch(`/api/responses/${requestId}`, { cache: "no-store" });
@@ -40,6 +41,7 @@ export default function PrayerAudioPlayer({ requestId, initialTrack = null, pray
       )
       .map((item, index) => ({
         id: item.id ?? `response-${index}`,
+        homeCardId: item.homeCardId ?? requestId,
         voiceUrl: item.voiceUrl,
         speaker: item.isAnonymous
           ? "匿名代禱者"

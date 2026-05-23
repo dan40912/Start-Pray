@@ -31,7 +31,7 @@ const FOOTER_COLUMNS = [
   {
     title: "信任與條款",
     links: [
-      { href: "/whitepaper", label: "使用條款" },
+      { href: "/whitepaper", label: "平台原則與信任說明" },
     ],
   },
   {
@@ -47,7 +47,7 @@ const FOOTER_COLUMNS = [
 const SOCIAL_LINKS = [
   {
     href: "https://github.com/dan40912/Start-Pray",
-    label: "GitHub",
+    label: "開源儲存庫",
     icon: "github",
     external: true,
   },
@@ -218,7 +218,7 @@ export function SiteFooter() {
             </Link>
             <div>
               <strong>Start Pray</strong>
-              <p>讓需要幫助的人能安全說出來，讓願意代禱的人能真實回應，也讓得勝故事能被看見。</p>
+              <p>讓需要被守望的人能安全說出來，讓願意代禱的人能真實回應。</p>
               <div className="footer-socials" aria-label="Start Pray 社群連結">
                 {SOCIAL_LINKS.map((link) =>
                   link.href ? (
@@ -272,7 +272,7 @@ export function SiteFooter() {
           <span>&copy; 2026 Start Pray. All rights reserved.</span>
           <div className="footer-legal">
             <Link href="/whitepaper" prefetch={false}>
-              使用條款
+              平台原則與信任說明
             </Link>
           </div>
         </div>

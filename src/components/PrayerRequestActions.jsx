@@ -25,6 +25,7 @@ export default function PrayerRequestActions({
   title,
   description,
   reportCount: initialReportCount = 0,
+  shareLabel = "分享代禱",
 }) {
   const authUser = useAuthSession();
   const menuRef = useRef(null);
@@ -95,14 +96,14 @@ export default function PrayerRequestActions({
           text: shareText,
           url: shareUrl,
         });
-        setNotice("分享連結已準備好。");
+        setNotice("分享連結已準備好，可以邀請小組一起守望。");
         setNoticeType("success");
         return;
       }
 
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(shareUrl);
-        setNotice("連結已複製。");
+        setNotice("連結已複製，可以貼到小組或私訊中。");
         setNoticeType("success");
         return;
       }
@@ -116,7 +117,7 @@ export default function PrayerRequestActions({
       textarea.select();
       try {
         document.execCommand("copy");
-        setNotice("連結已複製。");
+        setNotice("連結已複製，可以貼到小組或私訊中。");
         setNoticeType("success");
       } finally {
         textarea.remove();
@@ -191,7 +192,7 @@ export default function PrayerRequestActions({
 
       <div className="pray-actions__row" ref={menuRef}>
         <button type="button" className="pdv2-share-btn" onClick={handleShare}>
-          分享代禱
+          {shareLabel}
         </button>
         <div className={`pray-actions__menu${isMenuOpen ? " is-open" : ""}`}>
           <button

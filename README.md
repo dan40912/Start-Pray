@@ -76,7 +76,7 @@ Start Pray 比較在意的是：先照顧人，再追求漂亮的技術。
 Email:
 
 ```text
-dan40912@gmail.com
+startpraynow@gmail.com
 ```
 
 GitHub:
@@ -84,5 +84,4 @@ GitHub:
 ```text
 https://github.com/dan40912/Start-Pray
 ```
-
 
