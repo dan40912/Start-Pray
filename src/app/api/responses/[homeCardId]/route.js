@@ -4,6 +4,7 @@ import { resolveServerAudioUrl } from "@/lib/server-audio";
 
 const SAFE_RESPONSE_SELECT = {
   id: true,
+  homeCardId: true,
   message: true,
   voiceUrl: true,
   isAnonymous: true,

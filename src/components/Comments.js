@@ -1,100 +1,26 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { PRAYER_RESPONSE_CREATED } from "@/lib/events";
+import { getDictionary, localizePath, normalizeLocale } from "@/lib/i18n";
 import { buildOvercomerSlug } from "@/lib/overcomer";
 
 import { REPORT_REASONS } from "@/constants/reportReasons";
 
-// ===== Recorder debug helpers =====
-const DEBUG = false;
-const DEBUG_TAG = "[Recorder]";
-function logDebug(...args) {
-  if (!DEBUG) return;
-  const ts = new Date().toLocaleTimeString("zh-TW", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    fractionalSecondDigits: 3,
-  });
-  // eslint-disable-next-line no-console
-  console.log(DEBUG_TAG, `[${ts}]`, ...args);
-}
-
-// ===== Recording configuration =====
-const MAX_RECORD_SECONDS = 120;
-const COUNTDOWN_START = 3;
-const DEFAULT_SAMPLE_RATE = 16000;
-const DEFAULT_BITRATE = 128000;
-const SAME_CARD_RESPONSE_COOLDOWN_SECONDS = 120;
-
-// Prefer WebM/Opus when supported, then fall back through safer recorder formats.
-const RECORDING_FORMATS = [
-  { mimeType: "audio/webm;codecs=opus", extension: "webm" },
-  { mimeType: "audio/webm", extension: "webm" },
-  { mimeType: "audio/ogg;codecs=opus", extension: "ogg" },
-  { mimeType: "audio/mp4;codecs=mp4a.40.2", extension: "m4a" },
-  { mimeType: "audio/mpeg", extension: "mp3" },
-  { mimeType: "", extension: "webm" },
-];
-
-function resolveRecordingFormat() {
-  if (typeof window === "undefined" || typeof MediaRecorder === "undefined") {
-    return RECORDING_FORMATS[0];
-  }
-  for (const format of RECORDING_FORMATS) {
-    if (!format.mimeType || MediaRecorder.isTypeSupported(format.mimeType)) {
-      return format;
-    }
-  }
-  return { mimeType: "", extension: "webm" };
-}
-
-function getExtensionFromMime(mime = "") {
-  const value = mime.toLowerCase();
-  if (value.includes("mpeg")) return "mp3";
-  if (value.includes("mp4")) return "m4a";
-  if (value.includes("ogg")) return "ogg";
-  if (value.includes("webm")) return "webm";
-  const parts = value.split("/");
-  return parts[1]?.split(";")[0] || "webm";
-}
-
-function createMediaRecorderWithFallback(stream) {
-  const format = resolveRecordingFormat();
-  const options = format.mimeType
-    ? { mimeType: format.mimeType, audioBitsPerSecond: DEFAULT_BITRATE }
-    : {};
-
-  let recorder;
-  try {
-    recorder = new MediaRecorder(stream, options);
-  } catch (e) {
-    // Retry without forcing mimeType when the preferred option is rejected.
-    recorder = new MediaRecorder(stream);
-    // Use the recorder's actual mimeType so the extension matches the output.
-    format.mimeType = recorder.mimeType;
-    format.extension = getExtensionFromMime(recorder.mimeType);
-  }
-
-  logDebug("MediaRecorder created with options:", options, "->", format);
-  return { recorder, format, options };
-}
+const MAX_AUDIO_BYTES = 12 * 1024 * 1024;
+const ACCEPTED_AUDIO_TYPES = "audio/webm,audio/mpeg,audio/mp4,audio/aac,audio/ogg,audio/wav,.webm,.mp3,.m4a,.aac,.ogg,.wav";
 
 // ===== Shared helpers =====
-function formatSeconds(totalSeconds) {
-  const minutes = Math.floor(totalSeconds / 60)
-    .toString()
-    .padStart(2, "0");
-  const seconds = (totalSeconds % 60).toString().padStart(2, "0");
-  return `${minutes}:${seconds}`;
+function formatMessage(template, values = {}) {
+  return String(template || "").replace(/\{(\w+)\}/g, (_, key) => values[key] ?? "");
 }
-function getDisplayName(response) {
-  if (response.isAnonymous) return "匿名代禱者";
-  return response.responder?.name || response.responder?.email || "未命名";
+
+function getDisplayName(response, text) {
+  if (response.isAnonymous) return text.anonymousResponder;
+  return response.responder?.name || response.responder?.username || text.unnamed;
 }
 function getAvatarUrl(response) {
   return response.responder?.avatarUrl || null;
@@ -115,14 +41,49 @@ function getResponderProfileHref(response) {
   return `/overcomer/${encodeURIComponent(slug)}`;
 }
 
-// ===== Component =====
-export default function Comments({ requestId, ownerId = null }) {
-  const authUser = useAuthSession();
+function buildLoginHref(requestId, locale = "zh-TW") {
+  return `${localizePath("/login", locale)}?next=${encodeURIComponent(`/prayfor/${String(requestId)}`)}`;
+}
 
-  const ownerIdValue = ownerId ? String(ownerId) : null;
+async function readResponseError(response, text) {
+  const data = await response.json().catch(() => ({}));
+  const retryAfterHeader = response.headers.get("Retry-After");
+  const retryAfterSeconds = Number(data?.retryAfterSeconds ?? retryAfterHeader ?? 0);
+
+  if (response.status === 401) {
+    return {
+      message: data?.error || text.loginRequired,
+      needsLogin: true,
+      retryAfterSeconds: 0,
+    };
+  }
+
+  if (response.status === 429 && Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0) {
+    const minutes = Math.max(1, Math.ceil(retryAfterSeconds / 60));
+    return {
+      message: data?.error || formatMessage(text.cooldown, { minutes }),
+      needsLogin: false,
+      retryAfterSeconds,
+    };
+  }
+
+  return {
+    message: data?.error || data?.message || text.responseFailed,
+    needsLogin: false,
+    retryAfterSeconds: 0,
+  };
+}
+
+// ===== Component =====
+export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
+  const locale = normalizeLocale(localeProp);
+  const commentsText = getDictionary(locale).comments;
+  const authUser = useAuthSession();
 
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [text, setText] = useState("");
+  const [audioFile, setAudioFile] = useState(null);
+  const [audioInputKey, setAudioInputKey] = useState(0);
   const [responseMode, setResponseMode] = useState("prayer");
   const [responses, setResponses] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -136,9 +97,12 @@ export default function Comments({ requestId, ownerId = null }) {
   const [reportError, setReportError] = useState("");
   const [actionNotice, setActionNotice] = useState("");
   const [actionNoticeType, setActionNoticeType] = useState("success");
+  const [actionNoticeLoginHref, setActionNoticeLoginHref] = useState("");
   const [openActionMenuId, setOpenActionMenuId] = useState(null);
+  const [cooldownUntil, setCooldownUntil] = useState(0);
+  const [cooldownNow, setCooldownNow] = useState(Date.now());
 
-  const reportTargetName = reportTarget ? getDisplayName(reportTarget) : "";
+  const reportTargetName = reportTarget ? getDisplayName(reportTarget, commentsText) : "";
   const reportPreviewMessage = reportTarget?.message
     ? `${reportTarget.message.slice(0, 200)}${reportTarget.message.length > 200 ? '...' : ''}`
     : "";
@@ -154,8 +118,9 @@ export default function Comments({ requestId, ownerId = null }) {
 
   const openReportModal = useCallback((response) => {
     if (!authUser) {
-      setActionNotice("請先登入後再檢舉。");
+      setActionNotice(commentsText.reportLogin);
       setActionNoticeType("error");
+      setActionNoticeLoginHref(buildLoginHref(requestId, locale));
       return;
     }
     setReportTarget(response);
@@ -163,7 +128,7 @@ export default function Comments({ requestId, ownerId = null }) {
     setReportRemarks("");
     setReportError("");
     setReportFeedback("");
-  }, [authUser]);
+  }, [authUser, commentsText.reportLogin, locale, requestId]);
 
   const toggleActionMenu = useCallback((responseId) => {
     setOpenActionMenuId((prev) => (prev === responseId ? null : responseId));
@@ -173,7 +138,7 @@ export default function Comments({ requestId, ownerId = null }) {
     if (typeof window === "undefined") return;
     const baseUrl = window.location.href.split("#")[0];
     const shareUrl = `${baseUrl}#prayer-response-${response.id}`;
-    const shareText = response.message ? response.message.slice(0, 120) : "邀請你一起關心這則禱告回應";
+    const shareText = response.message ? response.message.slice(0, 120) : commentsText.shareInvite;
     try {
       if (navigator.share) {
         await navigator.share({
@@ -181,11 +146,11 @@ export default function Comments({ requestId, ownerId = null }) {
           text: shareText,
           url: shareUrl,
         });
-        setActionNotice("分享連結已準備好。");
+        setActionNotice(commentsText.shareReady);
         setActionNoticeType("success");
       } else if (navigator.clipboard) {
         await navigator.clipboard.writeText(shareUrl);
-        setActionNotice("連結已複製。");
+        setActionNotice(commentsText.linkCopied);
         setActionNoticeType("success");
       } else {
         const textarea = document.createElement("textarea");
@@ -197,29 +162,29 @@ export default function Comments({ requestId, ownerId = null }) {
         textarea.select();
         try {
           document.execCommand("copy");
-          setActionNotice("連結已複製。");
+          setActionNotice(commentsText.linkCopied);
           setActionNoticeType("success");
         } catch (_copyErr) {
-          throw new Error("目前無法分享，請稍後再試。");
+          throw new Error(commentsText.shareFailed);
         } finally {
           textarea.remove();
         }
       }
     } catch (err) {
       if (err?.name === "AbortError") return;
-      setActionNotice(err?.message || "目前無法分享，請稍後再試。");
+      setActionNotice(err?.message || commentsText.shareFailed);
       setActionNoticeType("error");
     }
-  }, []);
+  }, [commentsText]);
 
   const handleReportSubmit = useCallback(async (event) => {
     event.preventDefault();
     if (!reportTarget) {
-      setReportError("找不到要檢舉的回應。");
+      setReportError(commentsText.reportMissing);
       return;
     }
     if (!reportReason) {
-      setReportError("請選擇檢舉理由。");
+      setReportError(commentsText.reportReasonRequired);
       return;
     }
     setReportSubmitting(true);
@@ -239,10 +204,8 @@ export default function Comments({ requestId, ownerId = null }) {
 
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
-        throw new Error(data?.message || "檢舉失敗，請稍後再試。");
+        throw new Error(data?.message || commentsText.reportFailed);
       }
-
-      const ownerReporting = ownerIdValue && authUser?.id && String(authUser.id) === ownerIdValue;
 
       setResponses((prev) =>
         prev.map((item) =>
@@ -251,39 +214,18 @@ export default function Comments({ requestId, ownerId = null }) {
             : item
         )
       );
-      setReportFeedback("已送出檢舉，這則語音或回應已先隱藏並進入審核。");
+      setReportFeedback(commentsText.reportSuccess);
       window.setTimeout(() => {
         closeReportModal();
       }, 1500);
     } catch (err) {
-      setReportError(err?.message || "檢舉失敗，請稍後再試。");
+      setReportError(err?.message || commentsText.reportFailed);
     } finally {
       setReportSubmitting(false);
     }
-  }, [reportTarget, reportReason, reportRemarks, closeReportModal, ownerIdValue, authUser]);
+  }, [commentsText, reportTarget, reportReason, reportRemarks, closeReportModal]);
 
-  // Recorder state
-  const [audioUrl, setAudioUrl] = useState(null);
-  const audioBlobRef = useRef(null);
-  const recordingFormatRef = useRef(resolveRecordingFormat());
-
-  const [isRecorderModalOpen, setIsRecorderModalOpen] = useState(false);
-  const [recorderStep, setRecorderStep] = useState("idle"); // idle | countdown | recording | review
-  const [countdownValue, setCountdownValue] = useState(null);
-  const [recording, setRecording] = useState(false);
-  const [recordSeconds, setRecordSeconds] = useState(0);
-  const [recordError, setRecordError] = useState("");
   const [submittingResponse, setSubmittingResponse] = useState(false);
-  const [responseCooldownUntil, setResponseCooldownUntil] = useState(0);
-  const [cooldownSecondsLeft, setCooldownSecondsLeft] = useState(0);
-
-  // Recorder refs
-  const mediaRecorderRef = useRef(null);
-  const mediaStreamRef = useRef(null);
-  const audioContextRef = useRef(null);
-  const recordChunksRef = useRef([]);
-  const recordTimerRef = useRef(null);
-  const discardRecordingOnStopRef = useRef(false);
 
   // Load existing responses
   useEffect(() => {
@@ -291,14 +233,14 @@ export default function Comments({ requestId, ownerId = null }) {
     (async () => {
       try {
         const res = await fetch(`/api/responses/${requestId}`, { cache: "no-store" });
-        if (!res.ok) throw new Error("無法載入回應。");
+        if (!res.ok) throw new Error(commentsText.loadFailed);
         const data = await res.json();
         if (!cancelled) {
           setResponses(data);
           setError("");
         }
       } catch (err) {
-        if (!cancelled) setError(err.message || "無法載入回應。");
+        if (!cancelled) setError(err.message || commentsText.loadFailed);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -306,16 +248,8 @@ export default function Comments({ requestId, ownerId = null }) {
 
     return () => {
       cancelled = true;
-      // Release recorder resources and any generated blob URL on unmount.
-      cleanupRecording();
-      if (recordTimerRef.current) {
-        clearInterval(recordTimerRef.current);
-        recordTimerRef.current = null;
-      }
-      if (audioUrl) URL.revokeObjectURL(audioUrl);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [requestId]);
+  }, [commentsText.loadFailed, requestId]);
 
   useEffect(() => {
     const handleKeydown = (event) => {
@@ -355,288 +289,55 @@ export default function Comments({ requestId, ownerId = null }) {
   }, [actionNotice]);
 
   useEffect(() => {
-    if (!responseCooldownUntil) {
-      setCooldownSecondsLeft(0);
-      return undefined;
-    }
-
-    const updateCooldown = () => {
-      const nextSeconds = Math.max(0, Math.ceil((responseCooldownUntil - Date.now()) / 1000));
-      setCooldownSecondsLeft(nextSeconds);
-      if (nextSeconds === 0) {
-        setResponseCooldownUntil(0);
-      }
-    };
-
-    updateCooldown();
-    const timer = window.setInterval(updateCooldown, 1000);
+    if (!cooldownUntil || cooldownUntil <= Date.now()) return undefined;
+    const timer = window.setInterval(() => setCooldownNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
-  }, [responseCooldownUntil]);
+  }, [cooldownUntil]);
 
-  // Auto-stop once the recording reaches the time limit.
-  useEffect(() => {
-    if (!recording) return;
-    if (recordSeconds >= MAX_RECORD_SECONDS) {
-      logDebug(`Max ${MAX_RECORD_SECONDS}s reached -> stopRecording`);
-      stopRecording();
-    }
-  }, [recordSeconds, recording]);
-
-  // Countdown timer before recording starts.
-  useEffect(() => {
-    if (!isRecorderModalOpen || recorderStep !== "countdown") return;
-    if (countdownValue === null) return;
-
-    if (countdownValue === 0) {
-      setCountdownValue(null);
-      window.setTimeout(() => beginRecording(), 500);
-      return;
-    }
-
-    const timer = window.setTimeout(() => {
-      setCountdownValue((prev) => (prev !== null ? prev - 1 : null));
-    }, 1000);
-
-    return () => window.clearTimeout(timer);
-  }, [countdownValue, isRecorderModalOpen, recorderStep]);
-
-  // Skip recorder.stop() when cleanup already came from the onstop path.
-  const cleanupRecording = useCallback((fromStop = false) => {
-    if (recordTimerRef.current) {
-      clearInterval(recordTimerRef.current);
-      recordTimerRef.current = null;
-    }
-
-    if (!fromStop) {
-      const recorder = mediaRecorderRef.current;
-      if (recorder && recorder.state !== "inactive") {
-        try {
-          recorder.stop();
-        } catch (_) {}
-      }
-    }
-
-    mediaRecorderRef.current = null;
-
-    if (mediaStreamRef.current) {
-      mediaStreamRef.current.getTracks().forEach((t) => t.stop());
-      mediaStreamRef.current = null;
-    }
-
-    if (audioContextRef.current) {
-      audioContextRef.current.close().catch(() => undefined);
-      audioContextRef.current = null;
-    }
-
-    recordChunksRef.current = [];
-    setRecording(false);
-    setRecordSeconds(0);
-  }, []);
-
-  // Ask for microphone permission before opening the recorder modal.
-  const openRecorder = async () => {
-    setRecordError("");
-    setCountdownValue(null);
-    discardRecordingOnStopRef.current = false;
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          channelCount: 1,
-          sampleRate: DEFAULT_SAMPLE_RATE,
-          noiseSuppression: true,
-          echoCancellation: true,
-          autoGainControl: false,
-        },
-      });
-      mediaStreamRef.current = stream;
-
-      setRecorderStep("countdown");
-      setCountdownValue(COUNTDOWN_START);
-      setIsRecorderModalOpen(true);
-    } catch (err) {
-      console.error("access microphone failed", err);
-      setRecordError("需要麥克風權限才能錄音。");
-      setIsRecorderModalOpen(false);
-      cleanupRecording();
-    }
-  };
-
-  // Closing the modal mid-flow should discard the current recording session.
-  const closeRecorderModal = () => {
-    if (recorderStep === "countdown" || recorderStep === "recording") {
-      discardRecordingOnStopRef.current = true;
-      cleanupRecording();
-    }
-    setIsRecorderModalOpen(false);
-    setRecorderStep("idle");
-    setCountdownValue(null);
-  };
-
-  // Start recording
-  const beginRecording = () => {
-    if (!mediaStreamRef.current) {
-      setRecorderStep("idle");
-      setRecordError("無法取得麥克風串流。");
-      return;
-    }
-
-    try {
-      let audioContext;
-      try {
-        audioContext = new AudioContext({ sampleRate: DEFAULT_SAMPLE_RATE });
-      } catch {
-        audioContext = new AudioContext();
-      }
-      audioContextRef.current = audioContext;
-
-      const source = audioContext.createMediaStreamSource(mediaStreamRef.current);
-      const compressor = audioContext.createDynamicsCompressor();
-      compressor.threshold.value = -24;
-      compressor.knee.value = 15;
-      compressor.ratio.value = 12;
-      compressor.attack.value = 0.003;
-      compressor.release.value = 0.25;
-
-      const gain = audioContext.createGain();
-      gain.gain.value = 1.15;
-
-      const destination = audioContext.createMediaStreamDestination();
-      source.connect(compressor);
-      compressor.connect(gain);
-      gain.connect(destination);
-
-      const { recorder, format, options } = createMediaRecorderWithFallback(destination.stream);
-      recordingFormatRef.current = format;
-      recordChunksRef.current = [];
-
-      recorder.addEventListener("error", (event) => {
-        const err = event?.error;
-        setRecordError(`錄音發生錯誤${err?.name ? `：${err.name}` : ""}`);
-      });
-
-      recorder.addEventListener("dataavailable", (event) => {
-        if (event.data && event.data.size > 0) recordChunksRef.current.push(event.data);
-      });
-
-      recorder.addEventListener("stop", () => {
-        if (discardRecordingOnStopRef.current) {
-          discardRecordingOnStopRef.current = false;
-          cleanupRecording(true);
-          setRecorderStep("idle");
-          setIsRecorderModalOpen(false);
-          return;
-        }
-
-        const selectedFormat = recordingFormatRef.current || {};
-        const mimeType = selectedFormat.mimeType || options?.mimeType || "audio/webm";
-        const blob = new Blob(recordChunksRef.current, { type: mimeType });
-
-        audioBlobRef.current = blob;
-        setAudioUrl((prev) => {
-          if (prev) URL.revokeObjectURL(prev);
-          return URL.createObjectURL(blob);
-        });
-
-        cleanupRecording(true);
-        setCountdownValue(null);
-        setRecordError("");
-        setRecorderStep("review");
-        setIsRecorderModalOpen(true);
-      });
-
-      mediaRecorderRef.current = recorder;
-      recorder.start();
-      setRecording(true);
-      setRecordSeconds(0);
-      recordTimerRef.current = window.setInterval(() => setRecordSeconds((s) => s + 1), 1000);
-      setRecorderStep("recording");
-    } catch (error) {
-      console.error("begin recording failed", error);
-      setRecordError("錄音啟動失敗，請檢查權限後再試。");
-      cleanupRecording();
-      setRecorderStep("idle");
-      setCountdownValue(null);
-    }
-  };
-
-  // Stop through MediaRecorder so buffered chunks still flush via onstop.
-  const stopRecording = () => {
-    const recorder = mediaRecorderRef.current;
-    if (recorder && recorder.state === "recording") {
-      discardRecordingOnStopRef.current = false;
-      recorder.stop();
-    } else {
-      closeRecorderModal();
-    }
-  };
-
-  const resetRecording = () => {
-    discardRecordingOnStopRef.current = false;
-    setAudioUrl((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return null;
-    });
-    audioBlobRef.current = null;
-    setRecorderStep("idle");
-    setRecordSeconds(0);
-    setRecording(false);
-    setCountdownValue(null);
-  };
-
-  // Keep the recorded clip and return to the response composer.
-  const useRecordedAudio = () => {
-    setIsRecorderModalOpen(false);
-    setRecorderStep("idle");
-    setRecordError("");
-  };
-
-  const rerecordAudio = async () => {
-    resetRecording();
-    await openRecorder();
-  };
+  const cooldownRemainingSeconds = Math.max(0, Math.ceil((cooldownUntil - cooldownNow) / 1000));
+  const isCoolingDown = cooldownRemainingSeconds > 0;
 
   const submitResponse = async () => {
-    if (recording || submittingResponse) return false;
-    if (!text.trim() && !audioBlobRef.current) return false;
-    if (cooldownSecondsLeft > 0) {
-      setActionNotice(`你剛剛已經送出回應，請約 ${cooldownSecondsLeft} 秒後再送出下一則。`);
+    if (submittingResponse) return false;
+    if (isCoolingDown) {
+      setActionNotice(formatMessage(commentsText.cooldownNotice, { minutes: Math.ceil(cooldownRemainingSeconds / 60) }));
       setActionNoticeType("error");
+      setActionNoticeLoginHref("");
+      return false;
+    }
+    if (!text.trim() && !audioFile) return false;
+    if (audioFile && Number(audioFile.size) > MAX_AUDIO_BYTES) {
+      setActionNotice(commentsText.audioTooLarge);
+      setActionNoticeType("error");
+      setActionNoticeLoginHref("");
       return false;
     }
 
     setSubmittingResponse(true);
+    setActionNotice("");
+    setActionNoticeLoginHref("");
 
     const formData = new FormData();
     formData.append("requestId", String(requestId));
     formData.append("message", text.trim());
     formData.append("isAnonymous", String(isAnonymous));
     formData.append("responderId", authUser?.id || "");
-
-    if (audioBlobRef.current) {
-      const format = recordingFormatRef.current || {};
-      const type =
-        audioBlobRef.current.type ||
-        format.mimeType ||
-        resolveRecordingFormat().mimeType ||
-        "audio/webm";
-      const extension = format.extension || getExtensionFromMime(type);
-      formData.append(
-        "audio",
-        new File([audioBlobRef.current], `prayer-recording.${extension}`, { type })
-      );
+    if (audioFile) {
+      formData.append("audio", audioFile);
     }
 
     try {
       const res = await fetch("/api/responses", { method: "POST", body: formData });
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        if (res.status === 429) {
-          const retryAfterHeader = Number(res.headers.get("Retry-After"));
-          const retryAfterSeconds =
-            Number(data?.retryAfterSeconds) || retryAfterHeader || SAME_CARD_RESPONSE_COOLDOWN_SECONDS;
-          setResponseCooldownUntil(Date.now() + retryAfterSeconds * 1000);
+        const details = await readResponseError(res, commentsText);
+        if (details.retryAfterSeconds > 0) {
+          setCooldownNow(Date.now());
+          setCooldownUntil(Date.now() + details.retryAfterSeconds * 1000);
         }
-        throw new Error(data?.error || "回應送出失敗，請稍後再試。");
+        setActionNotice(details.message);
+        setActionNoticeType("error");
+        setActionNoticeLoginHref(details.needsLogin ? buildLoginHref(requestId, locale) : "");
+        return false;
       }
 
       const saved = await res.json();
@@ -645,18 +346,20 @@ export default function Comments({ requestId, ownerId = null }) {
         window.dispatchEvent(new CustomEvent(PRAYER_RESPONSE_CREATED, { detail: saved }));
       }
       setText("");
+      setAudioFile(null);
+      setAudioInputKey((prev) => prev + 1);
       setResponseMode("prayer");
       setIsAnonymous(false);
-      resetRecording();
-      setIsRecorderModalOpen(false);
-      setRecorderStep("idle");
-      setResponseCooldownUntil(Date.now() + SAME_CARD_RESPONSE_COOLDOWN_SECONDS * 1000);
-      setActionNotice("");
+      setCooldownNow(Date.now());
+      setCooldownUntil(Date.now() + 120 * 1000);
+      setActionNotice(audioFile ? commentsText.voiceSuccess : commentsText.textSuccess);
       setActionNoticeType("success");
+      setActionNoticeLoginHref("");
       return true;
     } catch (err) {
-      setActionNotice(err?.message || "送出回應失敗，請稍後再試。");
+      setActionNotice(err?.message || commentsText.submitFailed);
       setActionNoticeType("error");
+      setActionNoticeLoginHref("");
       return false;
     } finally {
       setSubmittingResponse(false);
@@ -668,76 +371,6 @@ export default function Comments({ requestId, ownerId = null }) {
     await submitResponse();
   };
 
-  const submitFromRecorderModal = async () => {
-    const success = await submitResponse();
-    if (success) {
-      setIsRecorderModalOpen(false);
-      setRecorderStep("idle");
-    }
-  };
-
-  // Recorder modal
-  const renderRecorderModal = () => {
-    if (!isRecorderModalOpen) return null;
-
-    return (
-      <div className="record-modal" role="dialog" aria-modal="true" aria-label="錄音視窗">
-        <div className="record-modal__backdrop" onClick={closeRecorderModal} />
-        <div className="record-modal__card">
-          {recordError ? (
-            <>
-              <h4>錄音錯誤</h4>
-              <p className="cp-alert cp-alert--error">{recordError}</p>
-              <button type="button" className="cp-button cp-button--ghost" onClick={closeRecorderModal}>
-                關閉
-              </button>
-            </>
-          ) : recorderStep === "countdown" ? (
-            <>
-              <h4>準備錄音</h4>
-              <p>倒數結束後將自動開始錄音。</p>
-              <div className="record-modal__count">{countdownValue}</div>
-              <button type="button" className="cp-button cp-button--ghost" onClick={closeRecorderModal}>
-                取消
-              </button>
-            </>
-          ) : recorderStep === "recording" ? (
-            <>
-              <h4>錄音中</h4>
-              <p>最長可錄製 {MAX_RECORD_SECONDS} 秒。</p>
-              <div className="record-modal__timer">{formatSeconds(recordSeconds)}</div>
-              <div className="record-modal__actions">
-                <button type="button" className="cp-button cp-button--danger" onClick={stopRecording}>
-                  停止錄音
-                </button>
-              </div>
-            </>
-          ) : recorderStep === "review" && audioUrl ? (
-            <>
-              <h4>檢查錄音</h4>
-              <p>送出前請先確認錄音內容。</p>
-              <audio src={audioUrl} controls preload="metadata" className="record-modal__audio" />
-              <div className="record-modal__actions record-modal__actions--review">
-                <button type="button" className="cp-button cp-button--ghost" onClick={rerecordAudio} disabled={submittingResponse}>
-                  重新錄音
-                </button>
-                <button type="button" className="cp-button cp-button--ghost" onClick={useRecordedAudio} disabled={submittingResponse}>
-                  保留並關閉
-                </button>
-                <button type="button" className="cp-button" onClick={submitFromRecorderModal} disabled={isResponseSubmitDisabled}>
-                  {submittingResponse ? "送出中..." : cooldownSecondsLeft > 0 ? `請稍等 ${cooldownSecondsLeft} 秒` : "送出回應"}
-                </button>
-              </div>
-            </>
-          ) : null}
-        </div>
-      </div>
-    );
-  };
-
-  const hasAudio = Boolean(audioUrl);
-  const isResponseSubmitDisabled = recording || submittingResponse || cooldownSecondsLeft > 0;
-
   const visibleResponses = responses.filter(
     (response) => !response.isBlocked && Number(response.reportCount ?? 0) === 0
   );
@@ -745,35 +378,26 @@ export default function Comments({ requestId, ownerId = null }) {
     (response) => response.isBlocked || Number(response.reportCount ?? 0) > 0
   ).length;
   const responseModes = [
-    { key: "prayer", label: "禱告", placeholder: "寫下一段安靜的禱告，托住這個需要。" },
-    { key: "encouragement", label: "鼓勵", placeholder: "留下溫柔、具體的鼓勵。" },
-    { key: "testimony", label: "見證", placeholder: "分享你經歷過的幫助、盼望或見證。" },
-    { key: "voice", label: "語音", placeholder: "可先錄製語音，再補上一句簡短說明。" },
+    { key: "prayer", label: commentsText.modes.prayer[0], placeholder: commentsText.modes.prayer[1] },
+    { key: "encouragement", label: commentsText.modes.encouragement[0], placeholder: commentsText.modes.encouragement[1] },
+    { key: "testimony", label: commentsText.modes.testimony[0], placeholder: commentsText.modes.testimony[1] },
   ];
   const activeMode = responseModes.find((mode) => mode.key === responseMode) || responseModes[0];
 
   return (
     <section className="comments card">
-      {renderRecorderModal()}
-
-      {recordError && !isRecorderModalOpen ? (
-        <p className="cp-alert cp-alert--error">{recordError}</p>
-      ) : null}
-
       {!authUser && (
         <div className="alert alert-warning">
-          登入後可以匿名留下文字、錄一段語音，或管理自己曾經回應過的代禱。
-          {" "}
-          <Link href="/login">前往登入</Link>
+          {commentsText.loginRequired} <Link href={buildLoginHref(requestId, locale)}>{commentsText.loginAction}</Link>
         </div>
       )}
 
       <div className="comments__header">
         {pendingReviewCount ? (
-          <span className="comments__review-status">{pendingReviewCount} 則回應審核中</span>
+          <span className="comments__review-status">{formatMessage(commentsText.reviewCount, { count: pendingReviewCount })}</span>
         ) : null}
-          <h3>禱告回應</h3>
-        <p className="comments__subtitle">只留一句話也可以。你的回應會成為這個人的支持。</p>
+        <h3>{commentsText.title}</h3>
+        <p className="comments__subtitle">{commentsText.subtitle}</p>
       </div>
 
       {actionNotice ? (
@@ -783,9 +407,9 @@ export default function Comments({ requestId, ownerId = null }) {
           } comments__notice`}
           role="status"
         >
-          {actionNoticeType === "error" && actionNotice.includes("登入") ? (
+          {actionNoticeLoginHref ? (
             <>
-              {actionNotice} <Link href="/login">前往登入</Link>
+              {actionNotice} <Link href={actionNoticeLoginHref}>{commentsText.loginAction}</Link>
             </>
           ) : (
             actionNotice
@@ -793,26 +417,16 @@ export default function Comments({ requestId, ownerId = null }) {
         </p>
       ) : null}
 
-      {cooldownSecondsLeft > 0 ? (
-        <p className="cp-alert cp-alert--success comments__notice" role="status">
-          已送出你的回應。若要再次回應同一則代禱，請稍等約 {cooldownSecondsLeft} 秒。
-        </p>
-      ) : null}
-
       <div className="comments__list" aria-live="polite">
           {loading ? (
-            <div className="comments__skeleton" role="status" aria-label="載入回應中">
-              <span />
-              <span />
-              <span />
-            </div>
+            <p>{commentsText.loading}</p>
           ) : error ? (
             <p className="cp-alert cp-alert--error">{error}</p>
           ) : visibleResponses.length === 0 ? (
-            <p className="cp-helper">成為第一位留下回應的人吧。</p>
+            <p className="cp-helper">{commentsText.empty}</p>
           ) : (
             visibleResponses.map((response) => {
-                const name = getDisplayName(response);
+                const name = getDisplayName(response, commentsText);
                 const avatarUrl = getAvatarUrl(response);
                 const avatarFallback = getAvatarFallback(name);
                 const profileHref = getResponderProfileHref(response);
@@ -856,9 +470,9 @@ export default function Comments({ requestId, ownerId = null }) {
                           {response.reportCount > 0 ? (
                             <span
                               className="comment-item__report-badge"
-                              title={`已被檢舉 ${response.reportCount} 次`}
+                              title={formatMessage(commentsText.reportBadge, { count: response.reportCount })}
                             >
-                              檢舉 x {response.reportCount}
+                              {formatMessage(commentsText.reportBadgeShort, { count: response.reportCount })}
                             </span>
                           ) : null}
                           <div className="comment-item__actions">
@@ -867,13 +481,13 @@ export default function Comments({ requestId, ownerId = null }) {
                               className="comment-item__action-btn comment-item__action-btn--share"
                               onClick={() => handleShareResponse(response)}
                             >
-                              分享
+                              {commentsText.share}
                             </button>
                             <div className={`comment-item__menu-wrap${isActionMenuOpen ? " is-open" : ""}`}>
                               <button
                                 type="button"
                                 className="comment-item__menu-trigger"
-                                aria-label="更多留言操作"
+                                aria-label={commentsText.moreActions}
                                 aria-haspopup="menu"
                                 aria-expanded={isActionMenuOpen}
                                 aria-controls={`comment-action-menu-${response.id}`}
@@ -896,7 +510,7 @@ export default function Comments({ requestId, ownerId = null }) {
                                       openReportModal(response);
                                     }}
                                   >
-                                    檢舉這則回應
+                                    {commentsText.reportThis}
                                   </button>
                                 </div>
                               ) : null}
@@ -917,9 +531,9 @@ export default function Comments({ requestId, ownerId = null }) {
         </div>
       {authUser ? (
         <>
-          <h3 className="comments__composer-title">立即回應</h3>
-          <form id="response-composer" className="comment-form" onSubmit={handleSubmit}>
-            <div className="prayer-response-modes" aria-label="選擇禱告回應模式">
+          <h3 className="comments__composer-title">{commentsText.composerTitle}</h3>
+          <form className="comment-form" id="response-composer" onSubmit={handleSubmit}>
+            <div className="prayer-response-modes" aria-label={commentsText.modeLabel}>
               {responseModes.map((mode) => (
                 <button
                   key={mode.key}
@@ -928,14 +542,10 @@ export default function Comments({ requestId, ownerId = null }) {
                   onClick={async () => {
                     setResponseMode(mode.key);
                     if (mode.key === "encouragement" && !text.trim()) {
-                      setText("願主賜下安慰、力量與清楚的帶領。");
+                      setText(commentsText.modes.encouragement[2]);
                     }
                     if (mode.key === "testimony" && !text.trim()) {
-                      setText("見證分享：");
-                    }
-                    if (mode.key === "voice") {
-                      resetRecording();
-                      await openRecorder();
+                      setText(commentsText.modes.testimony[2]);
                     }
                   }}
                 >
@@ -949,52 +559,56 @@ export default function Comments({ requestId, ownerId = null }) {
                 checked={isAnonymous}
                 onChange={(event) => setIsAnonymous(event.target.checked)}
               />
-              匿名發表
+              {commentsText.anonymousPost}
             </label>
 
             <textarea
               value={text}
               onChange={(event) => setText(event.target.value)}
-              placeholder="寫下鼓勵的話，或上傳你的語音代禱。"
+              placeholder={audioFile ? commentsText.textPlaceholderWithAudio : activeMode.placeholder}
               rows={4}
             />
-            <div className="record-toolbar">
-              {!recording && !hasAudio ? (
+            <label className="comment-form__audio">
+              <span>{commentsText.audioLabel}</span>
+              <input
+                key={audioInputKey}
+                type="file"
+                accept={ACCEPTED_AUDIO_TYPES}
+                onChange={(event) => {
+                  const file = event.target.files?.[0] || null;
+                  setAudioFile(file);
+                  if (file && Number(file.size) > MAX_AUDIO_BYTES) {
+                    setActionNotice(commentsText.audioTooLargeShort);
+                    setActionNoticeType("error");
+                    setActionNoticeLoginHref("");
+                  }
+                }}
+              />
+              <small>
+                {commentsText.audioHelp}
+              </small>
+              {audioFile ? (
                 <button
                   type="button"
-                  className="btn btn-record"
-                  onClick={async () => {
-                    resetRecording();
-                    await openRecorder();
+                  className="comment-form__clear-audio"
+                  onClick={() => {
+                    setAudioFile(null);
+                    setAudioInputKey((prev) => prev + 1);
                   }}
-                  style={{ display: "inline-flex", alignItems: "center", gap: "8px", padding: "12px 24px", borderRadius: "50px" }}
                 >
-                  <i className="fa-solid fa-microphone"></i>
-                  錄製語音
+                  {formatMessage(commentsText.removeAudio, { name: audioFile.name })}
                 </button>
               ) : null}
-
-              {hasAudio ? (
-                <div className="audio-preview glass-panel" style={{ padding: "10px", marginTop: "10px" }}>
-                  <p style={{ margin: "0 0 10px 0", fontSize: "0.9rem", color: "var(--text-light)" }}>
-                    錄音已完成，可重新錄音或直接送出。
-                  </p>
-                  <audio src={audioUrl} controls preload="metadata" style={{ width: "100%" }} />
-                  <div className="audio-preview__actions" style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
-                    <button type="button" className="btn btn-glass" onClick={resetRecording}>
-                      <i className="fa-solid fa-rotate-right"></i> 重新錄音
-                    </button>
-                    <button type="submit" className="btn btn-primary" disabled={isResponseSubmitDisabled}>
-                      <i className="fa-solid fa-paper-plane"></i>{" "}
-                      {submittingResponse ? "送出中..." : cooldownSecondsLeft > 0 ? `請稍等 ${cooldownSecondsLeft} 秒` : "送出回應"}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <button type="submit" className="btn btn-primary" disabled={isResponseSubmitDisabled} style={{ marginTop: "10px" }}>
-                  {submittingResponse ? "送出中..." : cooldownSecondsLeft > 0 ? `請稍等 ${cooldownSecondsLeft} 秒` : "送出回應"}
-                </button>
-              )}
+            </label>
+            <div className="record-toolbar">
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={submittingResponse || isCoolingDown || (!text.trim() && !audioFile)}
+                style={{ marginTop: "10px" }}
+              >
+                {submittingResponse ? commentsText.submitting : isCoolingDown ? formatMessage(commentsText.waitSeconds, { seconds: cooldownRemainingSeconds }) : commentsText.submit}
+              </button>
             </div>
           </form>
         </>
@@ -1010,26 +624,26 @@ export default function Comments({ requestId, ownerId = null }) {
               className="comment-report-modal__close"
               onClick={closeReportModal}
               disabled={reportSubmitting}
-              aria-label="關閉檢舉視窗"
+              aria-label={commentsText.closeReport}
             >
               ×
             </button>
-            <h4>檢舉這則回應</h4>
+            <h4>{commentsText.reportTitle}</h4>
             <p className="comment-report-modal__hint">
-              請選擇檢舉理由。若願意，可補充讓管理員判斷的原因。
+              {commentsText.reportHint}
             </p>
             <div className="comment-report-modal__preview">
-              <p className="comment-report-modal__preview-label">檢舉對象</p>
-              <strong>{reportTargetName || "未命名使用者"}</strong>
+              <p className="comment-report-modal__preview-label">{commentsText.reportTarget}</p>
+              <strong>{reportTargetName || commentsText.unnamed}</strong>
               {reportPreviewMessage ? (
                 <p className="comment-report-modal__preview-message">{reportPreviewMessage}</p>
               ) : (
-                <p className="comment-report-modal__preview-message muted">這則回應沒有文字內容。</p>
+                <p className="comment-report-modal__preview-message muted">{commentsText.noMessage}</p>
               )}
             </div>
             <form onSubmit={handleReportSubmit} className="comment-report-modal__form">
               <fieldset className="comment-report-modal__fieldset">
-                <legend>檢舉理由</legend>
+                <legend>{commentsText.reportReasonLegend}</legend>
                 {REPORT_REASONS.map((reason) => (
                   <label key={reason.value} className="comment-report-modal__reason">
                     <input
@@ -1040,18 +654,18 @@ export default function Comments({ requestId, ownerId = null }) {
                       onChange={(event) => setReportReason(event.target.value)}
                       disabled={reportSubmitting}
                     />
-                    <span>{reason.label}</span>
+                    <span>{commentsText.reportReasons[reason.value] || reason.label}</span>
                   </label>
                 ))}
               </fieldset>
 
               <label className="comment-report-modal__remarks">
-                <span>補充說明（選填）</span>
+                <span>{commentsText.remarksLabel}</span>
                 <textarea
                   value={reportRemarks}
                   onChange={(event) => setReportRemarks(event.target.value)}
                   rows={4}
-                  placeholder="若願意，可補充讓管理員判斷的原因。"
+                  placeholder={commentsText.remarksPlaceholder}
                   disabled={reportSubmitting}
                 />
               </label>
@@ -1066,10 +680,10 @@ export default function Comments({ requestId, ownerId = null }) {
                   onClick={closeReportModal}
                   disabled={reportSubmitting}
                 >
-                  取消
+                  {commentsText.cancel}
                 </button>
                 <button type="submit" className="cp-button" disabled={reportSubmitting}>
-                  {reportSubmitting ? "送出中..." : "送出檢舉"}
+                  {reportSubmitting ? commentsText.reportSubmitting : commentsText.reportSubmit}
                 </button>
               </div>
             </form>
@@ -1080,4 +694,3 @@ export default function Comments({ requestId, ownerId = null }) {
     </section>
   );
 }
-

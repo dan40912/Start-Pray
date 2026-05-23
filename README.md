@@ -49,6 +49,7 @@ README 只放快速理解專案需要的內容。比較深入的技術說明放�
 - [Media Pipeline](docs/media.md)
 - [Admin and Moderation](docs/admin.md)
 - [Deployment Guide](docs/deployment.md)
+- [Internationalization](docs/i18n.md)
 
 如果你是 AI agent 或接手維護，請先讀：
 
@@ -84,4 +85,3 @@ GitHub:
 ```text
 https://github.com/dan40912/Start-Pray
 ```
-

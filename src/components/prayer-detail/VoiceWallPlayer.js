@@ -20,10 +20,11 @@ function normalizeDuration(value) {
   return value;
 }
 
-function normalizePrimaryTrack(track, prayerTitle) {
+function normalizePrimaryTrack(track, prayerTitle, homeCardId = null) {
   if (!track?.voiceUrl) return null;
   return {
     id: track.id || "primary-track",
+    homeCardId: track.homeCardId ?? homeCardId,
     voiceUrl: track.voiceUrl,
     speaker: track.speaker?.trim() || "上傳者",
     message: track.message?.trim() || "",
@@ -33,14 +34,15 @@ function normalizePrimaryTrack(track, prayerTitle) {
   };
 }
 
-function normalizeResponseTrack(item, index, prayerTitle) {
+function normalizeResponseTrack(item, index, prayerTitle, homeCardId = null) {
   if (!item?.voiceUrl) return null;
   const isAnonymous = Boolean(item.isAnonymous);
   const speaker = isAnonymous
     ? "匿名代禱者"
-    : item.responder?.name || item.responder?.email || `回應者 ${index + 1}`;
+    : item.responder?.name || item.responder?.username || `回應者 ${index + 1}`;
   return {
     id: `response-${item.id ?? index}`,
+    homeCardId: item.homeCardId ?? homeCardId,
     voiceUrl: item.voiceUrl,
     speaker,
     message: item.message?.trim() || "",
@@ -59,7 +61,7 @@ export default function VoiceWallPlayer({ requestId, prayerTitle = "", initialTr
   const { setQueue } = useAudio();
   const audioRef = useRef(null);
   const [allTracks, setAllTracks] = useState(() => {
-    const primary = normalizePrimaryTrack(initialTrack, prayerTitle);
+    const primary = normalizePrimaryTrack(initialTrack, prayerTitle, requestId);
     return primary ? [primary] : [];
   });
   const [excludedMap, setExcludedMap] = useState({});
@@ -84,11 +86,11 @@ export default function VoiceWallPlayer({ requestId, prayerTitle = "", initialTr
       if (!res.ok) throw new Error("無法載入語音清單");
       const data = await res.json();
 
-      const primary = normalizePrimaryTrack(initialTrack, prayerTitle);
+      const primary = normalizePrimaryTrack(initialTrack, prayerTitle, requestId);
       const responses = Array.isArray(data)
         ? data
             .filter(isValidResponse)
-            .map((item, index) => normalizeResponseTrack(item, index, prayerTitle))
+            .map((item, index) => normalizeResponseTrack(item, index, prayerTitle, requestId))
             .filter(Boolean)
         : [];
       setAllTracks(primary ? [primary, ...responses] : responses);
@@ -196,33 +198,31 @@ export default function VoiceWallPlayer({ requestId, prayerTitle = "", initialTr
     () => playableTracks.find((track) => track.id === currentId) || null,
     [playableTracks, currentId]
   );
+  const currentTrackId = currentTrack?.id || null;
+  const currentTrackVoiceUrl = currentTrack?.voiceUrl || "";
+  const currentTrackKnownDuration = currentTrackId
+    ? normalizeDuration(trackDurations[currentTrackId])
+    : 0;
 
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio || !currentTrack) return;
-    audio.src = currentTrack.voiceUrl;
+    if (!audio || !currentTrackId || !currentTrackVoiceUrl) return;
+    audio.src = currentTrackVoiceUrl;
     audio.load();
     setProgress(0);
-    setDuration(normalizeDuration(trackDurations[currentTrack.id]));
-    if (isPlaying) {
-      audio
-        .play()
-        .then(() => setIsPlaying(true))
-        .catch(() => setIsPlaying(false));
-    }
-  }, [currentTrack?.id]);
+    setDuration(currentTrackKnownDuration);
+  }, [currentTrackId, currentTrackVoiceUrl, currentTrackKnownDuration]);
 
   useEffect(() => {
-    if (!currentTrack) return;
-    const knownDuration = normalizeDuration(trackDurations[currentTrack.id]);
-    if (knownDuration > 0) {
-      setDuration(knownDuration);
+    if (!currentTrackId) return;
+    if (currentTrackKnownDuration > 0) {
+      setDuration(currentTrackKnownDuration);
     }
-  }, [currentTrack?.id, trackDurations]);
+  }, [currentTrackId, currentTrackKnownDuration]);
 
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio || !currentTrack) return;
+    if (!audio || !currentTrackId) return;
     if (isPlaying) {
       audio
         .play()
@@ -231,7 +231,7 @@ export default function VoiceWallPlayer({ requestId, prayerTitle = "", initialTr
     } else {
       audio.pause();
     }
-  }, [isPlaying, currentTrack?.id]);
+  }, [isPlaying, currentTrackId]);
 
   const playNextTrack = useCallback(() => {
     if (!playableTracks.length || !currentTrack) {

@@ -126,6 +126,53 @@
 }
 
 /* Admin UX upgrade: shared hints + feedback */
+.admin-control-hint {
+  display: block;
+  margin-top: 0.28rem;
+  color: #64748b;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.admin-table .admin-control-hint,
+.admin-shell__nav .admin-control-hint,
+.admin-shell__topbar .admin-control-hint,
+.admin-wallet__actions .admin-control-hint,
+.admin-dashboard__header-actions .admin-control-hint {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.admin-table button:hover + .admin-control-hint,
+.admin-table button:focus-visible + .admin-control-hint,
+.admin-table a:hover + .admin-control-hint,
+.admin-table a:focus-visible + .admin-control-hint,
+.admin-wallet__actions button:hover + .admin-control-hint,
+.admin-wallet__actions button:focus-visible + .admin-control-hint,
+.admin-wallet__actions a:hover + .admin-control-hint,
+.admin-wallet__actions a:focus-visible + .admin-control-hint,
+.admin-dashboard__header-actions button:hover + .admin-control-hint,
+.admin-dashboard__header-actions button:focus-visible + .admin-control-hint {
+  position: absolute;
+  z-index: 40;
+  width: min(280px, 80vw);
+  height: auto;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+  margin-top: 0.35rem;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.5rem;
+  background: #ffffff;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.16);
+  color: #334155;
+}
+
 .admin-hint-panel {
   background: linear-gradient(135deg, #ffffff, #f8fbff);
   border: 1px solid rgba(37, 99, 235, 0.18);

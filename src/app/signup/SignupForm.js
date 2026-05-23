@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { saveAuthSession } from "@/lib/auth-storage";
+import { getDictionary, localizePath, normalizeLocale } from "@/lib/i18n";
 import { resolveSafeNextPath } from "@/lib/redirect-target";
 
 const initialForm = {
@@ -12,7 +13,6 @@ const initialForm = {
   faithTradition: "",
   country: "",
   email: "",
-  solanaAddress: "",
   password: "",
   confirmPassword: "",
   acceptedTerms: false
@@ -153,7 +153,9 @@ function normalizeCountryInput(value) {
   return COUNTRY_LOOKUP.get(normalizedKey) || String(value).trim();
 }
 
-export default function SignupForm() {
+export default function SignupForm({ locale: localeProp = "zh-TW" }) {
+  const locale = normalizeLocale(localeProp);
+  const text = getDictionary(locale).auth.signup;
   const router = useRouter();
   const searchParams = useSearchParams();
   const [form, setForm] = useState(initialForm);
@@ -221,13 +223,13 @@ export default function SignupForm() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "發生未知錯誤");
+        throw new Error(data.message || text.unknownError);
       }
 
       saveAuthSession(data.user);
       setStatus({
         state: "success",
-        message: nextPath === "/customer-portal" ? "註冊成功！正在帶您進入會員中心。" : "註冊成功！正在帶您回到原本頁面。",
+        message: nextPath === "/customer-portal" ? text.successPortal : text.successNext,
       });
       setForm(initialForm);
       setTimeout(() => {
@@ -242,41 +244,41 @@ export default function SignupForm() {
 
   return (
     <form className="auth-form" onSubmit={handleSubmit}>
-      <span className="form-section-title">基本資料</span>
+      <span className="form-section-title">{text.basicInfo}</span>
       <div className="form-grid columns-2">
         <div className="form-group">
           <label className="form-label" htmlFor="full-name">
-            顯示名稱（可用暱稱） <span className="required-badge">必填</span>
+            {text.fullName} <span className="required-badge">{text.required}</span>
           </label>
           <input
             className="form-control"
             type="text"
             id="full-name"
-            placeholder="例如：喜樂小羊（請勿填寫真實姓名）"
+            placeholder={text.fullNamePlaceholder}
             value={form.fullName}
             onChange={updateField("fullName")}
             required
           />
-          <span className="form-helper">這會顯示在公開頁。請用暱稱，不需要填真實姓名。</span>
+          <span className="form-helper">{text.fullNameHelper}</span>
         </div>
         <div className="form-group">
           <label className="form-label" htmlFor="username">
-            站內識別 <span className="required-badge">必填</span>
+            {text.username} <span className="required-badge">{text.required}</span>
           </label>
           <input
             className="form-control"
             type="text"
             id="username"
-            placeholder="英數組合，至少 4 碼"
+            placeholder={text.usernamePlaceholder}
             value={form.username}
             onChange={updateField("username")}
             required
           />
-          <span className="form-helper">用於個人頁與分享連結，可先用暱稱格式。</span>
+          <span className="form-helper">{text.usernameHelper}</span>
         </div>
         <div className="form-group">
           <label className="form-label" htmlFor="faith">
-            您是否有信仰？ <span className="optional-badge">選填</span>
+            {text.faith} <span className="optional-badge">{text.optional}</span>
           </label>
           <select
             className="form-select"
@@ -285,16 +287,16 @@ export default function SignupForm() {
             onChange={updateField("faithTradition")}
           >
             <option value="">
-              暫不填寫
+              {text.faithEmpty}
             </option>
-            <option>基督徒</option>
-            <option>其他信仰</option>
+            <option value="基督徒">{text.christian}</option>
+            <option value="其他信仰">{text.otherFaith}</option>
           </select>
-          <span className="form-helper">可先略過，之後在會員中心補上。</span>
+          <span className="form-helper">{text.faithHelper}</span>
         </div>
         <div className="form-group">
           <label className="form-label" htmlFor="country">
-            居住區域 <span className="optional-badge">選填</span>
+            {text.country} <span className="optional-badge">{text.optional}</span>
           </label>
           <input
             className="form-control"
@@ -304,7 +306,7 @@ export default function SignupForm() {
             value={form.country}
             onChange={handleCountryChange}
             onBlur={handleCountryBlur}
-            placeholder="可輸入中文或英文，例如：台灣 / Taiwan / Japan"
+            placeholder={text.countryPlaceholder}
             autoComplete="country-name"
           />
           <datalist id="country-options">
@@ -324,18 +326,18 @@ export default function SignupForm() {
               </button>
             ))}
           </div>
-          <span className="form-helper">支援中英文輸入，離開欄位後會自動轉成標準國家名稱。</span>
+          <span className="form-helper">{text.countryHelper}</span>
         </div>
       </div>
 
-      <span className="form-section-title">帳戶資料</span>
+      <span className="form-section-title">{text.accountInfo}</span>
       <p className="form-privacy-note">
-        公開頁只會顯示你選擇的顯示名稱與公開內容；電子信箱不會公開。
+        {text.privacyNote}
       </p>
       <div className="form-grid columns-2">
         <div className="form-group">
           <label className="form-label" htmlFor="signup-email">
-            電子信箱 <span className="required-badge">必填</span>
+            {text.email} <span className="required-badge">{text.required}</span>
           </label>
           <input
             className="form-control"
@@ -349,13 +351,13 @@ export default function SignupForm() {
         </div>
         <div className="form-group">
           <label className="form-label" htmlFor="signup-password">
-            設定密碼 <span className="required-badge">必填</span>
+            {text.password} <span className="required-badge">{text.required}</span>
           </label>
           <input
             className="form-control"
             type="password"
             id="signup-password"
-            placeholder="至少 8 碼，建議含符號"
+            placeholder={text.passwordPlaceholder}
             value={form.password}
             onChange={updateField("password")}
             required
@@ -363,13 +365,13 @@ export default function SignupForm() {
         </div>
         <div className="form-group">
           <label className="form-label" htmlFor="signup-confirm">
-            確認密碼 <span className="required-badge">必填</span>
+            {text.confirmPassword} <span className="required-badge">{text.required}</span>
           </label>
           <input
             className="form-control"
             type="password"
             id="signup-confirm"
-            placeholder="再次輸入密碼"
+            placeholder={text.confirmPasswordPlaceholder}
             value={form.confirmPassword}
             onChange={updateField("confirmPassword")}
             required
@@ -391,7 +393,7 @@ export default function SignupForm() {
           className="form-label"
           style={{ fontWeight: 500, fontSize: "0.9rem", color: "var(--text-primary)" }}
         >
-          我已詳閱並同意 <a href="/whitepaper" target="_blank" rel="noreferrer">平台原則與信任說明</a>
+          {text.acceptedTerms} <a href={localizePath("/terms", locale)} target="_blank" rel="noreferrer">{text.terms}</a>
         </label>
       </div>
 
@@ -416,7 +418,7 @@ export default function SignupForm() {
         style={{ width: "100%", justifyContent: "center", opacity: isSubmitting ? 0.8 : 1 }}
         disabled={isSubmitting}
       >
-        {isSubmitting ? "建立中…" : "建立帳戶"}
+        {isSubmitting ? text.submitting : text.submit}
       </button>
     </form>
   );

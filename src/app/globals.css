@@ -2952,9 +2952,9 @@ textarea.form-control:focus {
     grid-template-columns: 1fr;
   }
 }
-/* Legal & Whitepaper pages */
+/* Legal and trust pages */
 .legal-page,
-.whitepaper-page {
+.terms-page {
   padding: clamp(2.5rem, 6vw, 4rem) clamp(1.5rem, 5vw, 4.5rem) clamp(3rem, 7vw, 5rem);
   display: grid;
   gap: clamp(2.5rem, 6vw, 4rem);
@@ -2962,7 +2962,7 @@ textarea.form-control:focus {
 }
 
 .legal-hero,
-.whitepaper-hero {
+.terms-hero {
   display: grid;
   gap: 2rem;
   grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
@@ -2976,7 +2976,7 @@ textarea.form-control:focus {
   box-shadow: 0 24px 68px rgba(18, 24, 78, 0.12);
 }
 
-.whitepaper-hero h1 {
+.terms-hero h1 {
   margin: 0;
   max-width: 720px;
   color: #0f172a;
@@ -2985,7 +2985,7 @@ textarea.form-control:focus {
   line-height: 1.05;
 }
 
-.whitepaper-hero > div:first-child > p:not(.whitepaper-hero__eyebrow) {
+.terms-hero > div:first-child > p:not(.terms-hero__eyebrow) {
   max-width: 680px;
   margin: 1rem 0 0;
   color: #334155;
@@ -2995,7 +2995,7 @@ textarea.form-control:focus {
 }
 
 .legal-hero__eyebrow,
-.whitepaper-hero__eyebrow {
+.terms-hero__eyebrow {
   font-size: 0.85rem;
   text-transform: uppercase;
   letter-spacing: 0.14em;
@@ -3005,7 +3005,7 @@ textarea.form-control:focus {
 }
 
 .legal-hero__panel,
-.whitepaper-hero__stats {
+.terms-hero__stats {
   background: linear-gradient(180deg, rgba(91, 102, 230, 0.12) 0%, rgba(91, 102, 230, 0.03) 100%);
   border-radius: 20px;
   padding: 1.6rem 1.8rem;
@@ -3023,7 +3023,7 @@ textarea.form-control:focus {
 }
 
 .legal-section,
-.whitepaper-section {
+.terms-section {
   display: grid;
   gap: 1.8rem;
 }
@@ -3056,14 +3056,14 @@ textarea.form-control:focus {
 }
 
 .legal-card h3,
-.whitepaper-card h3 {
+.terms-card h3 {
   margin: 0;
   font-size: 1.2rem;
   color: #0f172a;
 }
 
 .legal-card p,
-.whitepaper-card p {
+.terms-card p {
   margin: 0;
   color: #334155;
   line-height: 1.65;
@@ -3091,7 +3091,7 @@ textarea.form-control:focus {
 }
 
 .legal-card ul,
-.whitepaper-card ul {
+.terms-card ul {
   margin: 0;
   padding-left: 1.1rem;
   color: #334155;
@@ -3159,16 +3159,16 @@ textarea.form-control:focus {
   box-shadow: 0 0 0 6px rgba(91, 99, 206, 0.12);
 }
 
-.whitepaper-grid {
+.terms-grid {
   display: grid;
   gap: 1.5rem;
 }
 
-.whitepaper-grid--three {
+.terms-grid--three {
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
 }
 
-.whitepaper-card {
+.terms-card {
   background: #fff;
   border-radius: 24px;
   padding: 1.9rem;
@@ -3177,22 +3177,22 @@ textarea.form-control:focus {
   gap: 0.8rem;
 }
 
-.whitepaper-card--outline {
+.terms-card--outline {
   border: 1px solid rgba(103, 112, 220, 0.22);
   background: linear-gradient(165deg, rgba(240, 242, 255, 0.8), #fff);
 }
 
-details.whitepaper-card summary {
+details.terms-card summary {
   cursor: pointer;
   color: #0f172a;
   font-weight: 800;
 }
 
-.whitepaper-hero__stats {
+.terms-hero__stats {
   gap: 1.2rem;
 }
 
-.whitepaper-hero__stats div {
+.terms-hero__stats div {
   background: rgba(255, 255, 255, 0.92);
   border: 1px solid rgba(148, 163, 184, 0.22);
   border-radius: 18px;
@@ -3202,32 +3202,32 @@ details.whitepaper-card summary {
   box-shadow: 0 18px 45px rgba(23, 31, 88, 0.12);
 }
 
-.whitepaper-hero__stats span {
+.terms-hero__stats span {
   font-size: 0.9rem;
   color: #2563eb;
   font-weight: 700;
 }
 
-.whitepaper-hero__stats strong {
+.terms-hero__stats strong {
   font-size: 1.75rem;
   color: #0f172a;
 }
 
-.whitepaper-hero__actions {
+.terms-hero__actions {
   display: flex;
   gap: 0.75rem;
   flex-wrap: wrap;
   margin-top: 1.2rem;
 }
 
-.whitepaper-section__header {
+.terms-section__header {
   display: grid;
   gap: 0.6rem;
   max-width: 720px;
 }
 
-.whitepaper-section__header h2,
-.whitepaper-download h2 {
+.terms-section__header h2,
+.terms-download h2 {
   margin: 0;
   color: #0f172a;
   font-size: clamp(1.55rem, 2.6vw, 2.25rem);
@@ -3235,20 +3235,20 @@ details.whitepaper-card summary {
   line-height: 1.2;
 }
 
-.whitepaper-section__header p,
-.whitepaper-download p {
+.terms-section__header p,
+.terms-download p {
   margin: 0;
   color: #475569;
   font-size: 1rem;
   line-height: 1.75;
 }
 
-.whitepaper-steps {
+.terms-steps {
   display: grid;
   gap: 1rem;
 }
 
-.whitepaper-step {
+.terms-step {
   background: #fff;
   border-radius: 20px;
   padding: 1.6rem 1.8rem;
@@ -3257,18 +3257,18 @@ details.whitepaper-card summary {
   gap: 0.5rem;
 }
 
-.whitepaper-step span {
+.terms-step span {
   font-weight: 600;
   color: #2a2f63;
 }
 
-.whitepaper-roadmap {
+.terms-roadmap {
   display: grid;
   gap: 1.3rem;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
 }
 
-.whitepaper-roadmap article {
+.terms-roadmap article {
   background: #fff;
   border-radius: 20px;
   padding: 1.6rem 1.8rem;
@@ -3277,19 +3277,19 @@ details.whitepaper-card summary {
   gap: 0.75rem;
 }
 
-.whitepaper-roadmap header span {
+.terms-roadmap header span {
   font-size: 0.9rem;
   color: #5d63cf;
   text-transform: uppercase;
   letter-spacing: 0.1em;
 }
 
-.whitepaper-roadmap header h3 {
+.terms-roadmap header h3 {
   margin: 0.35rem 0 0;
   color: #1f2555;
 }
 
-.whitepaper-roadmap ul {
+.terms-roadmap ul {
   margin: 0;
   padding-left: 1.1rem;
   display: grid;
@@ -3297,7 +3297,7 @@ details.whitepaper-card summary {
   color: #4b5089;
 }
 
-.whitepaper-download {
+.terms-download {
   background: linear-gradient(130deg, rgba(91, 102, 230, 0.18), rgba(255, 255, 255, 0.9));
   border-radius: 26px;
   padding: clamp(1.8rem, 4vw, 2.6rem);
@@ -3309,7 +3309,7 @@ details.whitepaper-card summary {
   box-shadow: 0 24px 65px rgba(24, 31, 88, 0.12);
 }
 
-.whitepaper-download__actions {
+.terms-download__actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.8rem;
@@ -3317,7 +3317,7 @@ details.whitepaper-card summary {
 
 @media (max-width: 960px) {
   .legal-hero,
-  .whitepaper-hero {
+  .terms-hero {
     grid-template-columns: 1fr;
   }
 
@@ -3328,16 +3328,16 @@ details.whitepaper-card summary {
 
 @media (max-width: 600px) {
   .legal-page,
-  .whitepaper-page {
+  .terms-page {
     padding: 2.4rem 1.2rem 3rem;
   }
 
   .legal-card,
-  .whitepaper-card {
+  .terms-card {
     padding: 1.4rem;
   }
 
-  .whitepaper-download {
+  .terms-download {
     padding: 1.4rem;
   }
 }
@@ -6530,6 +6530,11 @@ header .nav-links .nav-link:hover {
   transform: translateY(-1px);
 }
 
+header .nav-links > a.nav-language-switch {
+  border: 1px solid rgba(226, 232, 240, 0.22);
+  font-weight: 700;
+}
+
 header .nav-actions {
   flex: 0 0 auto;
   display: flex;
@@ -8251,7 +8256,7 @@ header .nav-actions .btn-glass {
     left: 0.75rem;
     right: 0.75rem;
     top: auto;
-    bottom: 5.2rem;
+    bottom: 0.75rem;
     width: auto;
     padding: 0.78rem;
     border-radius: 18px;
@@ -8276,14 +8281,21 @@ header .nav-actions .btn-glass {
   .gpr-page__focus-chip {
     left: 0.75rem;
     right: 0.75rem;
-    bottom: 1rem;
+    top: 12.65rem;
+    bottom: auto;
     max-width: none;
   }
 
   .gpr-page__map-controls {
+    top: 4.8rem;
     right: 0.75rem;
-    bottom: 1rem;
-    max-width: 144px;
+    bottom: auto;
+    max-width: 152px;
+  }
+
+  .gpr-page__map-controls button {
+    min-width: 44px;
+    min-height: 44px;
   }
 }
 
@@ -8710,5 +8722,64 @@ header .nav-actions .btn-glass {
 
   .prayer-location__map {
     aspect-ratio: 1.12;
+  }
+}
+
+@media (max-width: 760px) {
+  header .menu-toggle {
+    width: 44px;
+    height: 44px;
+    flex-basis: 44px;
+  }
+
+  header .nav-links > a,
+  header .nav-links .nav-link,
+  header .nav-actions .btn,
+  header .nav-actions .button,
+  .footer-column a,
+  .footer-bottom a {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .footer-column {
+    gap: 0.35rem;
+  }
+
+  .home-explorer__quick-tag,
+  .home-explorer__suggestion-tag {
+    min-height: 38px;
+    padding-inline: 0.8rem;
+  }
+
+  .home-explorer__search-button {
+    min-height: 44px;
+  }
+
+  .auth-wrapper {
+    padding: 1rem var(--mobile-gutter, 1rem) 3rem;
+  }
+
+  .auth-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .auth-card {
+    padding: 1.35rem;
+  }
+
+  .auth-hero {
+    gap: 0.75rem;
+  }
+
+  .auth-hero h1 {
+    font-size: 1.65rem;
+    line-height: 1.12;
+  }
+
+  .auth-hero .stepper {
+    display: none;
   }
 }

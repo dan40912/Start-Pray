@@ -151,6 +151,11 @@ export default function HomeGlobeHero({
     [closeModal, focusPrayer]
   );
 
+  const handleGlobeReady = useCallback(() => {
+    setGlobeReady(true);
+    if (latestPrayer?.id) setActivePrayerId(latestPrayer.id);
+  }, [latestPrayer?.id]);
+
   return (
     <section className="home-map-hero" aria-labelledby="home-map-title">
       <div className="home-map-hero__stars" aria-hidden="true" />
@@ -164,10 +169,7 @@ export default function HomeGlobeHero({
           globeRef={globeRef}
           onClusterSelect={handleClusterSelect}
           onBlankClick={closeModal}
-          onReady={() => {
-            setGlobeReady(true);
-            if (latestPrayer?.id) setActivePrayerId(latestPrayer.id);
-          }}
+          onReady={handleGlobeReady}
         />
       </div>
 
@@ -315,6 +317,12 @@ export default function HomeGlobeHero({
 
         .home-map-hero__globe :global(.cesium-widget canvas) {
           touch-action: pan-y !important;
+        }
+
+        .home-map-hero__globe :global(.global-room__skeleton) {
+          opacity: 0 !important;
+          visibility: hidden !important;
+          pointer-events: none !important;
         }
 
         .home-map-hero__shade {

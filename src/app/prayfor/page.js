@@ -2,6 +2,7 @@ import HomePrayerExplorer from "@/components/HomePrayerExplorer";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { readActiveCategories } from "@/lib/homeCategories";
 import { readHomeCards } from "@/lib/homeCards";
+import { getDictionary, localizePath, normalizeLocale } from "@/lib/i18n";
 import { buildPageMetadata } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +22,15 @@ const WALL_SORT_OPTIONS = [
 ];
 const ALLOWED_SORTS = new Set(WALL_SORT_OPTIONS.map((option) => option.key));
 
-export default async function PrayforWallPage({ searchParams = {} }) {
+export default async function PrayforWallPage({ searchParams = {}, locale: localeProp = "zh-TW" }) {
+  const locale = normalizeLocale(localeProp);
+  const text = getDictionary(locale).prayerWall;
+  const sortText = text.sortOptions;
+  const localizedSortOptions = WALL_SORT_OPTIONS.map((option) => ({
+    ...option,
+    label: sortText[option.key]?.[0] || option.label,
+    helper: sortText[option.key]?.[1] || option.helper,
+  }));
   const requestedSort = typeof searchParams?.sort === "string" ? searchParams.sort : "";
   const initialSort = ALLOWED_SORTS.has(requestedSort) ? requestedSort : "responses";
   const [categories, topCards] = await Promise.all([
@@ -31,7 +40,7 @@ export default async function PrayforWallPage({ searchParams = {} }) {
 
   return (
     <>
-      <SiteHeader activePath="/prayfor" />
+      <SiteHeader activePath={localizePath("/prayfor", locale)} locale={locale} />
 
       <main>
         <section>
@@ -41,12 +50,13 @@ export default async function PrayforWallPage({ searchParams = {} }) {
             cardLimit={WALL_CARD_LIMIT}
             initialSort={initialSort}
             showSortControls
-            sortOptions={WALL_SORT_OPTIONS}
+            sortOptions={localizedSortOptions}
+            locale={locale}
           />
         </section>
       </main>
 
-      <SiteFooter />
+      <SiteFooter locale={locale} />
     </>
   );
 }

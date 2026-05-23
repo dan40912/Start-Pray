@@ -289,20 +289,13 @@ export default function CustomerPortalEditPage() {
                   </label>
                 </div>
 
-                <div className="customer-edit__row customer-edit__row--equal">
+                <div className="customer-edit__row">
                   <label>
                     <span>詳情連結 (選填)</span>
                     <input
                       type="text"
                       value={card.detailsHref}
                       onChange={(event) => updateCardField(card.id, "detailsHref", event.target.value)} />
-                  </label>
-                  <label>
-                    <span>禱告錄音連結 (選填)</span>
-                    <input
-                      type="text"
-                      value={card.voiceHref}
-                      onChange={(event) => updateCardField(card.id, "voiceHref", event.target.value)} />
                   </label>
                 </div>
 
@@ -324,4 +317,3 @@ export default function CustomerPortalEditPage() {
     </main><SiteFooter /></>
   );
 }
-

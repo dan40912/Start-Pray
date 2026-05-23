@@ -6,11 +6,14 @@ import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 import AdminRouteHints from "@/components/admin/AdminRouteHints";
+import { useAdminControlHints } from "@/components/admin/useAdminControlHints";
 
 const ADMIN_RESTRICTED_PATHS = ["/admin/users", "/admin/log", "/admin/settings"];
 
 const NAV_ITEMS = [
   { href: "/admin/dashboard", label: "儀表板", roles: ["SUPER", "ADMIN"] },
+  { href: "/admin/users", label: "使用者", roles: ["SUPER"] },
+  { href: "/admin/moderation", label: "審核佇列", roles: ["SUPER", "ADMIN"] },
   { href: "/admin/prayfor", label: "禱告事項", roles: ["SUPER", "ADMIN"] },
   { href: "/admin/prayerresponse", label: "留言與錄音", roles: ["SUPER", "ADMIN"] },
   { href: "/admin/content", label: "Banner 內容", roles: ["SUPER", "ADMIN"] },
@@ -29,6 +32,7 @@ async function fetchAdminSession() {
 export default function AdminLayout({ children }) {
   const pathname = usePathname();
   const router = useRouter();
+  useAdminControlHints(pathname);
 
   const [isReady, setIsReady] = useState(pathname === "/admin");
   const [session, setSession] = useState(null);

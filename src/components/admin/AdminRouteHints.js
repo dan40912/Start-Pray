@@ -19,7 +19,14 @@ const PAGE_HINTS = [
     title: "儀表板提示",
     tone: "info",
     description: "這裡適合做快速巡檢，不建議直接大量操作。",
-    items: ["先看高風險名單，再進入 Users / Prayfor 做精細處理。"],
+    items: ["先看高風險名單，再進入審核佇列或對應管理頁做精細處理。"],
+  },
+  {
+    match: "/admin/moderation",
+    title: "審核佇列提示",
+    tone: "warning",
+    description: "這裡集中顯示被檢舉的公開內容與公開個人頁，請先看原因與上下文再封鎖。",
+    items: ["私密卡片不提供前台連結；若需要更多脈絡，請進入對應管理頁。"],
   },
   {
     match: "/admin/users",

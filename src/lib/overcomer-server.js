@@ -5,6 +5,20 @@ const RESPONSES_TAKE = 20;
 const CARDS_TAKE = 12;
 const INDEX_TAKE = 18;
 
+const PUBLIC_HOME_CARD_WHERE = {
+  isBlocked: false,
+  isPrivate: false,
+};
+
+const PUBLIC_RESPONSE_WHERE = {
+  isBlocked: false,
+  reportCount: 0,
+  homeCardId: { not: null },
+  homeCard: {
+    is: PUBLIC_HOME_CARD_WHERE,
+  },
+};
+
 const OVERCOMER_SELECT = {
   id: true,
   name: true,
@@ -18,7 +32,7 @@ const OVERCOMER_SELECT = {
   updatedAt: true,
   publicProfileEnabled: true,
   homePrayerCards: {
-    where: { isBlocked: false },
+    where: PUBLIC_HOME_CARD_WHERE,
     orderBy: { createdAt: "desc" },
     take: CARDS_TAKE,
     select: {
@@ -33,16 +47,7 @@ const OVERCOMER_SELECT = {
     },
   },
   prayerResponses: {
-    where: {
-      isBlocked: false,
-      reportCount: 0,
-      homeCardId: { not: null },
-      homeCard: {
-        is: {
-          isBlocked: false,
-        },
-      },
-    },
+    where: PUBLIC_RESPONSE_WHERE,
     orderBy: { createdAt: "desc" },
     take: RESPONSES_TAKE,
     select: {
@@ -65,8 +70,8 @@ const OVERCOMER_SELECT = {
   },
   _count: {
     select: {
-      homePrayerCards: true,
-      prayerResponses: true,
+      homePrayerCards: { where: PUBLIC_HOME_CARD_WHERE },
+      prayerResponses: { where: PUBLIC_RESPONSE_WHERE },
     },
   },
 };
@@ -92,6 +97,7 @@ export async function readOvercomerProfile(username) {
     user = await prisma.user.findFirst({
       where: {
         username: { equals: normalized, mode: "insensitive" },
+        isBlocked: false,
         publicProfileEnabled: true,
       },
       select: OVERCOMER_SELECT,
@@ -101,6 +107,7 @@ export async function readOvercomerProfile(username) {
     user = await prisma.user.findFirst({
       where: {
         username: normalized,
+        isBlocked: false,
         publicProfileEnabled: true,
       },
       select: OVERCOMER_SELECT,
@@ -131,11 +138,11 @@ export async function listPublicOvercomers() {
       createdAt: true,
       updatedAt: true,
       homePrayerCards: {
-        where: { isBlocked: false },
+        where: PUBLIC_HOME_CARD_WHERE,
         select: { id: true },
       },
       prayerResponses: {
-        where: { isBlocked: false, reportCount: 0 },
+        where: PUBLIC_RESPONSE_WHERE,
         select: { id: true },
       },
     },

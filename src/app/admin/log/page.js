@@ -48,7 +48,7 @@ function renderMetadata(metadata) {
 
 export default function AdminLogPage() {
   const [logs, setLogs] = useState([]);
-  const [category, setCategory] = useState("system");
+  const [category, setCategory] = useState("all");
   const [level, setLevel] = useState("all");
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
@@ -163,6 +163,7 @@ export default function AdminLogPage() {
           className="button button--ghost"
           onClick={() => loadLogs()}
           disabled={loading}
+          data-admin-hint="重新載入目前篩選條件下的管理紀錄。"
         >
           重新整理
         </button>
@@ -196,6 +197,7 @@ export default function AdminLogPage() {
           <div className="admin-section__filters">
             <select
               value={category}
+              data-admin-hint="選擇要查看系統錯誤、操作紀錄或全部紀錄。"
               onChange={(event) => {
                 setCategory(event.target.value);
                 setPage(1);
@@ -209,6 +211,7 @@ export default function AdminLogPage() {
             </select>
             <select
               value={level}
+              data-admin-hint="依紀錄嚴重程度篩選，排查時建議先看 ERROR 與 CRITICAL。"
               onChange={(event) => {
                 setLevel(event.target.value);
                 setPage(1);
@@ -225,6 +228,7 @@ export default function AdminLogPage() {
                 type="search"
                 placeholder="搜尋訊息、操作、路徑"
                 value={searchInput}
+                data-admin-hint="搜尋訊息、操作名稱、目標、操作者或 request path。"
                 onChange={(event) => setSearchInput(event.target.value)}
               />
             </form>
@@ -236,7 +240,7 @@ export default function AdminLogPage() {
         ) : error ? (
           <div>
             <p className="error">{error}</p>
-            <button type="button" className="link-button" onClick={() => loadLogs()}>
+            <button type="button" className="link-button" onClick={() => loadLogs()} data-admin-hint="重新嘗試載入管理紀錄。">
               重新載入
             </button>
           </div>
@@ -304,6 +308,7 @@ export default function AdminLogPage() {
                 type="button"
                 disabled={page === 1}
                 onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                data-admin-hint="前往上一頁紀錄。"
               >
                 上一頁
               </button>
@@ -314,6 +319,7 @@ export default function AdminLogPage() {
                 type="button"
                 disabled={page >= totalPages}
                 onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
+                data-admin-hint="前往下一頁紀錄。"
               >
                 下一頁
               </button>
@@ -324,4 +330,3 @@ export default function AdminLogPage() {
     </div>
   );
 }
-

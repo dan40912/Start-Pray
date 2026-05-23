@@ -7,6 +7,7 @@ const ADMIN_ALLOWED_API_PATHS = new Set([
   "/api/admin/auth/login",
   "/api/admin/session",
 ]);
+const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 function base64UrlToBytes(base64Url) {
   try {
@@ -78,6 +79,29 @@ async function verifyAdminSessionToken(token) {
   return payload;
 }
 
+function isSameOriginAdminMutation(request) {
+  if (!UNSAFE_METHODS.has(request.method)) {
+    return true;
+  }
+
+  const expectedOrigin = request.nextUrl.origin;
+  const origin = request.headers.get("origin");
+  if (origin) {
+    return origin === expectedOrigin;
+  }
+
+  const referer = request.headers.get("referer");
+  if (!referer) {
+    return false;
+  }
+
+  try {
+    return new URL(referer).origin === expectedOrigin;
+  } catch (error) {
+    return false;
+  }
+}
+
 async function guardAdminRequest(request) {
   const { pathname } = request.nextUrl;
   const sessionToken = request.cookies.get(ADMIN_SESSION_COOKIE)?.value;
@@ -98,6 +122,10 @@ async function guardAdminRequest(request) {
   }
 
   if (pathname.startsWith("/api/admin/")) {
+    if (!isSameOriginAdminMutation(request)) {
+      return NextResponse.json({ message: "跨站後台請求已被拒絕" }, { status: 403 });
+    }
+
     if (ADMIN_ALLOWED_API_PATHS.has(pathname)) {
       return null;
     }

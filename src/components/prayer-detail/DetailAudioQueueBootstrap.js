@@ -34,7 +34,7 @@ function normalizeResponseTrack(item, index, prayerTitle, fallbackCoverImage = "
     voiceUrl,
     speaker: isAnonymous
       ? FALLBACK_SPEAKER
-      : item.responder?.name?.trim() || item.responder?.email?.trim() || FALLBACK_SPEAKER,
+      : item.responder?.name?.trim() || item.responder?.username?.trim() || FALLBACK_SPEAKER,
     message: item.message?.trim() || "",
     avatarUrl: item.responder?.avatarUrl?.trim() || "",
     requestTitle: prayerTitle || item.card?.title || FALLBACK_TITLE,

@@ -8,6 +8,7 @@ import { Open_Sans, Raleway, Poppins } from "next/font/google";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import GlobalPlayerGate from "@/components/GlobalPlayerGate";
 import { AudioProvider } from "@/context/AudioContext";
+import { getDictionary, localeFromPathname } from "@/lib/i18n";
 import { readSiteSettings } from "@/lib/siteSettings";
 import { SITE_NAME, SITE_URL, buildPageMetadata } from "@/lib/seo";
 
@@ -128,20 +129,22 @@ function StructuredData() {
 export default async function RootLayout({ children }) {
   const requestHeaders = headers();
   const requestPath = extractPathFromHeaders(requestHeaders);
+  const locale = localeFromPathname(requestPath);
+  const dictionary = getDictionary(locale);
 
   if (!shouldBypassMaintenance(requestPath)) {
     const settings = await readSiteSettings();
     if (settings?.maintenanceMode) {
       return (
         <html
-          lang="zh-Hant"
+          lang={dictionary.htmlLang}
           className={`${openSans.variable} ${raleway.variable} ${poppins.variable}`}
         >
           <head>
             <meta name="robots" content="noindex,nofollow" />
           </head>
           <body className="admin-layout">
-            <SiteHeader />
+            <SiteHeader locale={locale} />
             <div
               style={{
                 minHeight: "80vh",
@@ -211,7 +214,7 @@ export default async function RootLayout({ children }) {
                 </div>
               </div>
             </div>
-            <SiteFooter />
+            <SiteFooter locale={locale} />
           </body>
         </html>
       );
@@ -219,7 +222,7 @@ export default async function RootLayout({ children }) {
   }
 
   return (
-    <html lang="zh-Hant" className={`${openSans.variable} ${raleway.variable} ${poppins.variable}`}>
+    <html lang={dictionary.htmlLang} className={`${openSans.variable} ${raleway.variable} ${poppins.variable}`}>
       <body className="admin-layout">
         <StructuredData />
         <AudioProvider>

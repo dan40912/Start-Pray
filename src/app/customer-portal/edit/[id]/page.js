@@ -398,16 +398,10 @@ export default function CustomerPortalEditCardPage() {
                 </label>
               </div>
 
-              <div className="cp-form__grid">
-                <label>
-                  <span>語音連結</span>
-                  <input type="url" value={form.voiceHref} onChange={updateField("voiceHref")} />
-                </label>
-                <label>
-                  <span>標籤（以逗號分隔）</span>
-                  <input type="text" value={form.tags} onChange={updateField("tags")} />
-                </label>
-              </div>
+              <label>
+                <span>標籤（以逗號分隔）</span>
+                <input type="text" value={form.tags} onChange={updateField("tags")} />
+              </label>
 
               <label>
                 <span>Meta 資訊（每行一筆）</span>

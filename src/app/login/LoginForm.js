@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { saveAuthSession } from "@/lib/auth-storage";
+import { getDictionary, localizePath, normalizeLocale } from "@/lib/i18n";
 import { resolveSafeNextPath } from "@/lib/redirect-target";
 
 const initialForm = {
@@ -12,7 +13,9 @@ const initialForm = {
   password: "",
 };
 
-export default function LoginForm() {
+export default function LoginForm({ locale: localeProp = "zh-TW" }) {
+  const locale = normalizeLocale(localeProp);
+  const text = getDictionary(locale).auth.login;
   const router = useRouter();
   const searchParams = useSearchParams();
   const [form, setForm] = useState(initialForm);
@@ -39,14 +42,14 @@ export default function LoginForm() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "登入失敗，請稍後再試。");
+        throw new Error(data.message || text.defaultError);
       }
 
       saveAuthSession(data.user);
 
       setStatus({
         state: "success",
-        message: nextPath === "/customer-portal" ? "登入成功，正在帶您進入會員中心。" : "登入成功，正在返回原本頁面。",
+        message: nextPath === "/customer-portal" ? text.successPortal : text.successNext,
       });
       setTimeout(() => {
         router.replace(nextPath);
@@ -60,7 +63,7 @@ export default function LoginForm() {
     <form className="auth-form" onSubmit={handleSubmit}>
       <div className="form-group">
         <label className="form-label" htmlFor="login-email">
-          電子信箱 <span className="required-badge">必填</span>
+            {text.email} <span className="required-badge">{text.required}</span>
         </label>
         <input
           className="form-control"
@@ -74,13 +77,13 @@ export default function LoginForm() {
       </div>
       <div className="form-group">
         <label className="form-label" htmlFor="login-password">
-          密碼 <span className="required-badge">必填</span>
+            {text.password} <span className="required-badge">{text.required}</span>
         </label>
         <input
           className="form-control"
           type={showPassword ? "text" : "password"}
           id="login-password"
-          placeholder="至少 8 碼"
+          placeholder={text.passwordPlaceholder}
           value={form.password}
           onChange={updateField("password")}
           onKeyUp={(event) => setCapsLockOn(Boolean(event.getModifierState?.("CapsLock")))}
@@ -93,15 +96,15 @@ export default function LoginForm() {
           onClick={() => setShowPassword((prev) => !prev)}
           aria-pressed={showPassword}
         >
-          {showPassword ? "隱藏密碼" : "顯示密碼"}
+          {showPassword ? text.hidePassword : text.showPassword}
         </button>
         <span className="form-helper">
-          忘記密碼？{" "}
-          <Link href="/forgot-password" prefetch={false}>
-            前往重設密碼
+          {text.forgotPrefix}{" "}
+          <Link href={localizePath("/forgot-password", locale)} prefetch={false}>
+            {text.forgotLink}
           </Link>
         </span>
-        {capsLockOn ? <span className="form-helper form-helper--warning">Caps Lock 已開啟。</span> : null}
+        {capsLockOn ? <span className="form-helper form-helper--warning">{text.capsLock}</span> : null}
       </div>
       <div className="auth-status-slot" aria-live="polite">
         {status.message ? (
@@ -114,7 +117,7 @@ export default function LoginForm() {
         ) : null}
       </div>
       <button type="submit" className="btn btn-primary" style={{ width: "100%", justifyContent: "center" }} disabled={status.state === "loading"}>
-        {status.state === "loading" ? "驗證中" : "登入會員中心"}
+        {status.state === "loading" ? text.loading : text.submit}
       </button>
     </form>
   );

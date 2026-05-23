@@ -1,6 +1,7 @@
 ﻿import Link from "next/link";
 
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
+import { getDictionary, localizePath, normalizeLocale } from "@/lib/i18n";
 import { buildPageMetadata } from "@/lib/seo";
 
 import LoginForm from "./LoginForm";
@@ -12,24 +13,22 @@ export const metadata = buildPageMetadata({
   noIndex: true,
 });
 
-export default function LoginPage() {
-  const trustBullets = [
-    "你可以用暱稱或匿名回應，不一定要公開真實姓名。",
-    "登入後可以留下文字，也可以用語音為人禱告。",
-    "你可以管理自己建立的代禱和回應。",
-  ];
+export default function LoginPage({ locale: localeProp = "zh-TW" } = {}) {
+  const locale = normalizeLocale(localeProp);
+  const text = getDictionary(locale).auth.login;
+  const trustBullets = text.trustBullets;
 
   return (
     <>
-      <SiteHeader activePath="/login" />
+      <SiteHeader activePath={localizePath("/login", locale)} locale={locale} />
 
       <main>
         <div className="auth-wrapper">
           <div className="auth-grid">
             <section className="auth-card">
               <div>
-                <h1>歡迎回來</h1>
-                <p>登入後，你可以建立代禱、留下回應，也可以用聲音為正在需要的人禱告。</p>
+                <h1>{text.title}</h1>
+                <p>{text.copy}</p>
               </div>
 
               <ul className="auth-trust-list">
@@ -49,11 +48,11 @@ export default function LoginPage() {
 
               {/* <div className="auth-divider">或使用電子信箱登入</div> */}
 
-              <LoginForm />
+              <LoginForm locale={locale} />
 
               <div className="auth-footer">
                 <span>
-                  還沒有帳號？前往 <Link href="/signup">註冊 Start Pray</Link>。
+                  {text.footerPrefix} <Link href={localizePath("/signup", locale)}>{text.footerLink}</Link>{text.footerSuffix}
                 </span>
               </div>
             </section>
@@ -80,7 +79,7 @@ export default function LoginPage() {
         </div>
       </main>
 
-      <SiteFooter />
+      <SiteFooter locale={locale} />
     </>
   );
 }

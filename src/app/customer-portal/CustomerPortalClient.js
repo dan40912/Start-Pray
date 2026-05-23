@@ -31,6 +31,7 @@ const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 const MAX_STORY_AUDIO_BYTES = 30 * 1024 * 1024;
 const MAX_STORY_RECORD_SECONDS = 300;
 const STORY_COUNTDOWN_START = 3;
+const STORY_AUDIO_CAPTURE_ENABLED = false;
 
 const REWARD_STATUS_LABELS = {
   PENDING: "審核中",
@@ -1433,9 +1434,9 @@ export default function CustomerPortalPage() {
                 </article>
                 <article className="home-stats__item">
                   <span className="home-stats__icon" aria-hidden="true">🎧</span>
-                  <span className="home-stats__label">禱告錄音</span>
+                  <span className="home-stats__label">語音回應</span>
                   <strong className="home-stats__value">{renderUserStatValue(userStats.totalResponses)}</strong>
-                  <p className="home-stats__hint">收到的禱告錄音回應</p>
+                  <p className="home-stats__hint">既有語音回應數</p>
                 </article>
                 {/* <article className="home-stats__item">
                   <span className="home-stats__icon" aria-hidden="true">⚠️</span>
@@ -1483,7 +1484,7 @@ export default function CustomerPortalPage() {
             <section className="cp-section cp-section--replies">
               <div className="cp-section__head">
                 <div>
-                  <h2>收到的留言與錄音</h2>
+                  <h2>收到的留言與回應</h2>
                   <p>隨時追蹤大家的代禱聲音，必要時可檢舉、分享或隱藏不合適的內容。</p>
                 </div>
               </div>
@@ -1633,6 +1634,7 @@ export default function CustomerPortalPage() {
 
             </label>
 
+            {STORY_AUDIO_CAPTURE_ENABLED ? (
             <div className="cp-story-recorder">
               <label className="cp-modal__field">
                 <span>故事錄音</span>
@@ -1732,6 +1734,7 @@ export default function CustomerPortalPage() {
                 </div>
               ) : null}
             </div>
+            ) : null}
 
             <label className="cp-modal__field">
               <span>YouTube 故事連結</span>
@@ -1856,9 +1859,6 @@ export default function CustomerPortalPage() {
   );
 
 }
-
-
-
 
 
 

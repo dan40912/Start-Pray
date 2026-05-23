@@ -2,13 +2,13 @@
 
 export const metadata = {
   title: "使用說明 | Start Pray 一起禱告吧",
-  description: "一步步學會發佈禱告、分享連結、收集留言與語音回應，快速開始守望。"
+  description: "一步步學會發佈禱告、分享連結、收集文字回應，快速開始守望。"
 };
 
 const heroChecklist = [
   "使用純文字與關鍵字清晰描述禱告重點",
   "上傳圖片與設定分享標題，提升社群曝光",
-  "邀請朋友留言或語音禱告，累計守望成果"
+  "邀請朋友留下文字回應，累計守望成果"
 ];
 
 const steps = [
@@ -32,9 +32,9 @@ const steps = [
   },
   {
     title: "Step 03 · 收集回應與守望成果",
-    description: "守望者可用文字或**錄音 (語音)** 回應。系統自動計算語音長度與回覆數，並發放影響力點數，同時即時更新 Dashboard 數據。",
+    description: "守望者可用文字回應。系統會整理回覆數與互動紀錄，協助你看見哪些需要正在被陪伴。",
     items: [
-      "語音滿 10 秒才會計入有效守望次數",
+      "文字回應會集中在代禱卡下方",
       "累積成果可作為社群回顧與事工整理",
       "即時通知最新回應與互動，保持連結"
     ]
@@ -42,7 +42,7 @@ const steps = [
 ];
 
 const dashboardChecklist = [
-  "即時更新守望次數、語音長度與互動趨勢",
+  "即時更新守望次數與互動趨勢",
   "一鍵匯出成果報表與 QR Code 分享",
   "守望者熱區分析，了解誰正在支持你的禱告", // 新增一項內容，讓內容更豐富
   "即將推出：熱門禱告通知與自動感謝訊息"
@@ -68,10 +68,10 @@ const imageExamples = [
 ];
 
 const faqCards = [
-  { question: "如何開始使用 Start Pray？", answer: "您需要**註冊成為會員**才能發起禱告、留言及錄音。註冊程序僅需電子郵件或社群帳號驗證，過程快速簡便。" }, // 增加註冊相關內容
-  { question: "語音多久才算有效守望？", answer: "守望者錄音需超過 **10 秒**，才會被計入有效守望次數。未達門檻的音檔仍會儲存，方便您聆聽回顧。" },
+  { question: "如何開始使用 Start Pray？", answer: "您可以瀏覽公開代禱；若要管理自己的代禱內容，建議註冊成為會員。" },
+  { question: "目前可以使用語音嗎？", answer: "語音提交功能暫時先從前台移除。你仍然可以用文字留下代禱、鼓勵或見證。" },
   { question: "我可以刪除或修改禱告內容嗎？", answer: "發佈者可隨時切換「公開 / 私密」，或提交刪除申請。禱告的歷史記錄與守望次數將保留於您的帳戶作為紀錄。" },
-  { question: "錄音可以重複播放或修改嗎？", answer: "守望者送出錄音後，發起者與守望者都可**重複播放**。但為保持記錄的真實性，語音一經送出即無法修改或刪除，請謹慎錄製。" } // 增加重複播放與錄音修改的內容
+  { question: "訪客可以建立代禱嗎？", answer: "可以。訪客送出會以匿名顯示，請避免填寫真名、電話、地址或其他敏感個資。" }
 ];
 
 // 新增區塊一：非基督徒參與方式建議 (已整合到新大區塊)
@@ -82,9 +82,9 @@ const nonChristianGuide = [
         description: "即便不是用禱告的語言，一句溫暖的鼓勵、同理的留言，或給予支持的文字，對發起者都是極大的幫助。"
     },
     {
-        icon: "🎧",
-        title: "「語音祝福」或「心靈支持」",
-        description: "您可以使用語音功能，單純送出**祝福話語**、**加油打氣**或**簡短的慰問**。平台的核心是支持與關懷，形式不拘。"
+        icon: "💛",
+        title: "祝福話語或心靈支持",
+        description: "你可以用文字送出祝福、加油打氣或簡短慰問。平台的核心是支持與關懷，形式可以很簡單。"
     },
     {
         icon: "🔄",
@@ -103,7 +103,7 @@ const otherParticipation = [
     {
         icon: "💡",
         title: "募集創意與建議",
-        description: "如果您遇到生活難題或專案瓶頸，可以將此處作為**集思廣益**的平台，邀請大家用留言或語音提供不同視角的解決方案。"
+        description: "如果您遇到生活難題或專案瓶頸，可以將此處作為**集思廣益**的平台，邀請大家用留言提供不同視角的支持。"
     },
     {
         icon: "💖",
@@ -118,7 +118,7 @@ const christianGuide = {
     template: "「主耶穌阿，求祢幫助 [代禱對象或需求]，求祢賜下平安與力量，成就祢美好的旨意。請把自己最深處的想法告訴祂。」",
     points: [
         "專注於對方的需求與神的心意。",
-        "將您的**最深處的想法**透過語音，真誠地與神分享。",
+        "用清楚的文字寫下此刻最需要被代禱的事情。",
         "為此禱告設定一個「**回應目標**」，讓守望更有方向。"
     ]
 };
@@ -135,7 +135,7 @@ export default function HowToPage() {
             <span className="badge-soft">使用指南</span>
             <h1>3 個步驟，啟動您的禱告任務與連結</h1>
             <p>
-              Start Pray 致力於讓代禱資訊清晰、有序地流動：從發起禱告、邀請守望者、到接收語音回應並看見守望的**實際影響力**。
+              Start Pray 致力於讓代禱資訊清晰、有序地流動：從發起禱告、邀請守望者、到接收文字回應並看見守望的實際痕跡。
               我們將流程化繁為簡，拆成三個核心步驟，讓您快速掌握。
             </p>
             <ul className="checklist">
@@ -154,7 +154,7 @@ export default function HowToPage() {
 
         <section className="section">
           <h2>快速開始 · Step by Step</h2>
-          <p>依序完成以下動作，十分鐘內即可發佈第一個禱告任務，並開始接收文字與**語音守望**。</p>
+          <p>依序完成以下動作，十分鐘內即可發佈第一個禱告任務，並開始接收文字守望。</p>
           <div className="icon-step-grid">
             {steps.map((step) => (
               <div key={step.title} className="icon-step">
@@ -193,7 +193,7 @@ export default function HowToPage() {
           <div className="layout-grid columns-2" style={{ marginTop: "1.5rem" }}>
             <div className="gradient-card">
                 
-                <p>將您的**祝福話語、加油打氣或簡短的慰問**錄製下來。將「守望」視為一種**溫暖的陪伴**，用最真實的聲音給予支持。</p>
+                <p>將您的祝福話語、加油打氣或簡短慰問寫下來。守望可以很簡單，一句真誠的文字也能讓人知道自己不是獨自面對。</p>
                 <ul className="checklist">
                     {nonChristianGuide.map((item) => (
                         <li key={item.title}><strong>{item.title}:</strong> {item.description}</li>
@@ -215,7 +215,7 @@ export default function HowToPage() {
               <span className="badge-soft">儀表板</span>
               <h2>用儀表板掌握守望互動成效</h2>
               <p>
-                登入後即可在 **Dashboard** 查看您所有禱告的列表、詳細的**守望者人數統計**、**語音總時長**、影響力點數累積與守望者活動熱區。這些數據將幫助您更具體地評估禱告的影響力與廣度。
+                登入後即可在 Dashboard 查看您所有禱告的列表、守望者人數統計、回應紀錄與活動熱區。這些資料能幫助你更具體地回顧哪些需要正在被陪伴。
               </p>
               <ul className="checklist">
                 {dashboardChecklist.map((item) => (

@@ -2,7 +2,9 @@
 
 import { logAdminAction } from "@/lib/logger";
 import { readTokenRewardRule, updateTokenRewardRule } from "@/lib/tokenRewards";
-import { requireAdmin } from "@/lib/admin-route-auth";
+import { requireAdmin, roleSet } from "@/lib/admin-route-auth";
+
+const SUPER_ONLY = roleSet("SUPER");
 
 export async function GET(request) {
   const { error } = requireAdmin(request);
@@ -30,7 +32,7 @@ export async function GET(request) {
 }
 
 export async function PATCH(request) {
-  const { error, session } = requireAdmin(request);
+  const { error, session } = requireAdmin(request, SUPER_ONLY);
   if (error) return error;
 
   try {

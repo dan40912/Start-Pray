@@ -1,69 +1,57 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+
+import { requireAdmin, roleSet } from "@/lib/admin-route-auth";
 import prisma from "@/lib/prisma";
-import { requireAdmin } from "@/lib/admin-route-auth";
 
-const CATEGORY_MAP = {
-  system: "SYSTEM",
-  action: "ACTION",
-};
+const SUPER_ONLY = roleSet("SUPER");
+const ALLOWED_CATEGORIES = new Set(["ACTION", "SYSTEM"]);
+const ALLOWED_LEVELS = new Set(["INFO", "WARNING", "ERROR", "CRITICAL"]);
 
-const LEVEL_SET = new Set(["INFO", "WARNING", "ERROR", "CRITICAL"]);
-const DEFAULT_LIMIT = 20;
-const MAX_LIMIT = 100;
-
-function clampPage(value) {
-  const numeric = Number.parseInt(value, 10);
-  return Number.isNaN(numeric) || numeric < 1 ? 1 : numeric;
+function normalizeEnumParam(value, allowedValues) {
+  const normalized = String(value || "").trim().toUpperCase();
+  return allowedValues.has(normalized) ? normalized : null;
 }
 
-function clampLimit(value) {
-  const numeric = Number.parseInt(value, 10);
-  if (Number.isNaN(numeric) || numeric < 1) {
-    return DEFAULT_LIMIT;
-  }
-  return Math.min(numeric, MAX_LIMIT);
+function parsePositiveInt(value, fallback, max) {
+  const parsed = Number.parseInt(value || "", 10);
+  const nextValue = Number.isNaN(parsed) ? fallback : parsed;
+  return Math.min(Math.max(nextValue, 1), max);
 }
 
 export async function GET(request) {
-  const { error } = requireAdmin(request);
+  const { error } = requireAdmin(request, SUPER_ONLY);
   if (error) return error;
 
   try {
     const { searchParams } = new URL(request.url);
-    const categoryParam = searchParams.get("category")?.toLowerCase() ?? "all";
-    const levelParam = searchParams.get("level")?.toUpperCase();
-    const search = searchParams.get("search")?.trim() ?? "";
-    const page = clampPage(searchParams.get("page") ?? "1");
-    const limit = clampLimit(searchParams.get("limit") ?? String(DEFAULT_LIMIT));
+    const page = parsePositiveInt(searchParams.get("page"), 1, 10000);
+    const limit = parsePositiveInt(searchParams.get("limit"), 20, 100);
     const skip = (page - 1) * limit;
+    const category = normalizeEnumParam(searchParams.get("category"), ALLOWED_CATEGORIES);
+    const level = normalizeEnumParam(searchParams.get("level"), ALLOWED_LEVELS);
+    const search = searchParams.get("search")?.trim();
 
-    const whereFilters = [];
-    const categoryValue = CATEGORY_MAP[categoryParam];
-    if (categoryValue) {
-      whereFilters.push({ category: categoryValue });
-    }
+    const where = {
+      AND: [
+        category ? { category } : {},
+        level ? { level } : {},
+        search
+          ? {
+              OR: [
+                { message: { contains: search } },
+                { action: { contains: search } },
+                { actorId: { contains: search } },
+                { actorEmail: { contains: search } },
+                { targetType: { contains: search } },
+                { targetId: { contains: search } },
+                { requestPath: { contains: search } },
+              ],
+            }
+          : {},
+      ],
+    };
 
-    if (levelParam && LEVEL_SET.has(levelParam)) {
-      whereFilters.push({ level: levelParam });
-    }
-
-    if (search) {
-      whereFilters.push({
-        OR: [
-          { message: { contains: search, mode: "insensitive" } },
-          { action: { contains: search, mode: "insensitive" } },
-          { actorEmail: { contains: search, mode: "insensitive" } },
-          { actorId: { contains: search, mode: "insensitive" } },
-          { targetType: { contains: search, mode: "insensitive" } },
-          { targetId: { contains: search, mode: "insensitive" } },
-          { requestPath: { contains: search, mode: "insensitive" } },
-        ],
-      });
-    }
-
-    const where = whereFilters.length ? { AND: whereFilters } : {};
-
-    const [entries, total, categoryCounts] = await Promise.all([
+    const [logs, total, systemCount, actionCount] = await Promise.all([
       prisma.adminLog.findMany({
         where,
         orderBy: { createdAt: "desc" },
@@ -71,33 +59,26 @@ export async function GET(request) {
         take: limit,
       }),
       prisma.adminLog.count({ where }),
-      prisma.adminLog.groupBy({
-        by: ["category"],
-        _count: { _all: true },
-      }),
+      prisma.adminLog.count({ where: { category: "SYSTEM" } }),
+      prisma.adminLog.count({ where: { category: "ACTION" } }),
     ]);
 
-    const summary = categoryCounts.reduce(
-      (acc, item) => {
-        acc[item.category.toLowerCase()] = item._count._all;
-        acc.total += item._count._all;
-        return acc;
-      },
-      { total: 0 }
-    );
-
     return NextResponse.json({
-      data: entries,
+      data: logs,
       pagination: {
         total,
         page,
         limit,
         totalPages: Math.max(Math.ceil(total / limit), 1),
       },
-      summary,
+      summary: {
+        total,
+        system: systemCount,
+        action: actionCount,
+      },
     });
   } catch (error) {
-    console.error("❌ GET /api/admin/logs error:", error);
-    return NextResponse.json({ message: "無法取得系統紀錄" }, { status: 500 });
+    console.error("GET /api/admin/logs error:", error);
+    return NextResponse.json({ message: "無法載入管理紀錄" }, { status: 500 });
   }
 }

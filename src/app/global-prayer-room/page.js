@@ -1,33 +1,11 @@
 import { GlobalPrayerRoomPageExperience } from "@/components/GlobalPrayerRoom";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
+import { toGlobalPrayerPayload } from "@/lib/globalPrayerPayload";
+import { getDictionary, localizePath, normalizeLocale } from "@/lib/i18n";
 import prisma from "@/lib/prisma";
 import { SITE_URL, absoluteUrl, buildPageMetadata } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
-
-function toGlobalPrayerPayload(card) {
-  const isPrivate = Boolean(card.isPrivate);
-
-  return {
-    id: card.id,
-    isPrivate,
-    title: isPrivate ? "匿名代禱" : card.title,
-    description: isPrivate ? "這個城市有人需要被守望。" : card.description,
-    createdAt: card.createdAt?.toISOString?.() ?? null,
-    voiceHref: isPrivate ? null : card.voiceHref,
-    locationCity: card.locationCity,
-    locationCountry: card.locationCountry,
-    locationLat: Number(card.locationLat),
-    locationLng: Number(card.locationLng),
-    category: isPrivate ? null : card.category,
-    owner: isPrivate ? null : card.owner,
-    responseCount: isPrivate ? 0 : card._count?.responses ?? 0,
-    audioCount: isPrivate
-      ? 0
-      : (card.responses || []).filter((response) => Boolean(response.voiceUrl)).length,
-    prayerCount: 1,
-  };
-}
 
 export const metadata = buildPageMetadata({
   title: "全球禱告室",
@@ -38,7 +16,13 @@ export const metadata = buildPageMetadata({
   keywords: ["全球禱告室", "全球代禱", "禱告地圖", "語音禱告", "城市代禱", "Start Pray"],
 });
 
-function GlobalPrayerRoomStructuredData({ prayers }) {
+function stringifyJsonLd(data) {
+  return JSON.stringify(data).replace(/</g, "\\u003c");
+}
+
+function GlobalPrayerRoomStructuredData({ prayers, locale = "zh-TW" }) {
+  const text = getDictionary(locale).globalRoom;
+  const roomPath = localizePath("/global-prayer-room", locale);
   const publicPrayers = prayers.filter((prayer) => !prayer.isPrivate).slice(0, 12);
   const locations = new Set(
     prayers
@@ -52,12 +36,11 @@ function GlobalPrayerRoomStructuredData({ prayers }) {
   const data = {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
-    "@id": `${SITE_URL}/global-prayer-room#collection`,
-    url: `${SITE_URL}/global-prayer-room`,
-    name: "全球禱告室",
-    description:
-      "查看世界各地的代禱光點、最新禱告需求與語音禱告，為城市、家庭、教會與急迫事件一起守望。",
-    inLanguage: "zh-Hant-TW",
+    "@id": `${SITE_URL}${roomPath}#collection`,
+    url: `${SITE_URL}${roomPath}`,
+    name: text.structuredName,
+    description: text.structuredDescription,
+    inLanguage: locale === "en" ? "en" : "zh-Hant-TW",
     isPartOf: {
       "@id": `${SITE_URL}/#website`,
     },
@@ -68,24 +51,24 @@ function GlobalPrayerRoomStructuredData({ prayers }) {
     about: ["全球代禱", "禱告地圖", "語音禱告", "城市守望"],
     mainEntity: {
       "@type": "ItemList",
-      name: "最新全球代禱",
+      name: text.latestListName,
       numberOfItems: prayers.length,
       itemListElement: publicPrayers.map((prayer, index) => ({
         "@type": "ListItem",
         position: index + 1,
-        url: `${SITE_URL}/prayfor/${prayer.id}`,
-        name: prayer.title || "城市代禱",
+        url: `${SITE_URL}${localizePath(`/prayfor/${prayer.id}`, locale)}`,
+        name: prayer.title || text.cityPrayer,
       })),
     },
     additionalProperty: [
       {
         "@type": "PropertyValue",
-        name: "代禱地點數",
+        name: text.locationCount,
         value: locations.size,
       },
       {
         "@type": "PropertyValue",
-        name: "語音禱告數",
+        name: text.audioCount,
         value: audioCount,
       },
     ],
@@ -94,12 +77,13 @@ function GlobalPrayerRoomStructuredData({ prayers }) {
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+      dangerouslySetInnerHTML={{ __html: stringifyJsonLd(data) }}
     />
   );
 }
 
-export default async function GlobalPrayerRoomPage() {
+export default async function GlobalPrayerRoomPage({ locale: localeProp = "zh-TW" } = {}) {
+  const locale = normalizeLocale(localeProp);
   const cards = await prisma.homePrayerCard.findMany({
     where: {
       isBlocked: false,
@@ -134,16 +118,16 @@ export default async function GlobalPrayerRoomPage() {
     },
   });
 
-  const prayers = cards.map(toGlobalPrayerPayload);
+  const prayers = cards.map((card) => toGlobalPrayerPayload(card, locale));
 
   return (
     <>
-      <SiteHeader activePath="/global-prayer-room" />
+      <SiteHeader activePath={localizePath("/global-prayer-room", locale)} locale={locale} />
       <main>
-        <GlobalPrayerRoomStructuredData prayers={prayers} />
-        <GlobalPrayerRoomPageExperience prayers={prayers} />
+        <GlobalPrayerRoomStructuredData prayers={prayers} locale={locale} />
+        <GlobalPrayerRoomPageExperience prayers={prayers} locale={locale} />
       </main>
-      <SiteFooter />
+      <SiteFooter locale={locale} />
     </>
   );
 }

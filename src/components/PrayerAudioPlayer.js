@@ -45,7 +45,7 @@ export default function PrayerAudioPlayer({ requestId, initialTrack = null, pray
         voiceUrl: item.voiceUrl,
         speaker: item.isAnonymous
           ? "匿名代禱者"
-          : item.responder?.name || item.responder?.email || FALLBACK_SPEAKER,
+          : item.responder?.name || item.responder?.username || FALLBACK_SPEAKER,
         message: item.message?.trim() || "",
         avatarUrl: item.responder?.avatarUrl?.trim() || "",
         responderId: item.responderId ?? null,
@@ -74,7 +74,7 @@ export default function PrayerAudioPlayer({ requestId, initialTrack = null, pray
       }
 
       if (!queue.length) {
-        setFeedback("目前沒有可播放的語音，歡迎率先錄製祝福。");
+        setFeedback("目前沒有可播放的語音。");
         return;
       }
 

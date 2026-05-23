@@ -6,7 +6,7 @@ export const metadata = {
 };
 
 const coreValues = [
-  { title: "真實陪伴", description: "結合文字與語音禱告，讓彼此的生命故事被聽見，取代快速、片段的社群互動。" },
+  { title: "真實陪伴", description: "用清楚文字與真實回應，讓彼此的生命故事被看見，取代快速、片段的社群互動。" },
   { title: "透明信任", description: "以清楚的紀錄、審核流程與公開說明，打造可追蹤、可理解的守望流程。" },
   { title: "共享資源", description: "提供 API 與 SDK，讓教會、非營利組織與開發者能快速串接，延伸禱告網絡。" },
   { title: "合規守護", description: "遵循區域法規、重視資料隱私，確保每筆禱告與每次互動都在安全環境中進行。" }
@@ -32,7 +32,7 @@ const imageHighlights = [
 ];
 
 const milestones = [
-  { title: "2025 09 · Private Beta", description: "因為大失眠和禱告後的感覺，完成第一版禱告牆、語音禱告功能" },
+  { title: "2025 09 · Private Beta", description: "因為大失眠和禱告後的感覺，完成第一版禱告牆與回應功能" },
   { title: "2025 10 · Global Rollout", description: "10 開發基礎功能 和社群測試" },
   { title: "2025 11 · 上GCP和購買正式URL", description: "徵求有意願參加的行銷或開發人員" },
   { title: "2025 12 · 預備英文網站", description: "徵求翻譯 或 管理員" },
@@ -57,7 +57,7 @@ const engagementPoints = [
     {
         icon: "⛪", // 教會合作圖標
         title: "系統複製與教會合作",
-        description: "我們提供系統複製服務，讓您的教會組織也能擁有專屬的語音禱告平臺。請透過 Email 聯繫我們，瞭解詳細的**合作與技術支援方案**。"
+        description: "我們提供系統複製服務，讓您的教會組織也能擁有專屬的代禱平臺。請透過 Email 聯繫我們，瞭解詳細的**合作與技術支援方案**。"
     }
 ];
 

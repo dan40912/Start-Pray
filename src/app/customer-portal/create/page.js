@@ -36,7 +36,6 @@ const INITIAL_FORM = {
   tags: DEFAULT_PRAYER_TAG,
   meta: "",
   detailsHref: "",
-  voiceHref: "",
   ...TAIPEI_LOCATION,
   isPrivate: false,
   acceptedGuestTerms: false,
@@ -77,7 +76,6 @@ export default function CustomerPortalCreatePage() {
   const [uploadedImages, setUploadedImages] = useState([]);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [lastAutoSavedAt, setLastAutoSavedAt] = useState(null);
-  const [prayerMode, setPrayerMode] = useState("text");
 
   const uploadLockRef = useRef(false);
 
@@ -341,11 +339,6 @@ export default function CustomerPortalCreatePage() {
       return;
     }
 
-    if (isGuest && prayerMode === "voice" && form.voiceHref.trim()) {
-      setStatus({ type: "error", message: "訪客可以送出文字代禱；語音連結需登入會員。" });
-      return;
-    }
-
     if (isGuest && !form.acceptedGuestTerms) {
       setStatus({ type: "error", message: "請先確認訪客送出提醒。" });
       return;
@@ -378,7 +371,7 @@ export default function CustomerPortalCreatePage() {
         .filter(Boolean),
       meta: buildCardMetaArray(infoLines, galleryUrls),
       detailsHref: form.detailsHref.trim(),
-      voiceHref: form.voiceHref.trim(),
+      voiceHref: "",
       categoryId,
       locationKey: form.locationKey,
       locationCity: form.locationCity.trim(),
@@ -475,38 +468,9 @@ export default function CustomerPortalCreatePage() {
 
             {!authUser?.id ? (
               <div className="customer-create__notice" role="note">
-                訪客可以送出文字代禱，系統會以匿名使用者顯示，並使用預設圖片。登入後可管理內容、上傳圖片與加入語音連結。
+                訪客可以送出文字代禱，系統會以匿名使用者顯示，並使用預設圖片。登入後可管理內容與上傳圖片。
               </div>
             ) : null}
-
-            <section className="customer-create__mode" aria-label="選擇禱告形式">
-              <div>
-                <span>禱告形式</span>
-                <p>選擇這個光點主要以文字或語音被看見。</p>
-              </div>
-              <div className="customer-create__mode-actions">
-                <button
-                  type="button"
-                  className={prayerMode === "text" ? "is-active" : ""}
-                  onClick={() => setPrayerMode("text")}
-                >
-                  文字禱告
-                </button>
-                <button
-                  type="button"
-                  className={prayerMode === "voice" ? "is-active" : ""}
-                  onClick={() => {
-                    if (!authUser?.id) {
-                      setStatus({ type: "info", message: "語音代禱目前開放給登入會員使用。" });
-                      return;
-                    }
-                    setPrayerMode("voice");
-                  }}
-                >
-                  語音禱告
-                </button>
-              </div>
-            </section>
 
             <div className="customer-create__row customer-create__row--equal">
               <label>
@@ -556,29 +520,21 @@ export default function CustomerPortalCreatePage() {
               <span>03</span>
               <div>
                 <h2>補充內容並送出</h2>
-                <p>保留必要內容，圖片、隱私與語音連結放在進階設定。</p>
+                <p>保留必要內容，圖片與隱私選項放在進階設定。</p>
               </div>
             </div>
 
             <div className="customer-create__row customer-create__row--description">
               <label>
-                <span>{prayerMode === "voice" ? "語音說明 *" : "代禱內容 *"}</span>
+                <span>代禱內容 *</span>
                 <textarea
                   value={form.description}
                   onChange={updateFormField("description")}
-                  placeholder={
-                    prayerMode === "voice"
-                      ? "簡短說明這段語音禱告的地點、需要與盼望。"
-                      : "請直接輸入代禱內容，清楚描述目前情況、需要代禱與盼望。"
-                  }
-                  rows={prayerMode === "voice" ? 5 : 7}
+                  placeholder="請直接輸入代禱內容，清楚描述目前情況、需要代禱與盼望。"
+                  rows={7}
                   required
                 />
-                <small className="cp-helper">
-                  {prayerMode === "voice"
-                    ? "語音連結會和這個地點一起顯示在全球禱告地圖上。"
-                    : "請直接輸入文字即可，不需要填寫多餘欄位。"}
-                </small>
+                <small className="cp-helper">請直接輸入文字即可，不需要填寫多餘欄位。</small>
               </label>
             </div>
 
@@ -614,23 +570,6 @@ export default function CustomerPortalCreatePage() {
             <details className="customer-create__advanced">
               <summary>進階設定</summary>
               <div className="customer-create__advanced-body">
-                {prayerMode === "voice" ? (
-                  <div className="customer-create__row">
-                    <label>
-                      <span>語音連結</span>
-                      <input
-                        type="url"
-                        value={form.voiceHref}
-                        onChange={updateFormField("voiceHref")}
-                        placeholder="https://... 或 /voices/..."
-                      />
-                      <small className="cp-helper">
-                        沿用既有語音欄位與限制；送出後首頁與全球禱告室會顯示語音光點。
-                      </small>
-                    </label>
-                  </div>
-                ) : null}
-
                 <div className="customer-create__privacy-card">
                   <label>
                     <input

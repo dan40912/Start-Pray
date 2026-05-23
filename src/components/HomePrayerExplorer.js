@@ -3,17 +3,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useAudio } from "@/context/AudioContext";
+import { getDictionary, localizePath, normalizeLocale } from "@/lib/i18n";
 
 const POPULAR_SLUG = "popular";
 const DEFAULT_LIMIT = 12;
 const SUGGESTION_LIMIT = 6;
 const FALLBACK_CATEGORY_LIMIT = 3;
 const SEARCH_DEBOUNCE = 450;
-const QUICK_SEARCH_TAGS = ["福音", "健康", "家庭", "工作", "個人", "世界"];
-const DEFAULT_SORT_OPTIONS = [
-  { key: "responses", label: "熱門代禱", helper: "已經有人開始回應" },
-  { key: "needsPrayer", label: "更需要代禱", helper: "回應還比較少的需要" },
-];
+const CATEGORY_BACKGROUND_FALLBACKS = {
+  career: "/img/categories/personal.jpg",
+  family: "/img/categories/popular.jpg",
+  youth: "/img/categories/gospel.jpg",
+};
 
 function buildQuery(params = {}) {
   const query = new URLSearchParams();
@@ -38,6 +39,7 @@ async function fetchCards(params = {}, { signal } = {}) {
 
 function getCategoryBackground(slug) {
   if (!slug) return "";
+  if (CATEGORY_BACKGROUND_FALLBACKS[slug]) return CATEGORY_BACKGROUND_FALLBACKS[slug];
   return `/img/categories/${slug}.jpg`;
 }
 
@@ -49,52 +51,19 @@ function formatResponseCount(count) {
   return `${safe}`;
 }
 
-function stripHtml(value) {
-  return String(value || "")
-    .replace(/<br\s*\/?>/gi, " ")
-    .replace(/<\/p>/gi, " ")
-    .replace(/<[^>]*>/g, "")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/\s+/g, " ")
-    .trim();
+function getAuthorName(card, text) {
+  return card?.owner?.name?.trim?.() || text.anonymous;
 }
 
-function buildCardExcerpt(card) {
-  const plain = stripHtml(card?.description);
-  if (!plain) return "這則代禱還沒有寫下很多細節，但你仍然可以用一句話為他禱告。";
-  return plain.length > 92 ? `${plain.slice(0, 92).trim()}...` : plain;
-}
-
-function formatRelativeTime(value) {
-  const time = value ? new Date(value).getTime() : 0;
-  if (!Number.isFinite(time) || time <= 0) return "最近建立";
-  const diff = Math.max(0, Date.now() - time);
-  const minute = 60 * 1000;
-  const hour = 60 * minute;
-  const day = 24 * hour;
-  if (diff < hour) return "1 小時內";
-  if (diff < day) return `${Math.floor(diff / hour)} 小時前`;
-  if (diff < 7 * day) return `${Math.floor(diff / day)} 天前`;
-  return new Intl.DateTimeFormat("zh-TW", { month: "2-digit", day: "2-digit" }).format(new Date(time));
-}
-
-function getAuthorName(card) {
-  return card?.owner?.name?.trim?.() || "匿名";
-}
-
-function buildPrimaryTrack(card) {
+function buildPrimaryTrack(card, text) {
   if (!card?.voiceHref) return null;
   return {
     id: `card-${card.id}-primary`,
-    homeCardId: card.id,
     voiceUrl: card.voiceHref,
-    speaker: getAuthorName(card),
+    speaker: getAuthorName(card, text),
     message: card.title || "",
     avatarUrl: card?.owner?.avatarUrl?.trim?.() || "",
-    requestTitle: card.title || "禱告錄音",
+    requestTitle: card.title || text.prayerRecording,
   };
 }
 
@@ -118,18 +87,16 @@ export default function HomePrayerExplorer({
   initialCards = [],
   initialActiveSlug = POPULAR_SLUG,
   cardLimit = DEFAULT_LIMIT,
-  initialSort = "responses",
-  showSortControls = false,
-  sortOptions = DEFAULT_SORT_OPTIONS,
-  moreHref = "",
-  moreLabel = "看更多代禱",
+  intro = null,
+  locale: localeProp = "zh-TW",
 }) {
+  const locale = normalizeLocale(localeProp);
+  const text = getDictionary(locale).explorer;
   const { setQueue } = useAudio();
   const resolvedCardLimit = Number.isFinite(cardLimit) && cardLimit > 0 ? Math.floor(cardLimit) : DEFAULT_LIMIT;
 
   const [categories] = useState(initialCategories);
   const [activeCategory, setActiveCategory] = useState(initialActiveSlug);
-  const [activeSort, setActiveSort] = useState(initialSort);
   const [cards, setCards] = useState(initialCards);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState(null);
@@ -149,8 +116,8 @@ export default function HomePrayerExplorer({
     return [
       {
         slug: POPULAR_SLUG,
-        name: "熱門禱告",
-        description: "回應最多的禱告需求",
+        name: text.popularPrayer,
+        description: text.popularDescription,
         background: "/img/categories/popular.jpg",
       },
       ...topCategories.map((item) => ({
@@ -158,7 +125,7 @@ export default function HomePrayerExplorer({
         background: getCategoryBackground(item.slug),
       })),
     ];
-  }, [topCategories]);
+  }, [text.popularDescription, text.popularPrayer, topCategories]);
   const fallbackCategories = useMemo(
     () =>
       categoryItems
@@ -184,12 +151,12 @@ export default function HomePrayerExplorer({
     } catch (error) {
       if (error.name === "AbortError") return;
       console.warn("[HomePrayerExplorer] search failed", error);
-      setSearchError("搜尋發生錯誤，請稍後再試。");
+      setSearchError(text.searchFailed);
       setHasSearched(true);
     } finally {
       setIsSearchLoading(false);
     }
-  }, [resolvedCardLimit]);
+  }, [resolvedCardLimit, text.searchFailed]);
 
   useEffect(() => {
     if (debounceTimeoutRef.current) {
@@ -257,7 +224,6 @@ export default function HomePrayerExplorer({
     if (slug === activeCategory && !isShowingSearchResults) return;
 
     setActiveCategory(slug);
-    setActiveSort(slug === POPULAR_SLUG ? "responses" : "recent");
     setSearchQuery("");
     setHasSearched(false);
     setSearchResults([]);
@@ -277,38 +243,7 @@ export default function HomePrayerExplorer({
       setCards(nextCards);
     } catch (error) {
       console.warn("[HomePrayerExplorer] load failed", error);
-      setLoadError("無法載入內容，請稍後再試。");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleSortSelect = async (sortKey, options = {}) => {
-    if (!sortKey) return;
-    if (
-      !options.force &&
-      sortKey === activeSort &&
-      activeCategory === POPULAR_SLUG &&
-      !isShowingSearchResults
-    ) {
-      return;
-    }
-
-    setActiveSort(sortKey);
-    setActiveCategory(POPULAR_SLUG);
-    setSearchQuery("");
-    setHasSearched(false);
-    setSearchResults([]);
-    setSearchError(null);
-    setIsLoading(true);
-    setLoadError(null);
-
-    try {
-      const nextCards = await fetchCards({ limit: resolvedCardLimit, sort: sortKey });
-      setCards(nextCards);
-    } catch (error) {
-      console.warn("[HomePrayerExplorer] sort load failed", error);
-      setLoadError("無法載入內容，請稍後再試。");
+      setLoadError(text.loadFailed);
     } finally {
       setIsLoading(false);
     }
@@ -331,16 +266,12 @@ export default function HomePrayerExplorer({
     setHasSearched(false);
     setSearchResults([]);
     setSearchError(null);
-    void handleSortSelect("responses");
+    void handleCategorySelect(POPULAR_SLUG);
   };
 
   const handleRetryLoad = () => {
     if (trimmedQuery) {
       handleSearchSubmit();
-      return;
-    }
-    if ((activeCategory || POPULAR_SLUG) === POPULAR_SLUG) {
-      void handleSortSelect(activeSort || "responses", { force: true });
       return;
     }
     void handleCategorySelect(activeCategory || POPULAR_SLUG);
@@ -396,42 +327,59 @@ export default function HomePrayerExplorer({
 
   useEffect(() => {
     if (displayIsLoading && !queueCards.length) return;
-    const tracks = dedupeTracks(queueCards.map(buildPrimaryTrack));
+    const tracks = dedupeTracks(queueCards.map((card) => buildPrimaryTrack(card, text)));
     setQueue(tracks, -1);
-  }, [displayIsLoading, queueCards, queueSignature, setQueue]);
+  }, [displayIsLoading, queueCards, queueSignature, setQueue, text]);
 
   const headingText = isShowingSearchResults
-    ? `搜尋結果：「${trimmedQuery}」`
-    : activeCategory === POPULAR_SLUG && activeSort === "needsPrayer"
-      ? "更需要被代禱的事項"
-      : activeCategory === POPULAR_SLUG && activeSort === "recent"
-        ? "最新代禱"
-        : activeCategory === POPULAR_SLUG
-          ? "熱門禱告牆"
-      : "禱告卡片牆";
+    ? `${text.headingSearch}: "${trimmedQuery}"`
+    : activeCategory === POPULAR_SLUG
+      ? text.headingPopular
+      : text.headingCards;
 
   return (
     <section className="section home-explorer">
       <div className="home-explorer__header">
         <div className="home-explorer__intro">
-          <p className="home-explorer__badge">PRAYER WALL</p>
+          {intro?.eyebrow ? <span className="home-explorer__badge">{intro.eyebrow}</span> : null}
+          <h2>{intro?.title || text.defaultIntroTitle}</h2>
           <p className="home-explorer__intro-text">
-            先看見一個真實的需要，再用文字或聲音參與禱告。
+            {intro?.copy || text.defaultIntroCopy}
           </p>
+          <div className="home-explorer__intro-actions">
+            {intro?.primaryHref && intro?.primaryLabel ? (
+              <Link
+                href={intro.primaryHref}
+                className="home-explorer__intro-action home-explorer__intro-action--primary"
+                prefetch={false}
+              >
+                {intro.primaryLabel}
+              </Link>
+            ) : null}
+            {intro?.secondaryHref && intro?.secondaryLabel ? (
+              <Link
+                href={intro.secondaryHref}
+                className="home-explorer__intro-action"
+                prefetch={false}
+              >
+                {intro.secondaryLabel}
+              </Link>
+            ) : null}
+          </div>
         </div>
         <div className="home-explorer__search-card">
           <div className="home-explorer__search-head">
-            <p className="home-explorer__search-title">找一個你想一起禱告的需要</p>
-            <p className="home-explorer__search-helper">可以輸入關鍵字，也可以點下面的標籤，看看現在有哪些人需要代禱。</p>
+            <p className="home-explorer__search-title">{text.searchTitle}</p>
+            <p className="home-explorer__search-helper">{text.searchHelper}</p>
           </div>
           <div className="home-explorer__search">
             <label htmlFor="home-explorer-search" className="sr-only">
-              搜尋禱告主題
+              {text.searchLabel}
             </label>
             <input
               id="home-explorer-search"
               type="search"
-              placeholder="輸入關鍵字，例如：健康、家庭、工作、世界..."
+              placeholder={text.searchPlaceholder}
               value={searchQuery}
               onChange={handleSearchChange}
               className="home-explorer__search-input"
@@ -449,13 +397,13 @@ export default function HomePrayerExplorer({
               onClick={handleSearchSubmit}
               disabled={!trimmedQuery || isSearchLoading}
             >
-              {isSearchLoading ? "搜尋中..." : "立即搜尋"}
+              {isSearchLoading ? text.searching : text.searchButton}
             </button>
             {showSuggestions ? (
-              <div className="home-explorer__suggestions" role="listbox" aria-label="搜尋建議">
+              <div className="home-explorer__suggestions" role="listbox" aria-label={text.suggestionsLabel}>
                 {isSearchLoading ? (
                   <div className="home-explorer__suggestion home-explorer__suggestion--status">
-                    搜尋中...
+                    {text.searching}
                   </div>
                 ) : null}
                 {searchError ? (
@@ -470,7 +418,7 @@ export default function HomePrayerExplorer({
                       role="status"
                       aria-live="polite"
                     >
-                      目前找不到相同主題。你可以先看看熱門代禱，或換一個分類繼續找。
+                      {text.noSearchResults}
                     </div>
                     <div className="home-explorer__suggestion-actions">
                       <button
@@ -478,11 +426,11 @@ export default function HomePrayerExplorer({
                         className="home-explorer__action-btn"
                         onClick={handleResetToPopular}
                       >
-                        先看熱門代禱
+                        {text.resetToPopular}
                       </button>
                     </div>
                     {fallbackCategories.length ? (
-                      <div className="home-explorer__suggestion-tag-list" role="group" aria-label="推薦分類">
+                      <div className="home-explorer__suggestion-tag-list" role="group" aria-label={text.fallbackCategoriesLabel}>
                         {fallbackCategories.map((item) => (
                           <button
                             key={`fallback-${item.slug}`}
@@ -499,7 +447,7 @@ export default function HomePrayerExplorer({
                 ) : null}
                 {suggestions.map((item) => {
                   if (!item) return null;
-                  const detailHref = `/prayfor/${item.id}`;
+                  const detailHref = localizePath(`/prayfor/${item.id}`, locale);
                   return (
                     <Link
                       key={item.id}
@@ -509,7 +457,7 @@ export default function HomePrayerExplorer({
                     >
                       <span className="home-explorer__suggestion-title">{item.title}</span>
                       <span className="home-explorer__suggestion-meta">
-                        {item.category?.name || "禱告"}
+                        {item.category?.name || text.prayer}
                       </span>
                     </Link>
                   );
@@ -517,12 +465,12 @@ export default function HomePrayerExplorer({
               </div>
             ) : null}
           </div>
-          <div className="home-explorer__quick-tags" role="group" aria-label="快速搜尋標籤">
-            {QUICK_SEARCH_TAGS.map((tag) => {
+          <div className="home-explorer__quick-tags" role="group" aria-label={text.searchHelper}>
+            {text.quickTags.map((tag, index) => {
               const isActiveTag = trimmedQuery === tag;
               return (
                 <button
-                  key={tag}
+                  key={`${tag}-${index}`}
                   type="button"
                   className={`home-explorer__quick-tag${isActiveTag ? " is-active" : ""}`}
                   onClick={() => handleQuickTagSearch(tag)}
@@ -552,73 +500,37 @@ export default function HomePrayerExplorer({
               />
               <span className="home-category-card__content">
                 <span className="home-category-card__name">{category.name}</span>
-                <span className="home-category-card__description">{category.description || "一起為這個主題禱告"}</span>
+                <span className="home-category-card__description">{category.description || text.noDescription}</span>
               </span>
             </button>
           );
         })}
       </div>
 
-      {showSortControls ? (
-        <div className="home-explorer__sortbar" aria-label="代禱排序">
-          <div>
-            <span>怎麼排序</span>
-            <p>你可以先看已經有人回應的代禱，也可以先看回應還比較少、比較需要被記念的人。</p>
-          </div>
-          <div className="home-explorer__sort-actions" role="tablist" aria-label="代禱排序選項">
-            {sortOptions.map((option) => {
-              const isActive = option.key === activeSort && activeCategory === POPULAR_SLUG && !isShowingSearchResults;
-              return (
-                <button
-                  key={option.key}
-                  type="button"
-                  className={`home-explorer__sort-btn${isActive ? " is-active" : ""}`}
-                  onClick={() => void handleSortSelect(option.key)}
-                  role="tab"
-                  aria-selected={isActive}
-                >
-                  <strong>{option.label}</strong>
-                  {option.helper ? <small>{option.helper}</small> : null}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      ) : null}
-
       <div className="home-cards">
         <div className="home-cards__header" aria-live="polite">
           <h3>{headingText}</h3>
-          {displayIsLoading ? <span className="home-cards__status">載入中...</span> : null}
+          {displayIsLoading ? <span className="home-cards__status">{text.loading}</span> : null}
           {displayError ? <span className="home-cards__status error">{displayError}</span> : null}
           {displayError ? (
             <button type="button" className="home-explorer__action-btn home-explorer__action-btn--ghost" onClick={handleRetryLoad}>
-              重新整理
+              {text.retry}
             </button>
-          ) : null}
-          {moreHref && !isShowingSearchResults ? (
-            <Link href={moreHref} className="home-cards__more" prefetch={false}>
-              {moreLabel}
-            </Link>
           ) : null}
         </div>
 
         <div className="home-card-grid">
           {displayCards.map((card) => {
             const responseCount = card?._count?.responses ?? card?.responsesCount ?? 0;
-            const detailHref = `/prayfor/${card.id}`;
-            const authorName = getAuthorName(card);
-            const excerpt = buildCardExcerpt(card);
-            const relativeTime = formatRelativeTime(card?.createdAt || card?.updatedAt);
-            const hasVoice = Boolean(card?.voiceHref);
-            const isAnonymous = authorName === "匿名";
+            const detailHref = localizePath(`/prayfor/${card.id}`, locale);
+            const authorName = getAuthorName(card, text);
 
             return (
               <article key={card.id} className="home-card">
                 <Link
                   href={detailHref}
                   className="home-card__cover-link"
-                  aria-label={`Open ${card.title}`}
+                  aria-label={`${text.viewCard} "${card.title}"`}
                   prefetch={false}
                 />
                 <div
@@ -629,17 +541,13 @@ export default function HomePrayerExplorer({
                 <div className="home-card__content">
                   <h4 className="home-card__title">{card.title}</h4>
                   <div className="home-card__tag-row">
-                    <span className="home-card__category">{card.category?.name || "禱告"}</span>
-                    {hasVoice ? <span className="home-card__badge">有語音</span> : null}
-                    {isAnonymous ? <span className="home-card__badge">匿名</span> : null}
+                    <span className="home-card__category">{card.category?.name || text.categoryFallback}</span>
                   </div>
-                  <p className="home-card__excerpt">{excerpt}</p>
                   <div className="home-card__meta home-card__meta--bottom">
-                    <span className="home-card__author" title={`作者 ${authorName}`}>
-                      作者 {authorName}
+                    <span className="home-card__author" title={`${text.author} ${authorName}`}>
+                      {text.author} {authorName}
                     </span>
-                    <span className="home-card__time">{relativeTime}</span>
-                    <span className="home-card__responses">{formatResponseCount(responseCount)} 則</span>
+                    <span className="home-card__responses">{formatResponseCount(responseCount)} {text.responsesSuffix}</span>
                   </div>
                 </div>
               </article>
@@ -648,10 +556,10 @@ export default function HomePrayerExplorer({
 
           {!displayIsLoading && !displayError && displayCards.length === 0 ? (
             <div className="home-card__empty" role="status" aria-live="polite">
-              <p>目前沒有符合條件的代禱。換個分類看看，也許下一則就是你可以一起禱告的人。</p>
+              <p>{text.empty}</p>
               <div className="home-card__empty-actions">
                 <button type="button" className="home-explorer__action-btn" onClick={handleResetToPopular}>
-                  回到熱門代禱
+                  {text.backToPopular}
                 </button>
                 {fallbackCategories[0] ? (
                   <button
@@ -659,7 +567,7 @@ export default function HomePrayerExplorer({
                     className="home-explorer__action-btn home-explorer__action-btn--ghost"
                     onClick={() => void handleCategorySelect(fallbackCategories[0].slug)}
                   >
-                    改看「{fallbackCategories[0].name}」
+                    {text.switchToCategory} "{fallbackCategories[0].name}"
                   </button>
                 ) : null}
               </div>

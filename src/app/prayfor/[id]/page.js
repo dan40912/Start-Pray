@@ -11,6 +11,7 @@ import {
   readRelatedHomeCards,
 } from "@/lib/homeCards";
 import { sanitizeHtmlForDisplay, sanitizeHtmlToPlainText } from "@/lib/htmlSanitizer";
+import { getDictionary, localizePath, normalizeLocale } from "@/lib/i18n";
 import { resolveServerAudioUrl } from "@/lib/server-audio";
 import { buildPageMetadata } from "@/lib/seo";
 
@@ -37,8 +38,8 @@ function formatResponseCount(count) {
   return String(safe);
 }
 
-function getAuthorName(card) {
-  return card?.owner?.name?.trim?.() || "匿名使用者";
+function getAuthorName(card, text) {
+  return card?.owner?.name?.trim?.() || text.unnamedUser;
 }
 
 function buildPrayerMetaDescription(description) {
@@ -78,7 +79,9 @@ export async function generateMetadata({ params }) {
   });
 }
 
-export default async function PrayerDetailPage({ params }) {
+export default async function PrayerDetailPage({ params, locale: localeProp = "zh-TW" }) {
+  const locale = normalizeLocale(localeProp);
+  const text = getDictionary(locale).prayerDetail;
   const id = parseId(params?.id);
   if (!id) return notFound();
 
@@ -91,17 +94,17 @@ export default async function PrayerDetailPage({ params }) {
   if (!card) return notFound();
 
   const owner = card.owner ?? null;
-  const ownerName = getAuthorName(card);
+  const ownerName = getAuthorName(card, text);
   const ownerAvatar = owner?.avatarUrl?.trim?.() || "";
   const updatedDisplay = card.updatedAt
-    ? new Date(card.updatedAt).toLocaleDateString("zh-TW", {
+    ? new Date(card.updatedAt).toLocaleDateString(locale, {
         year: "numeric",
         month: "2-digit",
         day: "2-digit",
       })
-    : "未更新";
+    : text.notUpdated;
   const createdDisplay = card.createdAt
-    ? new Date(card.createdAt).toLocaleDateString("zh-TW", {
+    ? new Date(card.createdAt).toLocaleDateString(locale, {
         year: "numeric",
         month: "2-digit",
         day: "2-digit",
@@ -110,7 +113,7 @@ export default async function PrayerDetailPage({ params }) {
 
   const detailImage = card.image || "/img/categories/popular.jpg";
   const plainDescription = sanitizeHtmlToPlainText(card.description || "");
-  const descriptionHtml = sanitizeHtmlForDisplay(card.description || "<p>目前尚無詳細內容</p>");
+  const descriptionHtml = sanitizeHtmlForDisplay(card.description || `<p>${text.emptyDescription}</p>`);
   const responseCount = Number(card?._count?.responses || 0);
   const normalizedVoiceHref = resolveServerAudioUrl(card.voiceHref);
   const initialTrack = normalizedVoiceHref
@@ -131,11 +134,11 @@ export default async function PrayerDetailPage({ params }) {
 
   return (
     <>
-      <SiteHeader activePath="/prayfor" />
+      <SiteHeader activePath={localizePath("/prayfor", locale)} locale={locale} />
 
       <main className="pdv2-page">
         {previousCard ? (
-          <Link href={`/prayfor/${previousCard.id}`} prefetch={false} className="pdv2-nav-arrow pdv2-nav-arrow--prev" aria-label={`上一則：${previousCard.title}`}>
+          <Link href={localizePath(`/prayfor/${previousCard.id}`, locale)} prefetch={false} className="pdv2-nav-arrow pdv2-nav-arrow--prev" aria-label={`${text.previous}: ${previousCard.title}`}>
             <i className="fa-solid fa-chevron-left" aria-hidden="true" />
           </Link>
         ) : (
@@ -145,7 +148,7 @@ export default async function PrayerDetailPage({ params }) {
         )}
 
         {nextCard ? (
-          <Link href={`/prayfor/${nextCard.id}`} prefetch={false} className="pdv2-nav-arrow pdv2-nav-arrow--next" aria-label={`下一則：${nextCard.title}`}>
+          <Link href={localizePath(`/prayfor/${nextCard.id}`, locale)} prefetch={false} className="pdv2-nav-arrow pdv2-nav-arrow--next" aria-label={`${text.next}: ${nextCard.title}`}>
             <i className="fa-solid fa-chevron-right" aria-hidden="true" />
           </Link>
         ) : (
@@ -155,9 +158,9 @@ export default async function PrayerDetailPage({ params }) {
         )}
 
         <div className="pdv2-shell">
-          <Link href="/prayfor" prefetch={false} className="pdv2-back-link">
+          <Link href={localizePath("/prayfor", locale)} prefetch={false} className="pdv2-back-link">
             <i className="fa-solid fa-chevron-left" aria-hidden="true" />
-            返回禱告牆
+            {text.backToWall}
           </Link>
 
           <article className="pdv2-hero-card">
@@ -170,23 +173,23 @@ export default async function PrayerDetailPage({ params }) {
                 <h1>{card.title}</h1>
                 <div className="pdv2-hero-actions">
                   <Link href="#responses-panel" prefetch={false} className="pdv2-follow-btn">
-                    留下一句代禱
+                    {text.leavePrayer}
                   </Link>
                   <PrayerRequestActions
                     cardId={card.id}
-                    canonicalUrl={`/prayfor/${card.id}`}
+                    canonicalUrl={localizePath(`/prayfor/${card.id}`, locale)}
                     title={card.title}
                     description={plainDescription}
                     reportCount={card.reportCount}
-                    shareLabel="分享給小組"
+                    shareLabel={text.shareGroup}
                   />
                 </div>
               </div>
 
               <div className="pdv2-meta-row">
                 {/* <span>更新日期：{updatedDisplay}</span> */}
-                <span>建立日期：{createdDisplay}</span>
-                <span>上傳者：{ownerName}</span>
+                <span>{text.createdAt}: {createdDisplay}</span>
+                <span>{text.uploader}: {ownerName}</span>
                 {/* <span>回應數：{responseCount}</span> */}
               </div>
             </div>
@@ -194,29 +197,29 @@ export default async function PrayerDetailPage({ params }) {
 
           <section className="pdv2-companion-panel" aria-labelledby="companion-actions-title">
             <div className="pdv2-companion-panel__intro">
-              <span>下一步可以這樣做</span>
-              <h2 id="companion-actions-title">你可以怎麼為他禱告</h2>
-              <p>不需要寫得很長。一句禱告、一段短短的聲音，或把這則需要帶回小組，都可能成為他的支持。</p>
+              <span>{text.nextStepEyebrow}</span>
+              <h2 id="companion-actions-title">{text.nextStepTitle}</h2>
+              <p>{text.nextStepCopy}</p>
             </div>
             <div className="pdv2-companion-actions">
               <Link href="#response-composer" prefetch={false} className="pdv2-companion-action">
-                <strong>留下一句代禱</strong>
-                <span>可以是一句祝福、一段經文，或很簡短的禱告。</span>
+                <strong>{text.textPrayerTitle}</strong>
+                <span>{text.textPrayerCopy}</span>
               </Link>
               <Link href="#response-composer" prefetch={false} className="pdv2-companion-action">
-                <strong>錄一段語音</strong>
-                <span>登入後可以錄下一小段聲音，讓對方真的聽見有人為他禱告。</span>
+                <strong>{text.voicePrayerTitle}</strong>
+                <span>{text.voicePrayerCopy}</span>
               </Link>
               <div className="pdv2-companion-action pdv2-companion-action--share">
-                <strong>分享給小組</strong>
-                <span>把連結帶給信任的人，一起為這件事禱告。</span>
+                <strong>{text.groupShareTitle}</strong>
+                <span>{text.groupShareCopy}</span>
                 <PrayerRequestActions
                   cardId={card.id}
-                  canonicalUrl={`/prayfor/${card.id}`}
+                  canonicalUrl={localizePath(`/prayfor/${card.id}`, locale)}
                   title={card.title}
                   description={plainDescription}
                   reportCount={card.reportCount}
-                  shareLabel="複製分享連結"
+                  shareLabel={text.copyShareLink}
                 />
               </div>
             </div>
@@ -228,35 +231,35 @@ export default async function PrayerDetailPage({ params }) {
 
           <section className="pdv2-comments-card" id="responses-panel">
             <div className="pdv2-comments-head">
-              <h2>留言與代禱回應</h2>
+              <h2>{text.responsesTitle}</h2>
             </div>
-            <Comments requestId={String(card.id)} ownerId={owner?.id} prayerTitle={card.title} />
+            <Comments requestId={String(card.id)} ownerId={owner?.id} prayerTitle={card.title} locale={locale} />
           </section>
 
-          <section className="pdv2-adjacent" aria-label="上一篇與下一篇">
-            <h2>繼續瀏覽</h2>
+          <section className="pdv2-adjacent" aria-label={text.adjacentLabel}>
+            <h2>{text.continueBrowse}</h2>
             <div className="pdv2-adjacent-grid">
               {previousCard ? (
-                <Link href={`/prayfor/${previousCard.id}`} prefetch={false} className="pdv2-adjacent-card">
-                  <span className="pdv2-adjacent-card__label">上一篇</span>
+                <Link href={localizePath(`/prayfor/${previousCard.id}`, locale)} prefetch={false} className="pdv2-adjacent-card">
+                  <span className="pdv2-adjacent-card__label">{text.previous}</span>
                   <strong>{previousCard.title}</strong>
                 </Link>
               ) : (
                 <div className="pdv2-adjacent-card is-disabled" aria-disabled="true">
-                  <span className="pdv2-adjacent-card__label">上一篇</span>
-                  <strong>目前沒有上一篇</strong>
+                  <span className="pdv2-adjacent-card__label">{text.previous}</span>
+                  <strong>{text.noPrevious}</strong>
                 </div>
               )}
 
               {nextCard ? (
-                <Link href={`/prayfor/${nextCard.id}`} prefetch={false} className="pdv2-adjacent-card">
-                  <span className="pdv2-adjacent-card__label">下一篇</span>
+                <Link href={localizePath(`/prayfor/${nextCard.id}`, locale)} prefetch={false} className="pdv2-adjacent-card">
+                  <span className="pdv2-adjacent-card__label">{text.next}</span>
                   <strong>{nextCard.title}</strong>
                 </Link>
               ) : (
                 <div className="pdv2-adjacent-card is-disabled" aria-disabled="true">
-                  <span className="pdv2-adjacent-card__label">下一篇</span>
-                  <strong>目前沒有下一篇</strong>
+                  <span className="pdv2-adjacent-card__label">{text.next}</span>
+                  <strong>{text.noNext}</strong>
                 </div>
               )}
             </div>
@@ -265,23 +268,23 @@ export default async function PrayerDetailPage({ params }) {
           {relatedCards?.length ? (
             <section className="pdv2-related-section" aria-label="其他代禱事項">
               <div className="pdv2-related-head">
-                <h2>其他代禱事項</h2>
-                <Link href="/prayfor" prefetch={false}>
-                  查看更多
+                <h2>{text.relatedTitle}</h2>
+                <Link href={localizePath("/prayfor", locale)} prefetch={false}>
+                  {text.viewMore}
                 </Link>
               </div>
 
               <div className="home-card-grid pdv2-home-card-grid">
                 {relatedCards.map((item) => {
-                  const relatedAuthor = getAuthorName(item);
+                  const relatedAuthor = getAuthorName(item, text);
                   const relatedCount = item?._count?.responses ?? item?.responsesCount ?? 0;
                   return (
                     <article key={item.id} className="home-card">
                       <Link
-                        href={`/prayfor/${item.id}`}
+                        href={localizePath(`/prayfor/${item.id}`, locale)}
                         prefetch={false}
                         className="home-card__cover-link"
-                        aria-label={`前往 ${item.title}`}
+                        aria-label={`${text.viewMore} ${item.title}`}
                       />
 
                       <div
@@ -293,13 +296,13 @@ export default async function PrayerDetailPage({ params }) {
                       <div className="home-card__content">
                         <h4 className="home-card__title">{item.title}</h4>
                         <div className="home-card__tag-row">
-                          <span className="home-card__category">{item.category?.name || "代禱"}</span>
+                          <span className="home-card__category">{item.category?.name || text.prayerCategoryFallback}</span>
                         </div>
                         <div className="home-card__meta home-card__meta--bottom">
-                          <span className="home-card__author" title={`作者：${relatedAuthor}`}>
-                            作者：{relatedAuthor}
+                          <span className="home-card__author" title={`${text.author}: ${relatedAuthor}`}>
+                            {text.author}: {relatedAuthor}
                           </span>
-                          <span className="home-card__responses">{formatResponseCount(relatedCount)} 則</span>
+                          <span className="home-card__responses">{formatResponseCount(relatedCount)} {text.responsesSuffix}</span>
                         </div>
                       </div>
                     </article>
@@ -310,15 +313,15 @@ export default async function PrayerDetailPage({ params }) {
           ) : null}
         </div>
 
-        <div className="pdv2-sticky-actions" aria-label="快速陪伴行動">
+        <div className="pdv2-sticky-actions" aria-label={text.quickActions}>
           <Link href="#response-composer" prefetch={false}>
-            留下一句代禱
+            {text.leavePrayer}
           </Link>
           <Link href="#response-composer" prefetch={false}>
-            錄語音
+            {text.recordVoice}
           </Link>
-          <Link href={`/login?next=/prayfor/${card.id}`} prefetch={false}>
-            登入回應
+          <Link href={`${localizePath("/login", locale)}?next=${encodeURIComponent(`/prayfor/${card.id}`)}`} prefetch={false}>
+            {text.loginToRespond}
           </Link>
         </div>
       </main>
@@ -329,7 +332,7 @@ export default async function PrayerDetailPage({ params }) {
         initialTrack={initialTrack}
       />
 
-      <SiteFooter />
+      <SiteFooter locale={locale} />
     </>
   );
 }

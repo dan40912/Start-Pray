@@ -26,6 +26,7 @@ export default function GlobalPlayerGate() {
   const blockedByRoute =
     isPath(pathname, "/about") ||
     isPath(pathname, "/howto") ||
+    isPath(pathname, "/terms") ||
     isPath(pathname, "/whitepaper") ||
     isPath(pathname, "/login") ||
     isPath(pathname, "/signup") ||

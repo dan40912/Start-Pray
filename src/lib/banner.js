@@ -1,15 +1,35 @@
 import prisma from "@/lib/prisma";
 
 const DEFAULT_BANNER = {
-  eyebrow: "禱告即影響",
-  headline: "讓每場祈禱聚會都連結真實改變",
-  subheadline: "從禱告室到公益現場，即時紀錄每一次代禱與回應。",
+  eyebrow: "Start Pray",
+  headline: "把需要帶到禱告裡，也把回應留給對方",
+  subheadline: "瀏覽公開代禱、留下文字或語音回應，和不同地方的人一起守望。",
   description:
-    "Start Pray 為教會與公益團隊打造透明的禱告作業系統，協助你追蹤需求、動員資源並衡量影響。",
+    "這裡不是一般產品頁，而是一個正在被維護的陪伴空間。請溫柔分享，也留意不要公開敏感個資。",
   primaryCta: { label: "立即註冊", href: "/signup" },
   secondaryCta: { label: "了解使用方式", href: "/howto" },
-  heroImage: "https://images.unsplash.com/photo-1509099836639-18ba1795216d?auto=format&fit=crop&w=1920&q=80"
+  heroImage: "/img/pray.png"
 };
+
+function normalizeLocalHref(value, fallback) {
+  const href = typeof value === "string" ? value.trim() : "";
+  if (!href) return fallback;
+  if (href.startsWith("/") && !href.startsWith("//")) return href;
+  return fallback;
+}
+
+function normalizeSiteImage(value, fallback) {
+  const image = typeof value === "string" ? value.trim() : "";
+  if (!image) return fallback;
+  if (
+    image.startsWith("/img/") ||
+    image.startsWith("/uploads/") ||
+    image.startsWith("/api/card-thumbnail?")
+  ) {
+    return image;
+  }
+  return fallback;
+}
 
 function normalize(record) {
   if (!record) {
@@ -23,16 +43,16 @@ function normalize(record) {
     description: record.description ?? DEFAULT_BANNER.description,
     primaryCta: {
       label: record.primaryCtaLabel ?? DEFAULT_BANNER.primaryCta.label,
-      href: record.primaryCtaHref ?? DEFAULT_BANNER.primaryCta.href
+      href: normalizeLocalHref(record.primaryCtaHref, DEFAULT_BANNER.primaryCta.href)
     },
     secondaryCta:
       record.secondaryCtaLabel && record.secondaryCtaHref
         ? {
             label: record.secondaryCtaLabel,
-            href: record.secondaryCtaHref
+            href: normalizeLocalHref(record.secondaryCtaHref, DEFAULT_BANNER.secondaryCta.href)
           }
         : DEFAULT_BANNER.secondaryCta,
-    heroImage: record.heroImage ?? DEFAULT_BANNER.heroImage
+    heroImage: normalizeSiteImage(record.heroImage, DEFAULT_BANNER.heroImage)
   };
 }
 
@@ -48,10 +68,12 @@ export async function writeBanner(nextBanner) {
     subheadline: nextBanner.subheadline ?? DEFAULT_BANNER.subheadline,
     description: nextBanner.description ?? DEFAULT_BANNER.description,
     primaryCtaLabel: nextBanner.primaryCta?.label ?? DEFAULT_BANNER.primaryCta.label,
-    primaryCtaHref: nextBanner.primaryCta?.href ?? DEFAULT_BANNER.primaryCta.href,
+    primaryCtaHref: normalizeLocalHref(nextBanner.primaryCta?.href, DEFAULT_BANNER.primaryCta.href),
     secondaryCtaLabel: nextBanner.secondaryCta?.label ?? null,
-    secondaryCtaHref: nextBanner.secondaryCta?.href ?? null,
-    heroImage: nextBanner.heroImage ?? DEFAULT_BANNER.heroImage
+    secondaryCtaHref: nextBanner.secondaryCta
+      ? normalizeLocalHref(nextBanner.secondaryCta.href, DEFAULT_BANNER.secondaryCta.href)
+      : null,
+    heroImage: normalizeSiteImage(nextBanner.heroImage, DEFAULT_BANNER.heroImage)
   };
 
   const record = await prisma.siteBanner.upsert({

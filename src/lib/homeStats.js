@@ -1,41 +1,24 @@
 import prisma from "./prisma";
 
 export async function readHomeStats() {
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  const publicHomeCardWhere = { isBlocked: false, isPrivate: false };
-  const publicResponseWhere = {
+  const publicHomeCardResponseWhere = {
     isBlocked: false,
-    reportCount: 0,
-    homeCard: publicHomeCardWhere,
+    homeCard: {
+      is: {
+        isBlocked: false,
+        isPrivate: false,
+      },
+    },
   };
 
-  const [
-    totalPrayerCards,
-    totalUsers,
-    totalVoiceResponses,
-    totalPublicResponses,
-    recentPublicResponses,
-    anonymousResponses,
-  ] = await Promise.all([
-    prisma.homePrayerCard.count({ where: publicHomeCardWhere }),
+  const [totalPrayerCards, totalUsers, totalResponses, totalVoiceResponses] = await Promise.all([
+    prisma.homePrayerCard.count({ where: { isBlocked: false, isPrivate: false } }),
     prisma.user.count({ where: { isBlocked: false } }),
+    prisma.prayerResponse.count({ where: publicHomeCardResponseWhere }),
     prisma.prayerResponse.count({
       where: {
-        ...publicResponseWhere,
+        ...publicHomeCardResponseWhere,
         voiceUrl: { not: null },
-      },
-    }),
-    prisma.prayerResponse.count({ where: publicResponseWhere }),
-    prisma.prayerResponse.count({
-      where: {
-        ...publicResponseWhere,
-        createdAt: { gte: thirtyDaysAgo },
-      },
-    }),
-    prisma.prayerResponse.count({
-      where: {
-        ...publicResponseWhere,
-        isAnonymous: true,
       },
     }),
   ]);
@@ -43,9 +26,7 @@ export async function readHomeStats() {
   return {
     totalPrayerCards,
     totalUsers,
+    totalResponses,
     totalVoiceResponses,
-    totalPublicResponses,
-    recentPublicResponses,
-    anonymousResponses,
   };
 }

@@ -4,6 +4,17 @@ export const DEFAULT_OG_IMAGE = "/img/logo.png";
 export const DEFAULT_DESCRIPTION =
   "Start Pray 是一個讓人分享代禱事項、用文字與語音彼此回應，並在全球禱告地圖上看見需要被守望的平台。";
 
+function stripEnglishPrefix(path = "/") {
+  if (path === "/en") return "/";
+  if (path.startsWith("/en/")) return path.slice(3) || "/";
+  return path || "/";
+}
+
+function withEnglishPrefix(path = "/") {
+  const cleanPath = stripEnglishPrefix(path);
+  return cleanPath === "/" ? "/en" : `/en${cleanPath}`;
+}
+
 export function absoluteUrl(path = "/") {
   try {
     return new URL(path, SITE_URL).toString();
@@ -29,12 +40,16 @@ export function buildPageMetadata({
   type = "website",
   noIndex = false,
   keywords = [],
+  locale = path === "/en" || path.startsWith("/en/") ? "en" : "zh-TW",
 } = {}) {
   const resolvedTitle = title || SITE_NAME;
   const displayTitle = typeof resolvedTitle === "string" ? resolvedTitle : resolvedTitle?.default || SITE_NAME;
   const resolvedDescription = plainText(description || DEFAULT_DESCRIPTION, 160);
   const url = absoluteUrl(path);
+  const zhPath = stripEnglishPrefix(path);
+  const enPath = withEnglishPrefix(path);
   const imageUrl = absoluteUrl(image || DEFAULT_OG_IMAGE);
+  const isEnglish = locale === "en" || path === "/en" || path.startsWith("/en/");
 
   return {
     title: resolvedTitle,
@@ -43,7 +58,9 @@ export function buildPageMetadata({
     alternates: {
       canonical: url,
       languages: {
-        "zh-Hant-TW": url,
+        "zh-Hant-TW": absoluteUrl(zhPath),
+        en: absoluteUrl(enPath),
+        "x-default": absoluteUrl(zhPath),
       },
     },
     openGraph: {
@@ -52,7 +69,8 @@ export function buildPageMetadata({
       url,
       siteName: SITE_NAME,
       type,
-      locale: "zh_TW",
+      locale: isEnglish ? "en_US" : "zh_TW",
+      alternateLocale: isEnglish ? ["zh_TW"] : ["en_US"],
       images: [
         {
           url: imageUrl,
