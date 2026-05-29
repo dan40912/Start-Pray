@@ -5,6 +5,7 @@ import {
   HOT_COUNTRY_OPTIONS,
   countryToLocationPayload,
   findCountryFocus,
+  getCountrySuggestions,
 } from "@/lib/countryFocus";
 
 const TEXT = {
@@ -17,9 +18,11 @@ const TEXT = {
   zoomControls: "\u5730\u5716\u7e2e\u653e\u63a7\u5236",
   currentPosition: "\u76ee\u524d\u4fdd\u5b58\u4f4d\u7f6e\uff1a",
   searchCountry: "搜尋國家或地區",
-  searchPlaceholder: "例如：台灣、日本、美國、韓國",
+  searchPlaceholder: "輸入國家，例如：約旦、Jordan、France",
   searchAction: "前往",
-  searchNotFound: "找不到這個國家，請試 Taiwan, Japan, USA, Korea",
+  searchNotFound: "暫時找不到相符國家。請確認拼字，或改用英文國名試試。",
+  selectedPrefix: "已選擇：",
+  approximatePrefix: "目前大致位置：",
 };
 
 const APPROXIMATE_LOCATION_LABEL = TEXT.approximateLocation;
@@ -128,19 +131,27 @@ export default function PrayerLocationField({ disabled = false, onChange, value 
     lat: value?.locationLat || TAIPEI_POINT.lat,
     lng: value?.locationLng || TAIPEI_POINT.lng,
   });
+  const initialCountry = findCountryFocus(value?.locationCountry || value?.locationCity || "");
   const [point, setPoint] = useState(initialPoint);
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [countryQuery, setCountryQuery] = useState("");
   const [searchMessage, setSearchMessage] = useState("");
+  const [selectedLocationLabel, setSelectedLocationLabel] = useState(
+    initialCountry?.localLabel || value?.locationCountry || value?.locationCity || ""
+  );
   const dragRef = useRef(null);
   const pendingPointRef = useRef(null);
   const frameRef = useRef(null);
-  const selectedCountryRef = useRef(null);
+  const selectedCountryRef = useRef(initialCountry);
   const onChangeRef = useRef(onChange);
 
   const mapView = useMemo(() => buildMapTiles(point, zoom), [point, zoom]);
+  const countrySuggestions = useMemo(
+    () => getCountrySuggestions(countryQuery, 8),
+    [countryQuery]
+  );
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -173,6 +184,7 @@ export default function PrayerLocationField({ disabled = false, onChange, value 
 
   const updatePoint = (nextPoint) => {
     selectedCountryRef.current = null;
+    setSelectedLocationLabel("");
     setPoint(normalizePoint(nextPoint));
   };
 
@@ -184,7 +196,8 @@ export default function PrayerLocationField({ disabled = false, onChange, value 
   const focusCountry = (country) => {
     if (!country) return;
     setCountryQuery(country.label);
-    setSearchMessage(`${country.localLabel || country.label} 已選定`);
+    setSelectedLocationLabel(country.localLabel || country.label);
+    setSearchMessage(`${TEXT.selectedPrefix}${country.localLabel || country.label}`);
     selectedCountryRef.current = country;
     setZoom(clamp(country.mapZoom || DEFAULT_ZOOM, MIN_ZOOM, MAX_ZOOM));
     setPoint(normalizePoint({ lat: country.lat, lng: country.lng }));
@@ -196,6 +209,8 @@ export default function PrayerLocationField({ disabled = false, onChange, value 
     if (disabled) return;
     const country = findCountryFocus(countryQuery);
     if (!country) {
+      selectedCountryRef.current = null;
+      setSelectedLocationLabel("");
       setSearchMessage(TEXT.searchNotFound);
       return;
     }
@@ -294,16 +309,26 @@ export default function PrayerLocationField({ disabled = false, onChange, value 
         <div>
           <input
             id="prayer-location-country"
+            list="prayer-location-country-options"
             value={countryQuery}
             onChange={(event) => {
               setCountryQuery(event.target.value);
               setSearchMessage("");
             }}
-            placeholder="例如：台灣、日本、美國、韓國"
+            placeholder={TEXT.searchPlaceholder}
             disabled={disabled}
             autoComplete="off"
             onKeyDown={handleCountrySearchKeyDown}
           />
+          <datalist id="prayer-location-country-options">
+            {countrySuggestions.map((country) => (
+              <option
+                key={country.key}
+                value={country.label}
+                label={country.localLabel ? `${country.localLabel} / ${country.label}` : country.label}
+              />
+            ))}
+          </datalist>
           <button type="button" onClick={handleCountrySearch} disabled={disabled}>
             前往
           </button>
@@ -384,8 +409,9 @@ export default function PrayerLocationField({ disabled = false, onChange, value 
       </div>
 
       <p className="prayer-location__helper">
-        {TEXT.currentPosition}
-        {roundCoordinate(point.lat)}, {roundCoordinate(point.lng)}
+        {selectedLocationLabel
+          ? `${TEXT.selectedPrefix}${selectedLocationLabel}`
+          : `${TEXT.approximatePrefix}${roundCoordinate(point.lat)}, ${roundCoordinate(point.lng)}`}
       </p>
 
       <style jsx>{`
@@ -393,11 +419,9 @@ export default function PrayerLocationField({ disabled = false, onChange, value 
           display: grid;
           gap: 0.75rem;
           border-radius: 16px;
-          border: 1px solid rgba(125, 211, 252, 0.2);
-          background:
-            radial-gradient(circle at 50% 10%, rgba(34, 211, 238, 0.12), transparent 42%),
-            linear-gradient(145deg, rgba(2, 6, 23, 0.72), rgba(15, 23, 42, 0.46));
-          padding: 0.85rem;
+          border: 1px solid rgba(125, 211, 252, 0.16);
+          background: rgba(2, 10, 24, 0.28);
+          padding: 0.7rem;
           box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
         }
 
@@ -439,10 +463,10 @@ export default function PrayerLocationField({ disabled = false, onChange, value 
         .prayer-location__search {
           display: grid;
           gap: 0.45rem;
-          border: 1px solid rgba(125, 211, 252, 0.18);
+          border: 1px solid rgba(125, 211, 252, 0.14);
           border-radius: 14px;
-          background: rgba(2, 6, 23, 0.36);
-          padding: 0.62rem;
+          background: rgba(2, 6, 23, 0.22);
+          padding: 0.7rem;
         }
 
         .prayer-location__search label {
@@ -476,9 +500,10 @@ export default function PrayerLocationField({ disabled = false, onChange, value 
 
         .prayer-location__search p {
           margin: 0;
-          color: #fef08a;
+          color: #bae6fd;
           font-size: 0.82rem;
-          font-weight: 800;
+          font-weight: 700;
+          line-height: 1.55;
         }
 
         .prayer-location__hot-countries {
@@ -487,6 +512,19 @@ export default function PrayerLocationField({ disabled = false, onChange, value 
           gap: 0.45rem;
           overflow-x: auto;
           padding-bottom: 0.05rem;
+          scrollbar-width: none;
+        }
+
+        .prayer-location__hot-countries::-webkit-scrollbar {
+          display: none;
+        }
+
+        .prayer-location__hot-countries button {
+          flex: 0 0 auto;
+          min-width: 0;
+          min-height: 36px;
+          padding: 0 0.72rem;
+          font-size: 0.86rem;
         }
 
         .prayer-location__map-wrap {
@@ -624,7 +662,7 @@ export default function PrayerLocationField({ disabled = false, onChange, value 
           }
 
           .prayer-location__map {
-            aspect-ratio: 1.12;
+            aspect-ratio: 1.32;
           }
         }
       `}</style>

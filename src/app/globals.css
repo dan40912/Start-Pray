@@ -222,6 +222,99 @@ main.home-page {
   border: 1px solid var(--accent);
   color: var(--accent);
 }
+.btn-quiet {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-secondary);
+}
+.btn-quiet:hover {
+  background: rgba(15, 23, 42, 0.06);
+  color: var(--text-primary);
+}
+.not-found-page {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background:
+    linear-gradient(180deg, #f8fafc 0%, #eef6f4 100%),
+    var(--bg);
+}
+.not-found-main {
+  width: 100%;
+  max-width: none;
+  flex: 1 1 auto;
+  display: grid;
+  place-items: center;
+  padding: clamp(3rem, 7vw, 5rem) 1.25rem;
+}
+.not-found-panel {
+  width: min(720px, 100%);
+  display: grid;
+  gap: 1.35rem;
+  padding: clamp(1.35rem, 4vw, 2.5rem);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.12);
+}
+.not-found-code {
+  width: fit-content;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  background: #e0f2fe;
+  color: #075985;
+  font-size: clamp(1.15rem, 5vw, 1.65rem);
+  font-weight: 800;
+  line-height: 1;
+}
+.not-found-copy {
+  display: grid;
+  gap: 0.65rem;
+}
+.not-found-eyebrow,
+.not-found-copy h1,
+.not-found-copy p {
+  margin: 0;
+}
+.not-found-eyebrow {
+  color: #0f766e;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+.not-found-copy h1 {
+  color: #0f172a;
+  font-size: clamp(2rem, 6vw, 3.25rem);
+  line-height: 1.08;
+  letter-spacing: 0;
+}
+.not-found-copy p {
+  max-width: 58ch;
+  color: #334155;
+  font-size: 1rem;
+  line-height: 1.8;
+}
+.not-found-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+.not-found-actions .btn {
+  min-height: 44px;
+}
+@media (max-width: 560px) {
+  .not-found-main {
+    align-items: start;
+    padding-top: 2rem;
+  }
+  .not-found-actions {
+    display: grid;
+  }
+  .not-found-actions .btn {
+    width: 100%;
+  }
+}
 .hero-visual {
   position: relative;
   z-index: 1;
@@ -8511,7 +8604,7 @@ header .nav-actions .btn-glass {
 }
 
 .customer-create__form {
-  width: min(980px, calc(100% - 2rem));
+  width: min(980px, calc(100% - 1.25rem));
   overflow: hidden;
 }
 
@@ -8534,13 +8627,13 @@ header .nav-actions .btn-glass {
 
 @media (max-width: 640px) {
   .customer-create__form {
-    width: min(100%, calc(100vw - 1rem));
+    width: min(100%, calc(100vw - 1.1rem));
     margin-inline: auto;
-    padding-inline: 0.75rem;
+    padding-inline: 0.62rem;
   }
 
   .customer-create__step {
-    padding-inline: 0.85rem;
+    padding-inline: 0.68rem;
     overflow: hidden;
   }
 
@@ -8570,12 +8663,10 @@ header .nav-actions .btn-glass {
   display: grid;
   gap: 0.75rem;
   min-width: 0;
-  border: 1px solid rgba(125, 211, 252, 0.2);
+  border: 1px solid rgba(125, 211, 252, 0.16);
   border-radius: 16px;
-  padding: 0.85rem;
-  background:
-    radial-gradient(circle at 50% 10%, rgba(34, 211, 238, 0.12), transparent 42%),
-    linear-gradient(145deg, rgba(2, 6, 23, 0.72), rgba(15, 23, 42, 0.46));
+  padding: 0.7rem;
+  background: rgba(2, 10, 24, 0.28);
 }
 
 .prayer-location__header {
@@ -8588,10 +8679,10 @@ header .nav-actions .btn-glass {
 .prayer-location__search {
   display: grid;
   gap: 0.45rem;
-  border: 1px solid rgba(125, 211, 252, 0.18);
+  border: 1px solid rgba(125, 211, 252, 0.14);
   border-radius: 14px;
-  padding: 0.62rem;
-  background: rgba(2, 6, 23, 0.36);
+  padding: 0.7rem;
+  background: rgba(2, 6, 23, 0.22);
 }
 
 .prayer-location__search div {
@@ -8622,11 +8713,19 @@ header .nav-actions .btn-glass {
   flex-wrap: nowrap;
   gap: 0.45rem;
   overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.prayer-location__hot-countries::-webkit-scrollbar {
+  display: none;
 }
 
 .prayer-location__hot-countries button {
   flex: 0 0 auto;
-  padding: 0 0.85rem;
+  min-width: 0;
+  min-height: 36px;
+  padding: 0 0.72rem;
+  font-size: 0.86rem;
 }
 
 .prayer-location__map-wrap {
@@ -8721,7 +8820,7 @@ header .nav-actions .btn-glass {
   }
 
   .prayer-location__map {
-    aspect-ratio: 1.12;
+    aspect-ratio: 1.32;
   }
 }
 
