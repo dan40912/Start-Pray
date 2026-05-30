@@ -1809,6 +1809,15 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
           touch-action: none;
         }
 
+        .global-room__canvas:not(.is-ready):not(.is-no-imagery) .cesium-widget canvas {
+          opacity: 0;
+        }
+
+        .global-room__canvas.is-ready:not(.is-no-imagery) .cesium-widget canvas {
+          opacity: 1;
+          transition: opacity 420ms ease;
+        }
+
         .global-room__canvas .cesium-viewer {
           opacity: 1;
         }
@@ -1832,7 +1841,8 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
           color: #dff7ff;
           background:
             radial-gradient(circle at 50% 42%, rgba(8, 145, 178, 0.24), transparent 34%),
-            radial-gradient(circle at 50% 52%, rgba(15, 23, 42, 0), #020617 74%);
+            radial-gradient(circle at 50% 52%, rgba(15, 23, 42, 0.72), #020617 74%),
+            #020617;
           opacity: 1;
           transition:
             opacity 520ms ease,
