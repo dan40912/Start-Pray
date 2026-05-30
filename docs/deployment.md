@@ -5,7 +5,8 @@ This is a short deployment overview. See the root deployment runbooks for enviro
 ## Build
 
 ```bash
-npm install
+npm install --include=dev --no-audit --fund=false
+npx prisma migrate deploy
 npx prisma generate
 npm run build
 ```
@@ -63,6 +64,16 @@ The build flow:
 There is an `ecosystem.config.js` for process manager based deployments.
 
 Use this only when the target environment is a VM or server where PM2 is the chosen process manager.
+
+For the production VM, prefer the deploy script:
+
+```bash
+cd /home/startpraynow/prayer-coin
+npm run deploy:prod
+```
+
+The production script uses `npm install`, not `npm ci`, so newly changed
+dependencies can be installed after `git pull` before rebuilding and restarting.
 
 ## Useful Runbooks
 

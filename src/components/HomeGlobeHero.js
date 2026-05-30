@@ -137,6 +137,7 @@ export function HeroGlobe({
       loadingLabel={text.globeLoading}
       loadErrorTitle={text.globeLoadErrorTitle}
       loadErrorFallback={text.globeLoadErrorFallback}
+      useImagery
       isHero
       fullscreen
       heroMap
@@ -356,6 +357,34 @@ export default function HomeGlobeHero({
           pointer-events: auto;
         }
 
+        .home-map-hero__globe::after {
+          content: "";
+          position: absolute;
+          z-index: 4;
+          top: 52%;
+          right: clamp(2rem, 5vw, 7rem);
+          width: min(50vw, 720px);
+          aspect-ratio: 1;
+          border-radius: 50%;
+          pointer-events: none;
+          opacity: 0.72;
+          transform: translateY(-43%);
+          background:
+            radial-gradient(circle at 35% 27%, rgba(255, 255, 255, 0.28), transparent 0 12%, transparent 25%),
+            radial-gradient(ellipse at 63% 35%, rgba(76, 175, 120, 0.78) 0 9%, transparent 10%),
+            radial-gradient(ellipse at 72% 47%, rgba(52, 139, 106, 0.72) 0 12%, transparent 13%),
+            radial-gradient(ellipse at 47% 37%, rgba(68, 157, 115, 0.62) 0 10%, transparent 11%),
+            radial-gradient(ellipse at 38% 54%, rgba(43, 124, 98, 0.7) 0 9%, transparent 10%),
+            radial-gradient(ellipse at 57% 67%, rgba(73, 155, 116, 0.62) 0 8%, transparent 9%),
+            radial-gradient(circle at 42% 38%, rgba(56, 189, 248, 0.28), transparent 0 32%, rgba(6, 78, 116, 0.62) 55%, rgba(2, 6, 23, 0.98) 76%),
+            radial-gradient(circle at 50% 50%, rgba(14, 116, 144, 0.86), rgba(8, 47, 73, 0.9) 52%, rgba(2, 6, 23, 0.98) 74%);
+          box-shadow:
+            inset -68px -48px 118px rgba(0, 0, 0, 0.74),
+            inset 42px 34px 86px rgba(125, 211, 252, 0.16),
+            0 0 72px rgba(14, 165, 233, 0.12);
+          filter: saturate(1.12);
+        }
+
         .home-map-hero__globe :global(.global-room-embed),
         .home-map-hero__globe :global(.global-room-embed--hero),
         .home-map-hero__globe :global(.global-room__canvas),
@@ -399,11 +428,11 @@ export default function HomeGlobeHero({
         .home-intel-brief {
           position: relative;
           z-index: 20;
-          width: min(540px, calc(100% - 2rem));
+          width: min(450px, calc(100% - 2rem));
           margin-left: clamp(1rem, 3vw, 3rem);
           margin-top: clamp(1rem, 3vh, 2.5rem);
-          border-radius: 24px;
-          padding: clamp(1.25rem, 2.4vw, 1.85rem);
+          border-radius: 20px;
+          padding: clamp(1rem, 1.75vw, 1.35rem);
           pointer-events: auto;
         }
 
@@ -433,8 +462,8 @@ export default function HomeGlobeHero({
         .home-intel-brief h1 {
           margin-top: 0.58rem;
           color: rgba(255, 255, 255, 0.96);
-          font-size: clamp(2.2rem, 4.35vw, 4.05rem);
-          line-height: 1.06;
+          font-size: clamp(2rem, 3.15vw, 3.25rem);
+          line-height: 1.08;
           letter-spacing: 0;
           text-shadow: 0 16px 42px rgba(2, 6, 23, 0.5);
         }
@@ -442,17 +471,17 @@ export default function HomeGlobeHero({
         .home-intel-brief > span:not(.home-intel-brief__kicker) {
           display: block;
           margin-top: 0.75rem;
-          max-width: 34rem;
+          max-width: 29rem;
           color: rgba(255, 247, 237, 0.86);
-          font-size: var(--home-hero-body-size);
-          line-height: 1.78;
+          font-size: 0.95rem;
+          line-height: 1.62;
         }
 
         .home-intel-brief__actions {
           display: flex;
           flex-wrap: wrap;
           gap: 0.55rem;
-          margin-top: 1.1rem;
+          margin-top: 0.95rem;
           align-items: center;
         }
 
@@ -460,7 +489,7 @@ export default function HomeGlobeHero({
           display: flex;
           flex-wrap: wrap;
           gap: 0.5rem;
-          margin-top: 1rem;
+          margin-top: 0.82rem;
         }
 
         .home-intel-trust span {
@@ -508,8 +537,8 @@ export default function HomeGlobeHero({
           display: flex;
           flex-wrap: wrap;
           gap: 0.42rem;
-          margin-top: 1rem;
-          padding-top: 0.82rem;
+          margin-top: 0.82rem;
+          padding-top: 0.72rem;
           border-top: 1px solid rgba(253, 230, 138, 0.14);
         }
 
@@ -533,13 +562,13 @@ export default function HomeGlobeHero({
         }
 
         .home-intel-brief__hint {
-          margin-top: 0.95rem !important;
+          margin-top: 0.78rem !important;
           border: 1px solid rgba(253, 230, 138, 0.14);
           border-radius: 14px;
-          padding: 0.72rem 0.78rem;
+          padding: 0.62rem 0.7rem;
           color: rgba(255, 247, 237, 0.76) !important;
-          font-size: 0.92rem !important;
-          line-height: 1.62;
+          font-size: 0.86rem !important;
+          line-height: 1.5;
           background: rgba(255, 247, 237, 0.055);
           letter-spacing: 0 !important;
           text-transform: none !important;
@@ -811,6 +840,14 @@ export default function HomeGlobeHero({
             right: 50%;
             width: min(86vw, 420px);
             transform: translateX(50%);
+          }
+
+          .home-map-hero__globe::after {
+            top: 40%;
+            right: 50%;
+            width: min(94vw, 460px);
+            transform: translate(50%, -50%);
+            opacity: 0.5;
           }
         }
 

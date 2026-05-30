@@ -249,6 +249,65 @@ function createCesiumImageryProvider(Cesium) {
   });
 }
 
+function drawLandPath(ctx, points, width, height) {
+  ctx.beginPath();
+  points.forEach(([x, y], index) => {
+    const px = x * width;
+    const py = y * height;
+    if (index === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  });
+  ctx.closePath();
+  ctx.fill();
+}
+
+function createProceduralEarthImageryProvider(Cesium) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 2048;
+  canvas.height = 1024;
+  const ctx = canvas.getContext("2d");
+  const ocean = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+  ocean.addColorStop(0, "#0b3b63");
+  ocean.addColorStop(0.45, "#075985");
+  ocean.addColorStop(1, "#082f49");
+  ctx.fillStyle = ocean;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = "rgba(46, 125, 93, 0.9)";
+  [
+    [[0.07, 0.24], [0.16, 0.19], [0.24, 0.26], [0.22, 0.42], [0.15, 0.47], [0.08, 0.39]],
+    [[0.20, 0.47], [0.28, 0.52], [0.30, 0.68], [0.24, 0.84], [0.18, 0.70]],
+    [[0.43, 0.22], [0.58, 0.18], [0.70, 0.28], [0.67, 0.43], [0.54, 0.42], [0.43, 0.34]],
+    [[0.49, 0.42], [0.59, 0.41], [0.62, 0.58], [0.56, 0.78], [0.49, 0.62]],
+    [[0.62, 0.30], [0.76, 0.27], [0.86, 0.39], [0.82, 0.55], [0.70, 0.49]],
+    [[0.79, 0.66], [0.86, 0.69], [0.88, 0.78], [0.81, 0.82]],
+  ].forEach((shape) => drawLandPath(ctx, shape, canvas.width, canvas.height));
+
+  ctx.fillStyle = "rgba(167, 139, 250, 0.12)";
+  drawLandPath(ctx, [[0, 0.84], [1, 0.84], [1, 1], [0, 1]], canvas.width, canvas.height);
+
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+  ctx.lineWidth = 2;
+  for (let x = 0; x <= canvas.width; x += canvas.width / 12) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, canvas.height);
+    ctx.stroke();
+  }
+  for (let y = 0; y <= canvas.height; y += canvas.height / 8) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(canvas.width, y);
+    ctx.stroke();
+  }
+
+  return new Cesium.SingleTileImageryProvider({
+    url: canvas.toDataURL("image/png"),
+    rectangle: Cesium.Rectangle.MAX_VALUE,
+    credit: "Start Pray procedural earth",
+  });
+}
+
 function latLngToVector3(THREE, lat, lng, radius) {
   const phi = (90 - Number(lat)) * (Math.PI / 180);
   const theta = (Number(lng) + 180) * (Math.PI / 180);
@@ -978,6 +1037,9 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
         viewer.scene.globe.showGroundAtmosphere = true;
         viewer.scene.skyAtmosphere.show = true;
         viewer.scene.fog.enabled = true;
+        if (useImagery) {
+          viewer.imageryLayers.addImageryProvider(createProceduralEarthImageryProvider(Cesium));
+        }
         if (!useImagery) {
           viewer.scene.backgroundColor = Cesium.Color.TRANSPARENT;
         }
@@ -2506,6 +2568,8 @@ export function GlobalPrayerRoomEmbed({
   onHeroBlankClick,
   externalGlobeRef = null,
   heroMap = false,
+  useImagery = true,
+  initialView = null,
   ariaLabel = "真實互動式全球代禱地球",
   loadingLabel = "正在載入全球禱告地球",
   loadErrorTitle = "全球禱告地球暫時無法載入",
@@ -2580,7 +2644,8 @@ export function GlobalPrayerRoomEmbed({
           clusters={displayClusters}
           staticView={!heroMap}
           heroMap={heroMap}
-          useImagery={!isHero}
+          useImagery={useImagery}
+          initialView={initialView}
           ariaLabel={ariaLabel}
           loadingLabel={loadingLabel}
           loadErrorTitle={loadErrorTitle}

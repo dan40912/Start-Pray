@@ -18,6 +18,7 @@
     "db:studio": "prisma studio",
     "media:audit": "node scripts/audit-missing-media.js",
     "media:migrate": "node scripts/migrate-media-to-storage.js",
+    "deploy:prod": "bash scripts/deploy-prod.sh",
     "seed:admins": "node scripts/seed-admins.js",
     "seed:demo": "node scripts/seed-demo.js",
     "seed:prayers": "node scripts/seed-prayers.js",

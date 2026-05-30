@@ -27,6 +27,35 @@
 
 ## Standard Deploy Flow
 
+### Recommended one-command deploy
+
+Use this as `startpraynow` after host ownership and port cleanup are healthy:
+
+```bash
+cd /home/startpraynow/prayer-coin
+npm run deploy:prod
+```
+
+The script intentionally uses `npm install --include=dev` instead of `npm ci`.
+This keeps production deploys able to install any newly added package changes after
+`git pull`, while still installing dev dependencies that can be needed during
+`next build`.
+
+It runs:
+
+1. `git fetch origin main`
+2. `git pull --ff-only origin main`
+3. `npm install --include=dev --no-audit --fund=false`
+4. `npx prisma migrate deploy`
+5. `npx prisma generate`
+6. clean `.next`
+7. `npm run build`
+8. `pm2 restart prayer-coin --update-env` or first-time `pm2 start ecosystem.config.js`
+
+If the server has local uncommitted edits or a non-fast-forward history, the pull
+will stop instead of overwriting production files. Fix that state before
+continuing.
+
 ### 1. Host cleanup with `startpraynow_gmail_com`
 
 Use this only when port `3000` is blocked or ownership is broken.
@@ -60,10 +89,12 @@ pm2 delete prayer-coin || true
 pm2 kill || true
 
 git fetch origin main
-git reset --hard origin/main
+git pull --ff-only origin main
 
 rm -rf .next
-npm install
+npm install --include=dev --no-audit --fund=false
+npx prisma migrate deploy
+npx prisma generate
 npm run build
 
 pm2 start ecosystem.config.js
