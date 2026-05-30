@@ -109,11 +109,14 @@ function getPrayerLocation(prayer, cluster, text) {
 export function GlobeSkeleton({ hidden = false }) {
   return (
     <div className={`home-map-skeleton${hidden ? " is-hidden" : ""}`} aria-hidden="true">
+      <div className="home-map-skeleton__halo" />
       <div className="home-map-skeleton__earth">
+        <em />
         <span />
         <i />
         <b />
       </div>
+      <div className="home-map-skeleton__scan" />
     </div>
   );
 }
@@ -211,7 +214,7 @@ export default function HomeGlobeHero({
     <section className="home-map-hero" aria-labelledby="home-map-title">
       <div className="home-map-hero__stars" aria-hidden="true" />
       <div className="home-map-hero__radar" aria-hidden="true" />
-      <div className="home-map-hero__globe" aria-label={text.mapAria}>
+      <div className={`home-map-hero__globe${globeReady ? " is-ready" : ""}`} aria-label={text.mapAria}>
         <GlobeSkeleton hidden={globeReady} />
         <HeroGlobe
           prayers={prayers}
@@ -229,15 +232,15 @@ export default function HomeGlobeHero({
       <div className="home-map-hero__shade" aria-hidden="true" />
 
       <div className="home-intel-brief">
-        <p>{text.eyebrow}</p>
-        <span className="home-intel-brief__kicker">{text.kicker}</span>
+        {/* <p>{text.eyebrow}</p> */}
+        {/* <span className="home-intel-brief__kicker">{text.kicker}</span> */}
         <h1 id="home-map-title">{text.headline}</h1>
         <span>{text.subheadline}</span>
-        <div className="home-intel-trust" aria-label={text.trustAria}>
+        {/* <div className="home-intel-trust" aria-label={text.trustAria}>
           {trustChips.map((chip) => (
             <span key={chip}>{chip}</span>
           ))}
-        </div>
+        </div> */}
         <div className="home-intel-brief__actions">
           <Link href={primaryCtaHref} className="button button--primary" prefetch={false}>
             {primaryCtaLabel}
@@ -357,34 +360,6 @@ export default function HomeGlobeHero({
           pointer-events: auto;
         }
 
-        .home-map-hero__globe::after {
-          content: "";
-          position: absolute;
-          z-index: 4;
-          top: 52%;
-          right: clamp(2rem, 5vw, 7rem);
-          width: min(50vw, 720px);
-          aspect-ratio: 1;
-          border-radius: 50%;
-          pointer-events: none;
-          opacity: 0.72;
-          transform: translateY(-43%);
-          background:
-            radial-gradient(circle at 35% 27%, rgba(255, 255, 255, 0.28), transparent 0 12%, transparent 25%),
-            radial-gradient(ellipse at 63% 35%, rgba(76, 175, 120, 0.78) 0 9%, transparent 10%),
-            radial-gradient(ellipse at 72% 47%, rgba(52, 139, 106, 0.72) 0 12%, transparent 13%),
-            radial-gradient(ellipse at 47% 37%, rgba(68, 157, 115, 0.62) 0 10%, transparent 11%),
-            radial-gradient(ellipse at 38% 54%, rgba(43, 124, 98, 0.7) 0 9%, transparent 10%),
-            radial-gradient(ellipse at 57% 67%, rgba(73, 155, 116, 0.62) 0 8%, transparent 9%),
-            radial-gradient(circle at 42% 38%, rgba(56, 189, 248, 0.28), transparent 0 32%, rgba(6, 78, 116, 0.62) 55%, rgba(2, 6, 23, 0.98) 76%),
-            radial-gradient(circle at 50% 50%, rgba(14, 116, 144, 0.86), rgba(8, 47, 73, 0.9) 52%, rgba(2, 6, 23, 0.98) 74%);
-          box-shadow:
-            inset -68px -48px 118px rgba(0, 0, 0, 0.74),
-            inset 42px 34px 86px rgba(125, 211, 252, 0.16),
-            0 0 72px rgba(14, 165, 233, 0.12);
-          filter: saturate(1.12);
-        }
-
         .home-map-hero__globe :global(.global-room-embed),
         .home-map-hero__globe :global(.global-room-embed--hero),
         .home-map-hero__globe :global(.global-room__canvas),
@@ -398,6 +373,12 @@ export default function HomeGlobeHero({
 
         .home-map-hero__globe :global(.cesium-widget canvas) {
           touch-action: pan-y !important;
+          opacity: 0;
+          transition: opacity 420ms ease;
+        }
+
+        .home-map-hero__globe.is-ready :global(.cesium-widget canvas) {
+          opacity: 1;
         }
 
         .home-map-hero__globe :global(.global-room__skeleton) {
@@ -730,6 +711,33 @@ export default function HomeGlobeHero({
           opacity: 0;
         }
 
+        .home-map-skeleton__halo,
+        .home-map-skeleton__scan {
+          position: absolute;
+          right: min(3vw, 3.4rem);
+          width: min(76vw, 930px);
+          aspect-ratio: 1;
+          border-radius: 50%;
+          pointer-events: none;
+        }
+
+        .home-map-skeleton__halo {
+          border: 1px solid rgba(125, 211, 252, 0.18);
+          box-shadow:
+            0 0 90px rgba(14, 165, 233, 0.16),
+            inset 0 0 80px rgba(14, 165, 233, 0.08);
+          animation: skeleton-halo 2.8s ease-in-out infinite;
+        }
+
+        .home-map-skeleton__scan {
+          background:
+            conic-gradient(from 130deg, transparent 0 68%, rgba(125, 211, 252, 0.28) 76%, transparent 86%),
+            radial-gradient(circle, transparent 0 52%, rgba(125, 211, 252, 0.12) 53%, transparent 56%);
+          opacity: 0.62;
+          animation: skeleton-scan 3.2s linear infinite;
+          mask-image: radial-gradient(circle, transparent 0 42%, black 43% 58%, transparent 62%);
+        }
+
         .home-map-skeleton__earth {
           position: absolute;
           right: min(4vw, 4rem);
@@ -741,6 +749,40 @@ export default function HomeGlobeHero({
             radial-gradient(circle at 52% 50%, rgba(14, 165, 233, 0.34), rgba(8, 47, 73, 0.72) 46%, #020817 72%);
           box-shadow: 0 0 90px rgba(14, 165, 233, 0.22);
           animation: skeleton-float 4.8s ease-in-out infinite;
+        }
+
+        .home-map-skeleton__earth::before,
+        .home-map-skeleton__earth::after {
+          content: "";
+          position: absolute;
+          inset: 12%;
+          border-radius: 50%;
+          pointer-events: none;
+        }
+
+        .home-map-skeleton__earth::before {
+          border: 1px solid rgba(186, 230, 253, 0.16);
+          transform: rotate(-18deg) scaleY(0.36);
+        }
+
+        .home-map-skeleton__earth::after {
+          background:
+            linear-gradient(90deg, transparent 0 48%, rgba(226, 232, 240, 0.18) 50%, transparent 52%),
+            linear-gradient(0deg, transparent 0 48%, rgba(226, 232, 240, 0.12) 50%, transparent 52%);
+          opacity: 0.42;
+          mask-image: radial-gradient(circle, black 0 62%, transparent 63%);
+        }
+
+        .home-map-skeleton__earth em {
+          position: absolute;
+          inset: 0;
+          border-radius: inherit;
+          background:
+            linear-gradient(110deg, transparent 0 38%, rgba(255, 255, 255, 0.2) 44%, transparent 50%),
+            radial-gradient(ellipse at 62% 42%, rgba(54, 171, 112, 0.5) 0 9%, transparent 10%),
+            radial-gradient(ellipse at 42% 58%, rgba(46, 142, 103, 0.42) 0 11%, transparent 12%);
+          opacity: 0.76;
+          animation: skeleton-shimmer 2.4s ease-in-out infinite;
         }
 
         .home-map-skeleton__earth span,
@@ -758,6 +800,36 @@ export default function HomeGlobeHero({
 
         @keyframes skeleton-float {
           50% { transform: translateY(-12px) scale(1.015); }
+        }
+
+        @keyframes skeleton-halo {
+          50% {
+            opacity: 0.7;
+            transform: scale(1.025);
+          }
+        }
+
+        @keyframes skeleton-scan {
+          to { transform: rotate(360deg); }
+        }
+
+        @keyframes skeleton-shimmer {
+          50% { opacity: 0.52; transform: translateX(1.2%); }
+        }
+
+        @keyframes skeleton-float-mobile {
+          50% { transform: translateX(50%) translateY(-10px) scale(1.015); }
+        }
+
+        @keyframes skeleton-halo-mobile {
+          50% {
+            opacity: 0.7;
+            transform: translateX(50%) scale(1.025);
+          }
+        }
+
+        @keyframes skeleton-scan-mobile {
+          to { transform: translateX(50%) rotate(360deg); }
         }
 
         @media (max-width: 860px) {
@@ -840,15 +912,24 @@ export default function HomeGlobeHero({
             right: 50%;
             width: min(86vw, 420px);
             transform: translateX(50%);
+            animation-name: skeleton-float-mobile;
           }
 
-          .home-map-hero__globe::after {
-            top: 40%;
+          .home-map-skeleton__halo,
+          .home-map-skeleton__scan {
             right: 50%;
-            width: min(94vw, 460px);
-            transform: translate(50%, -50%);
-            opacity: 0.5;
+            width: min(96vw, 480px);
+            transform: translateX(50%);
           }
+
+          .home-map-skeleton__halo {
+            animation-name: skeleton-halo-mobile;
+          }
+
+          .home-map-skeleton__scan {
+            animation-name: skeleton-scan-mobile;
+          }
+
         }
 
         @media (max-width: 380px) {

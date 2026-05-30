@@ -973,6 +973,7 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
     startAutoRotate = true,
     maxCameraHeightOverride = null,
     useImagery = true,
+    enableTileImagery = true,
     ariaLabel = "真實互動式全球代禱地球",
     loadingLabel = "正在載入全球禱告地球",
     loadErrorTitle = "全球禱告地球暫時無法載入",
@@ -1027,13 +1028,14 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
           shouldAnimate: true,
           skyBox: false,
         });
-
         viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString("#082f49");
         viewer.scene.globe.enableLighting = false;
-        viewer.scene.globe.showGroundAtmosphere = true;
-        viewer.scene.skyAtmosphere.show = true;
-        viewer.scene.fog.enabled = true;
-        if (useImagery) {
+        if (!heroMap) {
+          viewer.scene.globe.showGroundAtmosphere = true;
+          viewer.scene.skyAtmosphere.show = true;
+        }
+        viewer.scene.fog.enabled = !heroMap;
+        if (useImagery && !(heroMap && enableTileImagery)) {
           viewer.imageryLayers.addImageryProvider(createProceduralEarthImageryProvider(Cesium));
         }
         if (!useImagery) {
@@ -1041,6 +1043,12 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
         }
         const controller = viewer.scene.screenSpaceCameraController;
         const isCompactViewport = window.matchMedia?.("(max-width: 767px)")?.matches;
+        if (heroMap) {
+          viewer.resolutionScale = isCompactViewport ? 0.62 : 0.78;
+          viewer.scene.fxaa = false;
+          viewer.scene.globe.showGroundAtmosphere = false;
+          viewer.scene.skyAtmosphere.show = false;
+        }
         const minCameraHeight = heroMap ? HERO_GLOBE_MIN_HEIGHT : FULL_GLOBE_MIN_HEIGHT;
         const requestedMaxCameraHeight = Number(maxCameraHeightOverride);
         const maxCameraHeight = Number.isFinite(requestedMaxCameraHeight)
@@ -1200,7 +1208,11 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
           return isMajorHotspot(cluster) || height < 1800000;
         }
 
-        const markerSource = clusters.length ? clusters : [TAIPEI];
+        const useLightweightMarkers = heroMap;
+        const markerSource = (clusters.length ? clusters : [TAIPEI]).slice(
+          0,
+          heroMap ? (isCompactViewport ? 14 : 24) : undefined
+        );
 
         function addEntity(cluster, index = 0) {
           const color = getClusterColor(Cesium, cluster);
@@ -1215,6 +1227,46 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
             : Math.min(34, 11 + Math.sqrt(heat) * 3.7);
           const hasAudio = Number(cluster.audioCount || 0) > 0;
           const isHot = getClusterHeat(cluster) >= 10 || Number(cluster.totalCount || 0) >= 4;
+          if (useLightweightMarkers) {
+            const entity = viewer.entities.add({
+              name: cluster.fullLabel,
+              position: Cesium.Cartesian3.fromDegrees(
+                Number(cluster.locationLng),
+                Number(cluster.locationLat),
+                6500
+              ),
+              point: {
+                show: true,
+                color: color.withAlpha(isHot || cluster.isDefaultFocus ? 0.98 : 0.84),
+                pixelSize: Math.min(24, Math.max(9, pixelSize * 0.82)),
+                outlineColor: Cesium.Color.WHITE.withAlpha(0.82),
+                outlineWidth: visibility === "private" ? 2 : 3,
+                scaleByDistance: new Cesium.NearFarScalar(250000, 1.25, 12000000, 0.48),
+                translucencyByDistance: new Cesium.NearFarScalar(250000, 1, 17000000, 0.44),
+                disableDepthTestDistance: 6500000,
+              },
+              label: {
+                show: cluster.isDefaultFocus || isMajorHotspot(cluster) || Number(cluster.totalCount || 0) >= 2,
+                text: labelText,
+                font: "700 13px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif",
+                fillColor: Cesium.Color.WHITE,
+                backgroundColor: Cesium.Color.fromCssColorString("#020617").withAlpha(0.68),
+                showBackground: true,
+                backgroundPadding: new Cesium.Cartesian2(8, 5),
+                pixelOffset: new Cesium.Cartesian2(0, -28),
+                horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+                verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+                scaleByDistance: new Cesium.NearFarScalar(250000, 1, 9000000, 0.58),
+                translucencyByDistance: new Cesium.NearFarScalar(250000, 1, 13000000, 0),
+                disableDepthTestDistance: 6500000,
+              },
+            });
+
+            entity.clusterData = cluster;
+            entitiesRef.current.push(entity);
+            return entity;
+          }
+
           const pulseStrength = cluster.isUrgent ? 0.24 : cluster.isFresh ? 0.16 : hasAudio ? 0.1 : 0.035;
           const pulseSpeed = cluster.isUrgent ? 0.0032 : hasAudio ? 0.0046 : 0.0024;
           const revealStart = Date.now() + (enableIdleRotation ? index * 95 : index * 34);
@@ -1377,7 +1429,10 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
         }
 
         // First batch is intentionally smaller on mobile so the hero can become useful quickly.
-        const initialBatchSize = Math.min(isCompactViewport ? 28 : 45, markerSource.length);
+        const initialBatchSize = Math.min(
+          heroMap ? markerSource.length : isCompactViewport ? 28 : 45,
+          markerSource.length
+        );
         markerSource.slice(0, initialBatchSize).forEach(addEntity);
 
         const entityTimer = window.setTimeout(() => {
@@ -1452,10 +1507,12 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
         if (!staticView) {
           handler.setInputAction(() => setAutoRotate(false), Cesium.ScreenSpaceEventType.LEFT_DOWN);
           handler.setInputAction(() => setAutoRotate(false), Cesium.ScreenSpaceEventType.WHEEL);
-          handler.setInputAction((movement) => {
-            const picked = viewer.scene.pick(movement.endPosition);
-            setHoveredEntity(picked?.id?.clusterData ? picked.id : null);
-          }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+          if (!heroMap) {
+            handler.setInputAction((movement) => {
+              const picked = viewer.scene.pick(movement.endPosition);
+              setHoveredEntity(picked?.id?.clusterData ? picked.id : null);
+            }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+          }
         }
         handler.setInputAction((movement) => {
           const picked = viewer.scene.pick(movement.position);
@@ -1509,7 +1566,7 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
         let hasShownFirstFrame = false;
         let hasRenderedFirstFrame = false;
         let minimumHeroReadyDelayPassed = !heroMap;
-        let imageryReadyForFirstPaint = !heroMap || !useImagery;
+        let imageryReadyForFirstPaint = !useImagery || (heroMap && !enableTileImagery);
         const showFirstFrame = () => {
           if (disposed || hasShownFirstFrame) return;
           hasShownFirstFrame = true;
@@ -1524,14 +1581,14 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
 
         const imageryTimer = window.setTimeout(() => {
           if (disposed || viewer.isDestroyed()) return;
-          if (!useImagery) {
+          if (!useImagery || !enableTileImagery) {
             rotationReadyRef.current = true;
             imageryReadyForFirstPaint = true;
             maybeShowFirstFrame();
             return;
           }
 
-          // Delay OSM so slow first tile requests cannot block the initial Cesium globe render.
+          // Keep the hero covered by its loading artwork until real tiles have settled.
           viewer.imageryLayers.addImageryProvider(createCesiumImageryProvider(Cesium));
 
           const tileProgress = (remaining) => {
@@ -1543,18 +1600,18 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
             }
           };
           viewer.scene.globe.tileLoadProgressEvent.addEventListener(tileProgress);
-        }, 800);
+        }, heroMap ? 0 : 800);
 
         const minimumHeroReadyTimer = window.setTimeout(() => {
           minimumHeroReadyDelayPassed = true;
           maybeShowFirstFrame();
-        }, heroMap ? 1500 : 0);
+        }, heroMap ? 450 : 0);
 
         const imageryReadyFallbackTimer = window.setTimeout(() => {
           // On slow tile servers, keep the hero from flashing to a blank first render forever.
           imageryReadyForFirstPaint = true;
           maybeShowFirstFrame();
-        }, heroMap ? 2600 : 0);
+        }, heroMap ? 3600 : 0);
 
         const firstRender = () => {
           hasRenderedFirstFrame = true;
@@ -1664,7 +1721,7 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
     }
 
     const cancelScheduledLoad = scheduleGlobeLoad(mountRef.current, initGlobe, {
-      timeout: heroMap ? 700 : 350,
+      timeout: heroMap ? 180 : 350,
       rootMargin: heroMap ? "520px" : "240px",
     });
 
@@ -1676,6 +1733,7 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
   }, [
     clusters,
     enableIdleRotation,
+    enableTileImagery,
     heroMap,
     initialView,
     maxCameraHeightOverride,
@@ -2566,6 +2624,7 @@ export function GlobalPrayerRoomEmbed({
   externalGlobeRef = null,
   heroMap = false,
   useImagery = true,
+  enableTileImagery = true,
   initialView = null,
   ariaLabel = "真實互動式全球代禱地球",
   loadingLabel = "正在載入全球禱告地球",
@@ -2642,6 +2701,7 @@ export function GlobalPrayerRoomEmbed({
           staticView={!heroMap}
           heroMap={heroMap}
           useImagery={useImagery}
+          enableTileImagery={enableTileImagery}
           initialView={initialView}
           ariaLabel={ariaLabel}
           loadingLabel={loadingLabel}

@@ -79,6 +79,7 @@ export default function CustomerPortalCreatePage() {
   const [lastAutoSavedAt, setLastAutoSavedAt] = useState(null);
 
   const uploadLockRef = useRef(false);
+  const guestTermsRef = useRef(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -426,7 +427,14 @@ export default function CustomerPortalCreatePage() {
     }
   };
 
+  const handleGuestTermsRequired = () => {
+    setStatus({ type: "error", message: "請先勾選「我了解訪客送出後無法自行編輯或刪除」再送出。" });
+    guestTermsRef.current?.focus();
+  };
+
   const previewImage = form.image.trim() || buildDefaultThumbnailUrl(form.title || "禱告卡預覽");
+  const isGuestUser = !authUser?.id;
+  const needsGuestTerms = isGuestUser && !form.acceptedGuestTerms;
 
   return (
     <>
@@ -557,6 +565,7 @@ export default function CustomerPortalCreatePage() {
                 <div className="customer-create__privacy-card">
                   <label>
                     <input
+                      ref={guestTermsRef}
                       type="checkbox"
                       checked={form.acceptedGuestTerms}
                       onChange={updateFormField("acceptedGuestTerms")}
@@ -643,9 +652,11 @@ export default function CustomerPortalCreatePage() {
 
           <div className="customer-create__actions">
             <button
-              type="submit"
-              className="button button--primary"
+              type={needsGuestTerms ? "button" : "submit"}
+              className={`button button--primary${needsGuestTerms ? " is-disabled" : ""}`}
               disabled={submitting || isUploadingImage}
+              aria-disabled={needsGuestTerms || submitting || isUploadingImage}
+              onClick={needsGuestTerms ? handleGuestTermsRequired : undefined}
             >
               {submitting ? "建立中..." : "建立禱告卡"}
             </button>
@@ -922,6 +933,13 @@ export default function CustomerPortalCreatePage() {
         .customer-create__actions :global(.button--primary) {
           background: linear-gradient(135deg, #3b82f6, #0ea5e9);
           border-color: transparent;
+        }
+
+        .customer-create__actions :global(.button--primary.is-disabled),
+        .customer-create__actions :global(.button--primary:disabled) {
+          opacity: 0.56;
+          cursor: not-allowed;
+          filter: grayscale(0.18);
         }
 
         .customer-create__actions :global(.button--ghost) {
