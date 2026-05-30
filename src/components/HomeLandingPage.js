@@ -103,25 +103,30 @@ function stringifyJsonLd(data) {
   return JSON.stringify(data).replace(/</g, "\\u003c");
 }
 
-function HomeStructuredData({ stats, globalPrayerCount }) {
+function HomeStructuredData({ stats, globalPrayerCount, text = PAGE_TEXT, locale = "zh-TW" }) {
+  const normalizedLocale = normalizeLocale(locale);
+  const isEnglish = normalizedLocale === "en";
+  const heroText = text.globeHero || {};
+  const homePath = localizePath("/", normalizedLocale);
+  const roomPath = localizePath("/global-prayer-room", normalizedLocale);
+  const pageUrl = `${SITE_URL}${homePath === "/" ? "" : homePath}`;
   const data = {
     "@context": "https://schema.org",
     "@type": "WebPage",
     "@id": `${SITE_URL}/#home`,
-    url: SITE_URL,
-    name: "Start Pray 一起禱告吧",
-    description:
-      "看見全球正在被守望的禱告需要，建立代禱事項，並透過文字與語音禱告彼此陪伴。",
-    inLanguage: "zh-Hant-TW",
+    url: pageUrl,
+    name: text.metadataTitle || PAGE_TEXT.metadataTitle,
+    description: text.metadataDescription || PAGE_TEXT.metadataDescription,
+    inLanguage: isEnglish ? "en" : "zh-Hant-TW",
     isPartOf: {
       "@id": `${SITE_URL}/#website`,
     },
     about: [
-      "禱告",
-      "代禱",
-      "語音禱告",
-      "全球禱告地圖",
-      "基督信仰社群",
+      isEnglish ? "prayer" : "禱告",
+      isEnglish ? "prayer needs" : "代禱",
+      isEnglish ? "voice prayer" : "語音禱告",
+      isEnglish ? "global prayer map" : "全球禱告地圖",
+      isEnglish ? "faith community" : "基督信仰社群",
     ],
     primaryImageOfPage: {
       "@type": "ImageObject",
@@ -129,33 +134,33 @@ function HomeStructuredData({ stats, globalPrayerCount }) {
     },
     mainEntity: {
       "@type": "ItemList",
-      name: "全球代禱摘要",
+      name: isEnglish ? "Global prayer summary" : "全球代禱摘要",
       numberOfItems: Number(globalPrayerCount || 0),
       itemListElement: [
         {
           "@type": "ListItem",
           position: 1,
-          name: "全球代禱數",
+          name: heroText.totalPrayers || "全球代禱數",
           description: String(stats?.totalPrayers || "0"),
         },
         {
           "@type": "ListItem",
           position: 2,
-          name: "地圖光點",
+          name: heroText.locationLights || "地圖光點",
           description: String(stats?.locationLights || "0"),
         },
         {
           "@type": "ListItem",
           position: 3,
-          name: "24 小時新增",
+          name: heroText.todayNew || "24 小時新增",
           description: String(stats?.todayNew || "0"),
         },
       ],
     },
     potentialAction: {
       "@type": "ViewAction",
-      target: `${SITE_URL}/global-prayer-room`,
-      name: "進入全球禱告室",
+      target: `${SITE_URL}${roomPath}`,
+      name: heroText.roomCta || "進入全球禱告室",
     },
   };
 
@@ -344,12 +349,13 @@ export default async function HomeLandingPage({ locale: localeProp = "zh-TW" } =
       <SiteHeader activePath={localizePath("/", locale)} locale={locale} />
 
       <main className="home-page">
-        <HomeStructuredData stats={heroStats} globalPrayerCount={globalPrayers.length} />
+        <HomeStructuredData stats={heroStats} globalPrayerCount={globalPrayers.length} text={text} locale={locale} />
         <HomeGlobeHero
           prayers={globalPrayers}
           primaryHref={localizePath("/global-prayer-room", locale)}
           secondaryHref={localizePath("/customer-portal/create", locale)}
           stats={heroStats}
+          locale={locale}
         />
 
         <HomeEntryCards text={text} locale={locale} />

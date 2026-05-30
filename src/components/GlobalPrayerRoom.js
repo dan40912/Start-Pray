@@ -918,6 +918,7 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
     initialView = null,
     enableIdleRotation = false,
     maxCameraHeightOverride = null,
+    useImagery = true,
     ariaLabel = "真實互動式全球代禱地球",
     loadingLabel = "正在載入全球禱告地球",
     loadErrorTitle = "全球禱告地球暫時無法載入",
@@ -977,6 +978,9 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
         viewer.scene.globe.showGroundAtmosphere = true;
         viewer.scene.skyAtmosphere.show = true;
         viewer.scene.fog.enabled = true;
+        if (!useImagery) {
+          viewer.scene.backgroundColor = Cesium.Color.TRANSPARENT;
+        }
         const controller = viewer.scene.screenSpaceCameraController;
         const isCompactViewport = window.matchMedia?.("(max-width: 767px)")?.matches;
         const minCameraHeight = heroMap ? HERO_GLOBE_MIN_HEIGHT : FULL_GLOBE_MIN_HEIGHT;
@@ -1444,8 +1448,30 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
           if (!disposed) rotationReadyRef.current = true;
         }, 1800);
 
+        let hasShownFirstFrame = false;
+        let hasRenderedFirstFrame = false;
+        let minimumHeroReadyDelayPassed = !heroMap;
+        let imageryReadyForFirstPaint = !heroMap || !useImagery;
+        const showFirstFrame = () => {
+          if (disposed || hasShownFirstFrame) return;
+          hasShownFirstFrame = true;
+          setGlobeReady(true);
+          onReady?.();
+        };
+        const maybeShowFirstFrame = () => {
+          if (disposed || hasShownFirstFrame || !hasRenderedFirstFrame) return;
+          if (heroMap && (!minimumHeroReadyDelayPassed || !imageryReadyForFirstPaint)) return;
+          showFirstFrame();
+        };
+
         const imageryTimer = window.setTimeout(() => {
           if (disposed || viewer.isDestroyed()) return;
+          if (!useImagery) {
+            rotationReadyRef.current = true;
+            imageryReadyForFirstPaint = true;
+            maybeShowFirstFrame();
+            return;
+          }
 
           // Delay OSM so slow first tile requests cannot block the initial Cesium globe render.
           viewer.imageryLayers.addImageryProvider(createCesiumImageryProvider(Cesium));
@@ -1453,21 +1479,28 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
           const tileProgress = (remaining) => {
             if (remaining === 0) {
               rotationReadyRef.current = true;
+              imageryReadyForFirstPaint = true;
+              maybeShowFirstFrame();
               viewer.scene.globe.tileLoadProgressEvent.removeEventListener(tileProgress);
             }
           };
           viewer.scene.globe.tileLoadProgressEvent.addEventListener(tileProgress);
         }, 800);
 
-        let hasShownFirstFrame = false;
-        const showFirstFrame = () => {
-          if (disposed || hasShownFirstFrame) return;
-          hasShownFirstFrame = true;
-          setGlobeReady(true);
-          onReady?.();
-        };
+        const minimumHeroReadyTimer = window.setTimeout(() => {
+          minimumHeroReadyDelayPassed = true;
+          maybeShowFirstFrame();
+        }, heroMap ? 1500 : 0);
+
+        const imageryReadyFallbackTimer = window.setTimeout(() => {
+          // On slow tile servers, keep the hero from flashing to a blank first render forever.
+          imageryReadyForFirstPaint = true;
+          maybeShowFirstFrame();
+        }, heroMap ? 2600 : 0);
+
         const firstRender = () => {
-          showFirstFrame();
+          hasRenderedFirstFrame = true;
+          maybeShowFirstFrame();
           viewer.scene.postRender.removeEventListener(firstRender);
         };
         viewer.scene.postRender.addEventListener(firstRender);
@@ -1475,7 +1508,8 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
 
         const firstRenderFallbackTimer = window.setTimeout(() => {
           // Some browsers can complete the first Cesium render during construction.
-          showFirstFrame();
+          hasRenderedFirstFrame = true;
+          maybeShowFirstFrame();
         }, 1600);
 
         ref.current = {
@@ -1549,6 +1583,8 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
           window.clearTimeout(entityTimer);
           window.clearTimeout(imageryTimer);
           window.clearTimeout(rotationFallbackTimer);
+          window.clearTimeout(minimumHeroReadyTimer);
+          window.clearTimeout(imageryReadyFallbackTimer);
           window.clearTimeout(firstRenderFallbackTimer);
           ref.current = null;
           viewer.clock.onTick.removeEventListener(tick);
@@ -1585,6 +1621,7 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
     heroMap,
     initialView,
     maxCameraHeightOverride,
+    useImagery,
     loadErrorFallback,
     onAutoRotateChange,
     onBlankClick,
@@ -1598,7 +1635,7 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
   return (
     <div
       ref={mountRef}
-      className={`global-room__canvas${globeReady ? " is-ready" : ""}${staticView ? " is-static-view" : ""}${heroMap ? " is-hero-map" : ""}`}
+      className={`global-room__canvas${globeReady ? " is-ready" : ""}${staticView ? " is-static-view" : ""}${heroMap ? " is-hero-map" : ""}${!useImagery ? " is-no-imagery" : ""}`}
       aria-label={ariaLabel}
     >
       <GlobalPrayerRoomSkeleton hidden={globeReady || Boolean(loadError)} label={loadingLabel} />
@@ -1621,6 +1658,23 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
           touch-action: none;
           background:
             radial-gradient(circle at 50% 42%, rgba(14, 165, 233, 0.28), transparent 38%), #020617;
+        }
+
+        .global-room__canvas.is-no-imagery {
+          background:
+            radial-gradient(
+              circle at 66% 48%,
+              rgba(14, 165, 233, 0.34),
+              rgba(8, 47, 73, 0.72) 30%,
+              rgba(2, 8, 23, 0.96) 58%,
+              transparent 72%
+            ),
+            radial-gradient(circle at 68% 48%, rgba(14, 165, 233, 0.18), transparent 34%),
+            #020817;
+        }
+
+        .global-room__canvas.is-no-imagery .cesium-widget canvas {
+          opacity: 0.16;
         }
 
         .global-room__canvas:active {
@@ -2391,24 +2445,39 @@ function usePrayerClusters(prayers, locale = "zh-TW") {
   );
 
   const clusters = useMemo(() => buildCityClusters(locatedPrayers), [locatedPrayers]);
-  const displayClusters = clusters.length ? clusters : [defaultTaipei];
-  const recent24Count = locatedPrayers.filter((prayer) => {
-    const time = getCreatedTime(prayer);
-    return time > 0 && Date.now() - time <= ONE_DAY_MS;
-  }).length;
-  const unansweredCount = locatedPrayers.filter(
-    (prayer) => Number(prayer.responseCount ?? 0) === 0
-  ).length;
-  const nearestCluster = clusters.length
-    ? [...clusters].sort((a, b) => distanceFromTaipei(a) - distanceFromTaipei(b))[0]
-    : defaultTaipei;
-  const taipeiCluster =
-    clusters.find(
-      (cluster) =>
-        cluster.locationCity === TAIPEI.locationCity &&
-        Math.abs(Number(cluster.locationLat) - TAIPEI.locationLat) < 0.5 &&
-        Math.abs(Number(cluster.locationLng) - TAIPEI.locationLng) < 0.5
-    ) || defaultTaipei;
+  const displayClusters = useMemo(
+    () => (clusters.length ? clusters : [defaultTaipei]),
+    [clusters, defaultTaipei]
+  );
+  const recent24Count = useMemo(
+    () =>
+      locatedPrayers.filter((prayer) => {
+        const time = getCreatedTime(prayer);
+        return time > 0 && Date.now() - time <= ONE_DAY_MS;
+      }).length,
+    [locatedPrayers]
+  );
+  const unansweredCount = useMemo(
+    () => locatedPrayers.filter((prayer) => Number(prayer.responseCount ?? 0) === 0).length,
+    [locatedPrayers]
+  );
+  const nearestCluster = useMemo(
+    () =>
+      clusters.length
+        ? [...clusters].sort((a, b) => distanceFromTaipei(a) - distanceFromTaipei(b))[0]
+        : defaultTaipei,
+    [clusters, defaultTaipei]
+  );
+  const taipeiCluster = useMemo(
+    () =>
+      clusters.find(
+        (cluster) =>
+          cluster.locationCity === TAIPEI.locationCity &&
+          Math.abs(Number(cluster.locationLat) - TAIPEI.locationLat) < 0.5 &&
+          Math.abs(Number(cluster.locationLng) - TAIPEI.locationLng) < 0.5
+      ) || defaultTaipei,
+    [clusters, defaultTaipei]
+  );
 
   return {
     locatedPrayers,
@@ -2437,6 +2506,10 @@ export function GlobalPrayerRoomEmbed({
   onHeroBlankClick,
   externalGlobeRef = null,
   heroMap = false,
+  ariaLabel = "真實互動式全球代禱地球",
+  loadingLabel = "正在載入全球禱告地球",
+  loadErrorTitle = "全球禱告地球暫時無法載入",
+  loadErrorFallback = "全球禱告地球暫時無法載入，請稍後再試。",
 }) {
   const internalGlobeRef = useRef(null);
   const globeRef = externalGlobeRef || internalGlobeRef;
@@ -2507,6 +2580,11 @@ export function GlobalPrayerRoomEmbed({
           clusters={displayClusters}
           staticView={!heroMap}
           heroMap={heroMap}
+          useImagery={!isHero}
+          ariaLabel={ariaLabel}
+          loadingLabel={loadingLabel}
+          loadErrorTitle={loadErrorTitle}
+          loadErrorFallback={loadErrorFallback}
           onSelectCluster={handleSelectCluster}
           onBlankClick={onHeroBlankClick}
           onAutoRotateChange={setAutoRotate}
@@ -4507,11 +4585,14 @@ export function GlobalPrayerRoomPageExperience({ prayers = [], locale: localePro
       .sort((a, b) => Number(b.priority || b.heatScore || 0) - Number(a.priority || a.heatScore || 0));
   }, [activeLayers, clusters, formatDescription, formatTitle, searchQuery]);
 
-  const displayClusters = filteredClusters.length ? filteredClusters : [TAIPEI];
+  const displayClusters = useMemo(
+    () => (filteredClusters.length ? filteredClusters : [TAIPEI]),
+    [filteredClusters]
+  );
 
-  const totalPrayerCount = filteredClusters.reduce(
-    (sum, cluster) => sum + Number(cluster.totalCount || 0),
-    0
+  const totalPrayerCount = useMemo(
+    () => filteredClusters.reduce((sum, cluster) => sum + Number(cluster.totalCount || 0), 0),
+    [filteredClusters]
   );
 
   useEffect(() => {

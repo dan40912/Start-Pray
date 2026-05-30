@@ -57,6 +57,7 @@ export const dynamic = "force-dynamic";
 
 function extractPathFromHeaders(requestHeaders) {
   const candidates = [
+    requestHeaders.get("x-start-pray-pathname"),
     requestHeaders.get("x-invoke-path"),
     requestHeaders.get("next-url"),
     requestHeaders.get("referer"),

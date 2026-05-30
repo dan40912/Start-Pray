@@ -5,8 +5,9 @@ import Link from "next/link";
 
 import { GlobalPrayerRoomEmbed } from "@/components/GlobalPrayerRoom";
 import { useAuthSession } from "@/hooks/useAuthSession";
+import { getDictionary, localizePath, normalizeLocale } from "@/lib/i18n";
 
-const TEXT = {
+const DEFAULT_TEXT = {
   eyebrow: "全球禱告室",
   kicker: "一起為世界禱告",
   headline: "看見世界正在被記念",
@@ -20,9 +21,48 @@ const TEXT = {
   audioPrayers: "語音禱告",
   emptyTitle: "還沒有可顯示的禱告光點",
   emptyCopy: "你可以分享第一個代禱，讓地圖先亮起一個光點。",
+  mapAria: "全球禱告地圖",
+  globeAria: "真實互動式全球代禱地球",
+  globeLoading: "正在載入全球禱告地球",
+  globeLoadErrorTitle: "全球禱告地球暫時無法載入",
+  globeLoadErrorFallback: "全球禱告地球暫時無法載入，請稍後再試。",
+  trustAria: "Start Pray 使用保障",
+  statsAria: "全球禱告統計",
+  hint: "你可以點擊地球上的光點，看看那個地方現在有哪些代禱需要。",
+  zoomControlsAria: "地球縮放控制",
+  zoomInAria: "放大地球",
+  zoomOutAria: "縮小地球",
+  modalAriaSuffix: "的禱告事項",
+  modalClose: "關閉",
+  modalEyebrow: "這裡的代禱",
+  modalCopyPrefix: "這個光點目前有",
+  modalCopySuffix: "筆代禱。你可以先看一下內容，再決定要不要進入完整頁面。",
+  modalDetailLink: "查看詳情",
+  modalEmptyTitle: "目前還沒有公開內容",
+  modalEmptyCopy: "即使還沒有細節，這個地方仍然可以被記念。請為這裡的人安靜禱告。",
+  prayerFallbackTitle: "等待被記念的禱告",
+  privateTitle: "匿名代禱",
+  defaultTitle: "未命名代禱",
+  prayerFallbackExcerpt: "點擊地球上的光點後，這裡會整理出這個地點的代禱內容。",
+  privateExcerpt: "這是一則私密代禱，請用溫柔和尊重為他禱告。",
+  defaultExcerpt: "這則代禱還沒有寫下更多細節。",
+  unknownLocation: "未知地點",
+  locationSeparator: "，",
 };
 
 const TRUST_CHIPS = ["可匿名", "可語音", "不顯示精準位置"];
+
+function getHeroText(locale) {
+  const homeText = getDictionary(locale).home || {};
+  return {
+    ...DEFAULT_TEXT,
+    ...(homeText.globeHero || {}),
+  };
+}
+
+function getTrustChips(text) {
+  return Array.isArray(text.trustChips) && text.trustChips.length ? text.trustChips : TRUST_CHIPS;
+}
 
 function isMappablePrayer(prayer) {
   return Number.isFinite(Number(prayer?.locationLat)) && Number.isFinite(Number(prayer?.locationLng));
@@ -49,21 +89,21 @@ function toPlainText(value) {
     .trim();
 }
 
-function getPrayerTitle(prayer) {
-  if (!prayer) return "等待被記念的禱告";
-  return prayer.isPrivate ? "匿名代禱" : prayer.title || "未命名代禱";
+function getPrayerTitle(prayer, text) {
+  if (!prayer) return text.prayerFallbackTitle;
+  return prayer.isPrivate ? text.privateTitle : prayer.title || text.defaultTitle;
 }
 
-function getPrayerExcerpt(prayer) {
-  if (!prayer) return "點擊地球上的光點後，這裡會整理出這個地點的代禱內容。";
-  if (prayer.isPrivate) return "這是一則私密代禱，請用溫柔和尊重為他禱告。";
-  return toPlainText(prayer.description).slice(0, 96) || "這則代禱還沒有寫下更多細節。";
+function getPrayerExcerpt(prayer, text) {
+  if (!prayer) return text.prayerFallbackExcerpt;
+  if (prayer.isPrivate) return text.privateExcerpt;
+  return toPlainText(prayer.description).slice(0, 96) || text.defaultExcerpt;
 }
 
-function getPrayerLocation(prayer, cluster) {
+function getPrayerLocation(prayer, cluster, text) {
   if (cluster?.fullLabel) return cluster.fullLabel;
-  if (!prayer?.locationCity) return "未知地點";
-  return prayer.locationCountry ? `${prayer.locationCity}，${prayer.locationCountry}` : prayer.locationCity;
+  if (!prayer?.locationCity) return text.unknownLocation;
+  return prayer.locationCountry ? `${prayer.locationCity}${text.locationSeparator}${prayer.locationCountry}` : prayer.locationCity;
 }
 
 export function GlobeSkeleton({ hidden = false }) {
@@ -86,11 +126,17 @@ export function HeroGlobe({
   onBlankClick,
   onReady,
   globeRef,
+  title,
+  text,
 }) {
   return (
     <GlobalPrayerRoomEmbed
       prayers={prayers}
-      title={TEXT.eyebrow}
+      title={title}
+      ariaLabel={text.globeAria}
+      loadingLabel={text.globeLoading}
+      loadErrorTitle={text.globeLoadErrorTitle}
+      loadErrorFallback={text.globeLoadErrorFallback}
       isHero
       fullscreen
       heroMap
@@ -109,7 +155,11 @@ export default function HomeGlobeHero({
   primaryHref = "/global-prayer-room",
   secondaryHref = "/customer-portal/create",
   stats = {},
+  locale: localeProp = "zh-TW",
 }) {
+  const locale = normalizeLocale(localeProp);
+  const text = useMemo(() => getHeroText(locale), [locale]);
+  const trustChips = useMemo(() => getTrustChips(text), [text]);
   const authUser = useAuthSession();
   const globeRef = useRef(null);
   const [selectedCluster, setSelectedCluster] = useState(null);
@@ -122,9 +172,9 @@ export default function HomeGlobeHero({
   const hasMarkers = prayers.some(isMappablePrayer);
   const liveCount = Number(String(stats.todayNew || 0).replace(/,/g, ""));
   const modalPrayers = selectedCluster?.prayers || [];
-  const modalLocation = selectedCluster?.fullLabel || getPrayerLocation(latestPrayer, null);
-  const primaryCtaHref = authUser ? secondaryHref : "/prayfor";
-  const primaryCtaLabel = authUser ? TEXT.primaryCta : TEXT.guestPrimaryCta;
+  const modalLocation = selectedCluster?.fullLabel || getPrayerLocation(latestPrayer, null, text);
+  const primaryCtaHref = authUser ? secondaryHref : localizePath("/prayfor", locale);
+  const primaryCtaLabel = authUser ? text.primaryCta : text.guestPrimaryCta;
 
   useEffect(() => {
     if (!activePrayerId && latestPrayer?.id) setActivePrayerId(latestPrayer.id);
@@ -160,7 +210,7 @@ export default function HomeGlobeHero({
     <section className="home-map-hero" aria-labelledby="home-map-title">
       <div className="home-map-hero__stars" aria-hidden="true" />
       <div className="home-map-hero__radar" aria-hidden="true" />
-      <div className="home-map-hero__globe" aria-label="全球禱告地圖">
+      <div className="home-map-hero__globe" aria-label={text.mapAria}>
         <GlobeSkeleton hidden={globeReady} />
         <HeroGlobe
           prayers={prayers}
@@ -170,18 +220,20 @@ export default function HomeGlobeHero({
           onClusterSelect={handleClusterSelect}
           onBlankClick={closeModal}
           onReady={handleGlobeReady}
+          title={text.eyebrow}
+          text={text}
         />
       </div>
 
       <div className="home-map-hero__shade" aria-hidden="true" />
 
       <div className="home-intel-brief">
-        <p>{TEXT.eyebrow}</p>
-        <span className="home-intel-brief__kicker">{TEXT.kicker}</span>
-        <h1 id="home-map-title">{TEXT.headline}</h1>
-        <span>{TEXT.subheadline}</span>
-        <div className="home-intel-trust" aria-label="Start Pray 使用保障">
-          {TRUST_CHIPS.map((chip) => (
+        <p>{text.eyebrow}</p>
+        <span className="home-intel-brief__kicker">{text.kicker}</span>
+        <h1 id="home-map-title">{text.headline}</h1>
+        <span>{text.subheadline}</span>
+        <div className="home-intel-trust" aria-label={text.trustAria}>
+          {trustChips.map((chip) => (
             <span key={chip}>{chip}</span>
           ))}
         </div>
@@ -190,55 +242,55 @@ export default function HomeGlobeHero({
             {primaryCtaLabel}
           </Link>
           <Link href={primaryHref} className="button button--ghost" prefetch={false}>
-            {TEXT.roomCta}
+            {text.roomCta}
           </Link>
         </div>
-        <div className="home-intel-stats" aria-label="全球禱告統計">
-          <span><b>{stats.totalPrayers}</b> {TEXT.totalPrayers}</span>
-          <span><b>{stats.locationLights}</b> {TEXT.locationLights}</span>
-          <span><b>{liveCount}</b> {TEXT.todayNew}</span>
-          <span><b>{stats.audioPrayers}</b> {TEXT.audioPrayers}</span>
+        <div className="home-intel-stats" aria-label={text.statsAria}>
+          <span><b>{stats.totalPrayers}</b> {text.totalPrayers}</span>
+          <span><b>{stats.locationLights}</b> {text.locationLights}</span>
+          <span><b>{liveCount}</b> {text.todayNew}</span>
+          <span><b>{stats.audioPrayers}</b> {text.audioPrayers}</span>
         </div>
         <p className="home-intel-brief__hint">
-          你可以點擊地球上的光點，看看那個地方現在有哪些代禱需要。
+          {text.hint}
         </p>
       </div>
 
-      <div className="home-map-controls" aria-label="地球縮放控制">
-        <button type="button" onClick={() => globeRef.current?.zoomIn?.()} aria-label="放大地球">
+      <div className="home-map-controls" aria-label={text.zoomControlsAria}>
+        <button type="button" onClick={() => globeRef.current?.zoomIn?.()} aria-label={text.zoomInAria}>
           +
         </button>
-        <button type="button" onClick={() => globeRef.current?.zoomOut?.()} aria-label="縮小地球">
+        <button type="button" onClick={() => globeRef.current?.zoomOut?.()} aria-label={text.zoomOutAria}>
           -
         </button>
       </div>
 
       {selectedCluster && !selectedCluster.isDefaultFocus ? (
-        <aside className="home-prayer-modal" aria-label={`${modalLocation} 的禱告事項`}>
+        <aside className="home-prayer-modal" aria-label={`${modalLocation} ${text.modalAriaSuffix}`}>
           <button className="home-prayer-modal__close" type="button" onClick={closeModal}>
-            關閉
+            {text.modalClose}
           </button>
-          <span className="home-prayer-modal__eyebrow">這裡的代禱</span>
+          <span className="home-prayer-modal__eyebrow">{text.modalEyebrow}</span>
           <h2>{modalLocation}</h2>
-          <p>這個光點目前有 {modalPrayers.length} 筆代禱。你可以先看一下內容，再決定要不要進入完整頁面。</p>
+          <p>{text.modalCopyPrefix} {modalPrayers.length} {text.modalCopySuffix}</p>
           <div className="home-prayer-modal__list">
             {modalPrayers.length ? (
               modalPrayers.slice(0, 6).map((prayer) => (
                 <article key={prayer.id || `${prayer.locationLat}-${prayer.locationLng}-${prayer.title}`}>
-                  <span>{getPrayerLocation(prayer, null)}</span>
-                  <h3>{getPrayerTitle(prayer)}</h3>
-                  <p>{getPrayerExcerpt(prayer)}</p>
+                  <span>{getPrayerLocation(prayer, null, text)}</span>
+                  <h3>{getPrayerTitle(prayer, text)}</h3>
+                  <p>{getPrayerExcerpt(prayer, text)}</p>
                   {prayer?.id && !prayer?.isPrivate ? (
-                    <Link href={`/prayfor/${prayer.id}`} prefetch={false}>
-                      查看詳情
+                    <Link href={localizePath(`/prayfor/${prayer.id}`, locale)} prefetch={false}>
+                      {text.modalDetailLink}
                     </Link>
                   ) : null}
                 </article>
               ))
             ) : (
               <article>
-                <h3>目前還沒有公開內容</h3>
-                <p>即使還沒有細節，這個地方仍然可以被記念。請為這裡的人安靜禱告。</p>
+                <h3>{text.modalEmptyTitle}</h3>
+                <p>{text.modalEmptyCopy}</p>
               </article>
             )}
           </div>
@@ -247,8 +299,8 @@ export default function HomeGlobeHero({
 
       {!hasMarkers ? (
         <div className="home-map-hero__empty">
-          <strong>{TEXT.emptyTitle}</strong>
-          <span>{TEXT.emptyCopy}</span>
+          <strong>{text.emptyTitle}</strong>
+          <span>{text.emptyCopy}</span>
           <Link href={primaryCtaHref}>{primaryCtaLabel}</Link>
         </div>
       ) : null}
@@ -336,22 +388,22 @@ export default function HomeGlobeHero({
         .home-intel-brief,
         .home-prayer-modal,
         .home-map-hero__empty {
-          border: 1px solid rgba(253, 230, 138, 0.22);
+          border: 1px solid rgba(253, 230, 138, 0.16);
           background:
-            linear-gradient(145deg, rgba(24, 31, 47, 0.82), rgba(7, 16, 34, 0.7)),
-            rgba(4, 10, 22, 0.6);
-          box-shadow: 0 28px 90px rgba(2, 6, 23, 0.42);
-          backdrop-filter: blur(16px);
+            linear-gradient(145deg, rgba(20, 28, 43, 0.7), rgba(7, 16, 34, 0.56)),
+            rgba(4, 10, 22, 0.44);
+          box-shadow: 0 22px 72px rgba(2, 6, 23, 0.32);
+          backdrop-filter: blur(18px);
         }
 
         .home-intel-brief {
           position: relative;
           z-index: 20;
-          width: min(500px, calc(100% - 2rem));
+          width: min(540px, calc(100% - 2rem));
           margin-left: clamp(1rem, 3vw, 3rem);
           margin-top: clamp(1rem, 3vh, 2.5rem);
           border-radius: 24px;
-          padding: clamp(1.15rem, 2.2vw, 1.7rem);
+          padding: clamp(1.25rem, 2.4vw, 1.85rem);
           pointer-events: auto;
         }
 
@@ -364,10 +416,10 @@ export default function HomeGlobeHero({
         .home-intel-brief p,
         .home-intel-brief__kicker {
           color: #67e8f9;
-          font-size: var(--home-hero-body-size);
-          font-weight: 900;
+          font-size: 0.86rem;
+          font-weight: 800;
           letter-spacing: 0;
-          text-transform: uppercase;
+          text-transform: none;
         }
 
         .home-intel-brief__kicker {
@@ -375,15 +427,16 @@ export default function HomeGlobeHero({
           margin-top: 0.48rem;
           color: rgba(253, 230, 138, 0.92);
           letter-spacing: 0;
+          font-size: 0.95rem;
         }
 
         .home-intel-brief h1 {
-          margin-top: 0.5rem;
+          margin-top: 0.58rem;
           color: rgba(255, 255, 255, 0.96);
-          font-size: clamp(2.35rem, 4.8vw, 4.4rem);
-          line-height: 1.02;
+          font-size: clamp(2.2rem, 4.35vw, 4.05rem);
+          line-height: 1.06;
           letter-spacing: 0;
-          text-shadow: 0 16px 44px rgba(2, 6, 23, 0.58);
+          text-shadow: 0 16px 42px rgba(2, 6, 23, 0.5);
         }
 
         .home-intel-brief > span:not(.home-intel-brief__kicker) {
@@ -392,13 +445,13 @@ export default function HomeGlobeHero({
           max-width: 34rem;
           color: rgba(255, 247, 237, 0.86);
           font-size: var(--home-hero-body-size);
-          line-height: 1.72;
+          line-height: 1.78;
         }
 
         .home-intel-brief__actions {
           display: flex;
           flex-wrap: wrap;
-          gap: 0.45rem;
+          gap: 0.55rem;
           margin-top: 1.1rem;
           align-items: center;
         }
@@ -406,21 +459,21 @@ export default function HomeGlobeHero({
         .home-intel-trust {
           display: flex;
           flex-wrap: wrap;
-          gap: 0.45rem;
-          margin-top: 0.95rem;
+          gap: 0.5rem;
+          margin-top: 1rem;
         }
 
         .home-intel-trust span {
           display: inline-flex;
           align-items: center;
           min-height: 28px;
-          border: 1px solid rgba(125, 211, 252, 0.32);
+          border: 1px solid rgba(253, 230, 138, 0.2);
           border-radius: 999px;
-          padding: 0.18rem 0.68rem;
-          color: rgba(248, 250, 252, 0.92);
-          background: rgba(15, 23, 42, 0.52);
-          font-size: var(--home-hero-body-size);
-          font-weight: 800;
+          padding: 0.2rem 0.7rem;
+          color: rgba(255, 247, 237, 0.86);
+          background: rgba(255, 247, 237, 0.055);
+          font-size: 0.84rem;
+          font-weight: 700;
           letter-spacing: 0 !important;
           text-transform: none !important;
         }
@@ -429,11 +482,11 @@ export default function HomeGlobeHero({
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          min-height: 42px;
+          min-height: 44px;
           border-radius: 999px;
-          padding: 0 1rem;
-          font-size: var(--home-hero-body-size);
-          font-weight: 900;
+          padding: 0 1.1rem;
+          font-size: 0.94rem;
+          font-weight: 800;
           line-height: 1;
           text-align: center;
         }
@@ -442,30 +495,36 @@ export default function HomeGlobeHero({
           background: #f7d77a;
           border-color: rgba(253, 230, 138, 0.82);
           color: #241a05;
-          box-shadow: 0 14px 36px rgba(250, 204, 21, 0.18);
+          box-shadow: 0 14px 34px rgba(250, 204, 21, 0.16);
         }
 
         .home-intel-brief__actions :global(.button--ghost) {
           border-color: rgba(226, 232, 240, 0.18);
-          background: rgba(15, 23, 42, 0.34);
+          background: rgba(15, 23, 42, 0.22);
           color: rgba(248, 250, 252, 0.9);
         }
 
         .home-intel-stats {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 0.5rem;
-          margin-top: 1.05rem;
-          padding-top: 0.85rem;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.42rem;
+          margin-top: 1rem;
+          padding-top: 0.82rem;
           border-top: 1px solid rgba(253, 230, 138, 0.14);
         }
 
         .home-intel-stats span {
-          display: grid;
-          gap: 0.08rem;
+          display: inline-flex;
+          align-items: baseline;
+          gap: 0.25rem;
+          min-height: 30px;
+          border: 1px solid rgba(148, 163, 184, 0.14);
+          border-radius: 999px;
+          padding: 0.22rem 0.62rem;
           color: rgba(226, 232, 240, 0.72);
-          font-size: var(--home-hero-body-size);
-          letter-spacing: 0.02em;
+          background: rgba(15, 23, 42, 0.26);
+          font-size: 0.8rem;
+          letter-spacing: 0;
         }
 
         .home-intel-stats b {
@@ -474,14 +533,14 @@ export default function HomeGlobeHero({
         }
 
         .home-intel-brief__hint {
-          margin-top: 1rem !important;
-          border: 1px solid rgba(253, 230, 138, 0.18);
-          border-radius: 16px;
-          padding: 0.8rem;
-          color: rgba(255, 247, 237, 0.8) !important;
-          font-size: var(--home-hero-body-size) !important;
-          line-height: 1.6;
-          background: rgba(255, 247, 237, 0.08);
+          margin-top: 0.95rem !important;
+          border: 1px solid rgba(253, 230, 138, 0.14);
+          border-radius: 14px;
+          padding: 0.72rem 0.78rem;
+          color: rgba(255, 247, 237, 0.76) !important;
+          font-size: 0.92rem !important;
+          line-height: 1.62;
+          background: rgba(255, 247, 237, 0.055);
           letter-spacing: 0 !important;
           text-transform: none !important;
         }

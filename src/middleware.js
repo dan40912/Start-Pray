@@ -9,6 +9,12 @@ const ADMIN_ALLOWED_API_PATHS = new Set([
 ]);
 const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
+function requestHeadersWithPath(request) {
+  const headers = new Headers(request.headers);
+  headers.set("x-start-pray-pathname", request.nextUrl.pathname);
+  return headers;
+}
+
 function base64UrlToBytes(base64Url) {
   try {
     const padded = base64Url.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(base64Url.length / 4) * 4, "=");
@@ -135,6 +141,7 @@ async function guardAdminRequest(request) {
     }
 
     const headers = new Headers(request.headers);
+    headers.set("x-start-pray-pathname", request.nextUrl.pathname);
     headers.set("x-admin-role", session.role);
     headers.set("x-admin-id", session.adminId);
     headers.set("x-admin-username", session.username);
@@ -200,9 +207,15 @@ export async function middleware(request) {
     return response;
   }
 
-  return NextResponse.next();
+  return NextResponse.next({
+    request: {
+      headers: requestHeadersWithPath(request),
+    },
+  });
 }
 
 export const config = {
-  matcher: ["/legacy", "/legacy/:path*", "/admin", "/admin/:path*", "/api/admin/:path*"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|favicon-16x16.png|favicon-32x32.png|favicon-48x48.png|icon-192.png|icon-512.png|apple-touch-icon.png|robots.txt|sitemap.xml).*)",
+  ],
 };
