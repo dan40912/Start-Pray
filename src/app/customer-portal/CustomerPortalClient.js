@@ -156,6 +156,10 @@ function formatTime(dateLike) {
 
 
 function buildCardHref(card) {
+  if (card?.isPrivate || card?.isBlocked) {
+    return "";
+  }
+
   const rawHref = card?.detailsHref?.trim();
 
   // Keep render-time href deterministic across SSR/CSR.
@@ -887,6 +891,11 @@ export default function CustomerPortalPage() {
   };
 
   const handleShareCard = async (card) => {
+    if (card?.isPrivate) {
+      setToast({ type: "error", message: "不公開的代禱沒有公開分享連結" });
+      return;
+    }
+
     const url = buildShareUrl(card);
     if (!url) {
       setToast({ type: "error", message: "無法建立分享連結" });
@@ -1059,7 +1068,7 @@ export default function CustomerPortalPage() {
           const isToggling =
             cardAction?.id === card.id && cardAction?.type === "visibility";
           const canManage = !card.isBlocked;
-          const statusLabel = card.isBlocked ? "已封存" : "已公開";
+          const statusLabel = card.isBlocked ? "已封存" : card.isPrivate ? "不公開" : "已公開";
           const coverAlt = card.alt || `${card.title || "祈禱卡"} 封面`;
           const shareHref = buildCardHref(card);
           const shareDisabled = !shareHref;
@@ -1102,7 +1111,7 @@ export default function CustomerPortalPage() {
                       )}
                     </div>
                     <span
-                      className={`cp-status${card.isBlocked ? " cp-status--inactive" : ""}`}
+                      className={`cp-status${card.isBlocked || card.isPrivate ? " cp-status--inactive" : ""}`}
                     >
                       {statusLabel}
                     </span>
@@ -1144,6 +1153,7 @@ export default function CustomerPortalPage() {
                       className="cp-link"
                       onClick={() => handleShareCard(card)}
                       disabled={shareDisabled}
+                      title={card.isPrivate ? "不公開的代禱沒有公開分享連結" : undefined}
                     >
                       分享
                     </button>
@@ -1859,7 +1869,6 @@ export default function CustomerPortalPage() {
   );
 
 }
-
 
 
 
