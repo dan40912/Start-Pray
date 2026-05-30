@@ -53,12 +53,6 @@ const WORLD_VIEW = {
   height: 18500000,
 };
 
-const NORTHERN_HEMISPHERE_VIEW = {
-  lng: 35,
-  lat: 38,
-  height: 12500000,
-};
-
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const PRIVATE_PRAYER_DESCRIPTION = "這個城市有人需要被守望。";
 const URGENT_RESPONSE_THRESHOLD = 2;
@@ -976,6 +970,7 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
     heroMap = false,
     initialView = null,
     enableIdleRotation = false,
+    startAutoRotate = true,
     maxCameraHeightOverride = null,
     useImagery = true,
     ariaLabel = "真實互動式全球代禱地球",
@@ -989,7 +984,7 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
   const entitiesRef = useRef([]);
   const activeEntityRef = useRef(null);
   const hoveredEntityRef = useRef(null);
-  const autoRotateRef = useRef(true);
+  const autoRotateRef = useRef(startAutoRotate);
   const rotationReadyRef = useRef(false);
   const [globeReady, setGlobeReady] = useState(false);
   const [loadError, setLoadError] = useState("");
@@ -1008,6 +1003,7 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
       try {
         setGlobeReady(false);
         setLoadError("");
+        autoRotateRef.current = Boolean(startAutoRotate);
 
         const Cesium = await loadCesium();
         if (disposed || !mountRef.current) return;
@@ -1683,6 +1679,7 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
     heroMap,
     initialView,
     maxCameraHeightOverride,
+    startAutoRotate,
     useImagery,
     loadErrorFallback,
     onAutoRotateChange,
@@ -4551,6 +4548,7 @@ export function GlobalPrayerRoomPageExperience({ prayers = [], locale: localePro
   const locale = normalizeLocale(localeProp);
   const text = getDictionary(locale).globalRoom;
   const globeRef = useRef(null);
+  const autoRotateStartTimerRef = useRef(null);
   const authUser = useAuthSession();
   const { currentTrack, isPlaying, playTrack, setQueue, setIsExpanded } = useAudio();
   const [selectedCluster, setSelectedCluster] = useState(null);
@@ -4850,8 +4848,20 @@ export function GlobalPrayerRoomPageExperience({ prayers = [], locale: localePro
     }
   }, [drawerPrayer, formatDescription, formatTitle, locale, text]);
 
-  const handleGlobeReady = useCallback(() => {}, []);
+  const handleGlobeReady = useCallback(() => {
+    if (autoRotateStartTimerRef.current) window.clearTimeout(autoRotateStartTimerRef.current);
+    globeRef.current?.showTaiwan?.();
+    autoRotateStartTimerRef.current = window.setTimeout(() => {
+      globeRef.current?.setAutoRotate?.(true);
+    }, 2200);
+  }, []);
   const handleAutoRotateChange = useCallback(() => {}, []);
+
+  useEffect(() => {
+    return () => {
+      if (autoRotateStartTimerRef.current) window.clearTimeout(autoRotateStartTimerRef.current);
+    };
+  }, []);
 
   return (
     <section className={`gpr-page${focusListeningActive ? " is-focus-listening" : ""}`} aria-labelledby="gpr-page-title">
@@ -4910,8 +4920,9 @@ export function GlobalPrayerRoomPageExperience({ prayers = [], locale: localePro
               ref={globeRef}
               clusters={displayClusters}
               heroMap
-              initialView={NORTHERN_HEMISPHERE_VIEW}
+              initialView={TAIWAN_VIEW}
               enableIdleRotation
+              startAutoRotate={false}
               maxCameraHeightOverride={NORTHERN_HEMISPHERE_MAX_HEIGHT}
               onSelectCluster={handleSelectCluster}
               onBlankClick={closePopup}
