@@ -1017,6 +1017,25 @@ footer {
   gap: 2rem;
   padding: 3rem 1.5rem 4rem;
 }
+.auth-page {
+  min-height: calc(100dvh - var(--site-header-height));
+  background:
+    radial-gradient(circle at 12% 8%, rgba(96, 165, 250, 0.16), transparent 34%),
+    linear-gradient(150deg, #0d1c33 0%, #071225 58%, #050c18 100%);
+}
+.auth-page--login .auth-wrapper {
+  max-width: 760px;
+  padding-top: clamp(1.5rem, 4vw, 3rem);
+}
+.auth-page--login .auth-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+.auth-page--compact .auth-wrapper {
+  max-width: 680px;
+}
+.auth-page--compact .auth-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
 .auth-grid {
   display: grid;
   gap: 2rem;
@@ -1031,19 +1050,47 @@ footer {
   display: grid;
   gap: 1.3rem;
 }
+.auth-card--login {
+  border-color: rgba(148, 163, 184, 0.3);
+  border-radius: 1.5rem;
+  box-shadow: 0 24px 60px rgba(2, 8, 23, 0.3);
+  padding: clamp(1.5rem, 4vw, 2.5rem);
+  gap: 1.4rem;
+}
+.auth-card--compact {
+  border-color: rgba(148, 163, 184, 0.3);
+  box-shadow: 0 24px 60px rgba(2, 8, 23, 0.28);
+}
+.auth-card__intro {
+  display: grid;
+  gap: 0.4rem;
+}
 .auth-card h1 {
   margin: 0;
   font-size: 1.85rem;
   color: #0b1220;
+}
+.auth-card--login h1 {
+  font-size: clamp(1.75rem, 4vw, 2.15rem);
+  letter-spacing: -0.02em;
 }
 .auth-card p {
   margin: 0;
   color: #334155;
   font-weight: 500;
 }
+.auth-card--login .auth-card__intro p {
+  color: #475569;
+  font-size: 0.98rem;
+  font-weight: 500;
+  line-height: 1.7;
+}
 .auth-form {
   display: grid;
   gap: 1.25rem;
+}
+.auth-card--login .auth-form {
+  gap: 1.1rem;
 }
 .form-group {
   display: grid;
@@ -1088,6 +1135,17 @@ textarea.form-control:focus {
   border-color: #2563eb;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.22);
 }
+.form-control.is-invalid,
+.form-select.is-invalid,
+textarea.form-control.is-invalid {
+  border-color: #dc2626;
+}
+.form-control.is-invalid:focus,
+.form-select.is-invalid:focus,
+textarea.form-control.is-invalid:focus {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.18);
+}
 .form-helper {
   font-size: 0.85rem;
   font-weight: 500;
@@ -1096,6 +1154,11 @@ textarea.form-control:focus {
 
 .form-helper--warning {
   color: #b45309;
+}
+
+.form-helper--error {
+  color: #b91c1c;
+  font-weight: 700;
 }
 
 .auth-inline-button {
@@ -1108,9 +1171,13 @@ textarea.form-control:focus {
   font-size: 0.82rem;
   font-weight: 800;
 }
+.auth-inline-button:hover {
+  border-color: rgba(37, 99, 235, 0.42);
+  background: rgba(37, 99, 235, 0.13);
+}
 
 .auth-status-slot {
-  min-height: 3.4rem;
+  min-height: 0;
 }
 
 .auth-status {
@@ -1191,6 +1258,11 @@ textarea.form-control:focus {
   font-weight: 700;
   text-decoration: underline;
   text-underline-offset: 2px;
+}
+.auth-submit {
+  width: 100%;
+  justify-content: center;
+  min-height: 46px;
 }
 .auth-note {
   padding: 1.25rem;
@@ -2704,6 +2776,13 @@ textarea.form-control:focus {
   border-bottom: none;
 }
 
+.admin-table__action-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
 .admin-timeline {
   list-style: none;
   padding: 0;
@@ -3173,6 +3252,14 @@ textarea.form-control:focus {
   gap: 0.45rem;
   padding-left: 1.15rem;
   line-height: 1.55;
+}
+.auth-card--login .auth-trust-list {
+  color: #64748b;
+  font-size: 0.92rem;
+  gap: 0.5rem;
+}
+.auth-card--login .auth-trust-list li::marker {
+  color: #60a5fa;
 }
 
 .form-privacy-note {
@@ -7774,7 +7861,6 @@ header .nav-actions .btn-glass {
 
   img,
   video,
-  canvas,
   svg {
     max-width: 100%;
     height: auto;
@@ -8882,5 +8968,63 @@ header .nav-actions .btn-glass {
 
   .auth-hero .stepper {
     display: none;
+  }
+}
+
+/* ============================================================
+   PRD-007 行動端基礎防護(additive,放最後以利覆寫)
+   目的:避免爆版、確保觸控目標夠大、禱告牆在窄螢幕單欄。
+   僅做保守的全域防護,細部各頁版面仍需視覺 QA。
+   ============================================================ */
+@media (max-width: 640px) {
+  html,
+  body {
+    overflow-x: hidden;
+    max-width: 100%;
+  }
+
+  img,
+  video {
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* 禱告牆卡片在窄螢幕改單欄,避免擠壓 */
+  .home-card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* 排序/篩選 chip 可橫向捲動,不換行爆版 */
+  .home-category-grid {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+  }
+
+  /* 觸控目標最小 44px(WCAG / 行動端可用性) */
+  .btn,
+  button,
+  .home-explorer__action-btn,
+  .wellbeing-nudge__btn {
+    min-height: 44px;
+  }
+
+  /* 建立代禱卡表單欄位全寬,避免溢出 */
+  .theme-create input,
+  .theme-create textarea,
+  .theme-create select {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+}
+
+/* 全球禱告室關懷卡在窄螢幕貼齊底部置中,不超出視窗 */
+@media (max-width: 480px) {
+  .wellbeing-nudge {
+    width: 94vw;
+    bottom: 80px;
   }
 }

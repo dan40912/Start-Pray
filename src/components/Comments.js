@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { PRAYER_RESPONSE_CREATED } from "@/lib/events";
 import { getDictionary, localizePath, normalizeLocale } from "@/lib/i18n";
 import { buildOvercomerSlug } from "@/lib/overcomer";
+import VoicePrayerOverlay from "@/components/VoicePrayerOverlay";
 
 import { REPORT_REASONS } from "@/constants/reportReasons";
 
@@ -23,6 +24,7 @@ function getDisplayName(response, text) {
   return response.responder?.name || response.responder?.username || text.unnamed;
 }
 function getAvatarUrl(response) {
+  if (response.isAnonymous) return response.anonymousAvatarUrl || null;
   return response.responder?.avatarUrl || null;
 }
 function getAvatarFallback(name) {
@@ -42,7 +44,7 @@ function getResponderProfileHref(response) {
 }
 
 function buildLoginHref(requestId, locale = "zh-TW") {
-  return `${localizePath("/login", locale)}?next=${encodeURIComponent(`/prayfor/${String(requestId)}`)}`;
+  return `${localizePath("/login", locale)}?next=${encodeURIComponent(`/prayfor/${String(requestId)}#response-composer`)}`;
 }
 
 async function readResponseError(response, text) {
@@ -54,6 +56,8 @@ async function readResponseError(response, text) {
     return {
       message: data?.error || text.loginRequired,
       needsLogin: true,
+      action: data?.action || null,
+      code: data?.code || "LOGIN_REQUIRED",
       retryAfterSeconds: 0,
     };
   }
@@ -63,13 +67,17 @@ async function readResponseError(response, text) {
     return {
       message: data?.error || formatMessage(text.cooldown, { minutes }),
       needsLogin: false,
+      action: data?.action || null,
+      code: data?.code || "RATE_LIMITED",
       retryAfterSeconds,
     };
   }
 
   return {
     message: data?.error || data?.message || text.responseFailed,
-    needsLogin: false,
+    needsLogin: data?.code === "VOICE_LOGIN_REQUIRED",
+    action: data?.action || null,
+    code: data?.code || "UNKNOWN_ERROR",
     retryAfterSeconds: 0,
   };
 }
@@ -98,6 +106,7 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
   const [actionNotice, setActionNotice] = useState("");
   const [actionNoticeType, setActionNoticeType] = useState("success");
   const [actionNoticeLoginHref, setActionNoticeLoginHref] = useState("");
+  const [actionNoticeLabel, setActionNoticeLabel] = useState("");
   const [openActionMenuId, setOpenActionMenuId] = useState(null);
   const [cooldownUntil, setCooldownUntil] = useState(0);
   const [cooldownNow, setCooldownNow] = useState(Date.now());
@@ -226,6 +235,18 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
   }, [commentsText, reportTarget, reportReason, reportRemarks, closeReportModal]);
 
   const [submittingResponse, setSubmittingResponse] = useState(false);
+  const [showVoiceOverlay, setShowVoiceOverlay] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successHasVoice, setSuccessHasVoice] = useState(false);
+  const [successPendingReview, setSuccessPendingReview] = useState(false);
+  const successBlobUrlRef = useRef(null);
+  const textareaRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (successBlobUrlRef.current) URL.revokeObjectURL(successBlobUrlRef.current);
+    };
+  }, []);
 
   // Load existing responses
   useEffect(() => {
@@ -297,7 +318,10 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
   const cooldownRemainingSeconds = Math.max(0, Math.ceil((cooldownUntil - cooldownNow) / 1000));
   const isCoolingDown = cooldownRemainingSeconds > 0;
 
-  const submitResponse = async () => {
+  const submitResponse = async ({ audioOverride, textOverride } = {}) => {
+    const effectiveText = textOverride !== undefined ? textOverride : text;
+    const effectiveAudio = audioOverride !== undefined ? audioOverride : audioFile;
+
     if (submittingResponse) return false;
     if (isCoolingDown) {
       setActionNotice(formatMessage(commentsText.cooldownNotice, { minutes: Math.ceil(cooldownRemainingSeconds / 60) }));
@@ -305,8 +329,13 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
       setActionNoticeLoginHref("");
       return false;
     }
-    if (!text.trim() && !audioFile) return false;
-    if (audioFile && Number(audioFile.size) > MAX_AUDIO_BYTES) {
+    if (!effectiveText.trim() && !effectiveAudio) {
+      setActionNotice(commentsText.emptyResponse);
+      setActionNoticeType("error");
+      textareaRef.current?.focus();
+      return false;
+    }
+    if (effectiveAudio && Number(effectiveAudio.size) > MAX_AUDIO_BYTES) {
       setActionNotice(commentsText.audioTooLarge);
       setActionNoticeType("error");
       setActionNoticeLoginHref("");
@@ -319,11 +348,11 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
 
     const formData = new FormData();
     formData.append("requestId", String(requestId));
-    formData.append("message", text.trim());
+    formData.append("message", effectiveText.trim());
     formData.append("isAnonymous", String(isAnonymous));
-    formData.append("responderId", authUser?.id || "");
-    if (audioFile) {
-      formData.append("audio", audioFile);
+    formData.append("website", "");
+    if (effectiveAudio) {
+      formData.append("audio", effectiveAudio);
     }
 
     try {
@@ -336,13 +365,15 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
         }
         setActionNotice(details.message);
         setActionNoticeType("error");
-        setActionNoticeLoginHref(details.needsLogin ? buildLoginHref(requestId, locale) : "");
+        setActionNoticeLoginHref(details.action?.href || (details.needsLogin ? buildLoginHref(requestId, locale) : ""));
+        setActionNoticeLabel(details.action?.label || (details.needsLogin ? commentsText.voiceLoginAction : ""));
+        if (["EMPTY_RESPONSE", "TEXT_TOO_SHORT", "TEXT_TOO_LONG"].includes(details.code)) textareaRef.current?.focus();
         return false;
       }
 
       const saved = await res.json();
-      setResponses((prev) => [saved, ...prev]);
-      if (typeof window !== "undefined") {
+      if (!saved.pendingReview) setResponses((prev) => [saved, ...prev]);
+      if (!saved.pendingReview && typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent(PRAYER_RESPONSE_CREATED, { detail: saved }));
       }
       setText("");
@@ -352,12 +383,11 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
       setIsAnonymous(false);
       setCooldownNow(Date.now());
       setCooldownUntil(Date.now() + 120 * 1000);
-      setActionNotice(audioFile ? commentsText.voiceSuccess : commentsText.textSuccess);
-      setActionNoticeType("success");
-      setActionNoticeLoginHref("");
+      setSuccessPendingReview(Boolean(saved.pendingReview));
+      setShowSuccess(true);
       return true;
     } catch (err) {
-      setActionNotice(err?.message || commentsText.submitFailed);
+      setActionNotice(commentsText.networkError);
       setActionNoticeType("error");
       setActionNoticeLoginHref("");
       return false;
@@ -371,6 +401,21 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
     await submitResponse();
   };
 
+  const handleVoiceComplete = async (file, transcript) => {
+    setShowVoiceOverlay(false);
+    const ok = await submitResponse({ audioOverride: file, textOverride: transcript || "" });
+    if (ok && file) {
+      // The overlay revokes its own blob URL on unmount, so build a fresh one
+      // from the File for the "listen again" player on the success screen.
+      if (successBlobUrlRef.current) URL.revokeObjectURL(successBlobUrlRef.current);
+      successBlobUrlRef.current = URL.createObjectURL(file);
+      setSuccessHasVoice(true);
+    }
+  };
+
+  // The server (/api/responses/[homeCardId]) only ever returns approved, unblocked
+  // responses now, so this is mostly a safety net plus the optimistic local hide right
+  // after a report is submitted (see handleReportSubmit above).
   const visibleResponses = responses.filter(
     (response) => !response.isBlocked && Number(response.reportCount ?? 0) === 0
   );
@@ -386,12 +431,6 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
 
   return (
     <section className="comments card">
-      {!authUser && (
-        <div className="alert alert-warning">
-          {commentsText.loginRequired} <Link href={buildLoginHref(requestId, locale)}>{commentsText.loginAction}</Link>
-        </div>
-      )}
-
       <div className="comments__header">
         {pendingReviewCount ? (
           <span className="comments__review-status">{formatMessage(commentsText.reviewCount, { count: pendingReviewCount })}</span>
@@ -405,11 +444,11 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
           className={`cp-alert ${
             actionNoticeType === "error" ? "cp-alert--error" : "cp-alert--success"
           } comments__notice`}
-          role="status"
+          role={actionNoticeType === "error" ? "alert" : "status"}
         >
           {actionNoticeLoginHref ? (
             <>
-              {actionNotice} <Link href={actionNoticeLoginHref}>{commentsText.loginAction}</Link>
+              {actionNotice} <Link href={actionNoticeLoginHref}>{actionNoticeLabel || commentsText.loginAction}</Link>
             </>
           ) : (
             actionNotice
@@ -529,10 +568,70 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
             })
           )}
         </div>
-      {authUser ? (
+      {showVoiceOverlay && (
+        <VoicePrayerOverlay
+          onComplete={handleVoiceComplete}
+          onCancel={() => setShowVoiceOverlay(false)}
+        />
+      )}
+
+      {showSuccess ? (
+        <div className="comments__success" role="status" aria-live="polite">
+          <div className="comments__success-star" aria-hidden="true">✦</div>
+          <h3 className="comments__success-title">{successPendingReview ? commentsText.pendingSuccessTitle : commentsText.successTitle}</h3>
+          <p className="comments__success-body">{successPendingReview ? commentsText.pendingSuccessBody : commentsText.successBody}</p>
+          {successHasVoice && successBlobUrlRef.current ? (
+            <audio
+              className="comments__success-audio"
+              src={successBlobUrlRef.current}
+              controls
+              aria-label="重聽剛才的語音祝福"
+            />
+          ) : null}
+          <Link href={localizePath("/prayfor/one", locale)} className="comments__success-btn comments__success-btn--primary" prefetch={false}>
+            {commentsText.prayAgain}
+          </Link>
+          <button
+            type="button"
+            className="comments__success-btn comments__success-btn--ghost"
+            onClick={() => {
+              setShowSuccess(false);
+              setSuccessHasVoice(false);
+              if (successBlobUrlRef.current) {
+                URL.revokeObjectURL(successBlobUrlRef.current);
+                successBlobUrlRef.current = null;
+              }
+            }}
+          >
+            {commentsText.writeAgain}
+          </button>
+        </div>
+      ) : null}
+
+      {!showSuccess ? (
         <>
           <h3 className="comments__composer-title">{commentsText.composerTitle}</h3>
-          <form className="comment-form" id="response-composer" onSubmit={handleSubmit}>
+          <div className="comments__voice-cta">
+            <button
+              type="button"
+              className="comments__voice-btn"
+              onClick={() => {
+                if (authUser) {
+                  setShowVoiceOverlay(true);
+                } else {
+                  setActionNotice(commentsText.voiceLoginRequired);
+                  setActionNoticeType("error");
+                  setActionNoticeLoginHref(buildLoginHref(requestId, locale));
+                  setActionNoticeLabel(commentsText.voiceLoginAction);
+                }
+              }}
+            >
+              <span aria-hidden="true">🎙</span> 語音禱告
+            </button>
+            <span className="comments__voice-or">或</span>
+          </div>
+          <form className="comment-form" id="response-composer" onSubmit={handleSubmit} noValidate>
+            {!authUser ? <p className="comments__guest-note">{commentsText.guestTextNotice}</p> : null}
             <div className="prayer-response-modes" aria-label={commentsText.modeLabel}>
               {responseModes.map((mode) => (
                 <button
@@ -553,22 +652,27 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
                 </button>
               ))}
             </div>
-            <label className="checkbox">
+            {authUser ? <label className="checkbox">
               <input
                 type="checkbox"
                 checked={isAnonymous}
                 onChange={(event) => setIsAnonymous(event.target.checked)}
               />
               {commentsText.anonymousPost}
-            </label>
+            </label> : null}
 
             <textarea
+              ref={textareaRef}
               value={text}
               onChange={(event) => setText(event.target.value)}
               placeholder={audioFile ? commentsText.textPlaceholderWithAudio : activeMode.placeholder}
               rows={4}
+              minLength={8}
+              maxLength={2000}
+              aria-describedby="response-text-help"
             />
-            <label className="comment-form__audio">
+            <small id="response-text-help" className="cp-helper">{commentsText.textRules}</small>
+            {authUser ? <label className="comment-form__audio">
               <span>{commentsText.audioLabel}</span>
               <input
                 key={audioInputKey}
@@ -599,12 +703,12 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
                   {formatMessage(commentsText.removeAudio, { name: audioFile.name })}
                 </button>
               ) : null}
-            </label>
+            </label> : null}
             <div className="record-toolbar">
               <button
                 type="submit"
                 className="btn btn-primary"
-                disabled={submittingResponse || isCoolingDown || (!text.trim() && !audioFile)}
+                disabled={submittingResponse || isCoolingDown}
                 style={{ marginTop: "10px" }}
               >
                 {submittingResponse ? commentsText.submitting : isCoolingDown ? formatMessage(commentsText.waitSeconds, { seconds: cooldownRemainingSeconds }) : commentsText.submit}

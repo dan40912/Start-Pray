@@ -2,6 +2,23 @@
 
 適用情境：`prayer-coin` 正式機使用同一台 VM，Node 由 PM2 啟動，Nginx 在前面反向代理。
 
+## 儲存 driver 切換（PRD-009）
+
+媒體讀寫已抽象為可插拔 driver,由環境變數 `MEDIA_STORAGE_DRIVER` 選擇:
+
+- `local`（預設，未設定時亦為此）：寫入本地檔案系統，行為與過去完全一致。實際路徑仍由 `VOICES_STORAGE_DIR` / `UPLOADS_STORAGE_DIR` 控制。
+- `object`：S3 相容物件儲存的**骨架**。本期尚未串接 SDK，任何寫入會丟出
+  `ObjectStorageDriver not configured — see MEDIA_STORAGE_RUNBOOK.md`（HTTP 503），用來驗證切換已接好。
+
+相關程式：`src/lib/storage/index.js`（driver 選擇）、`localDriver.js`、`objectDriver.js`。
+上傳路徑（`/api/upload-image`、`/api/responses`）在寫入前會呼叫 `assertStorageWritable()`。
+
+未來要真正啟用物件儲存時(另開 PRD)需補：
+1. 在 `objectDriver.js` 用 S3 相容 SDK 實作 `put` / `getPublicUrl` / `assertWritable`。
+2. 新增 endpoint / bucket / 金鑰等環境變數,並更新 `.env.example`。
+3. 用 `npm run media:migrate` 將既有 `public/voices`、`public/uploads` 內容搬到物件儲存。
+4. 把讀取路由 `/uploads/[...path]`、`/voices/[...path]` 與 `media-url.js` 改走 `getStorageDriver().getPublicUrl(...)`。
+
 ## 目標
 
 - 程式碼可以持續 deploy / 覆寫。

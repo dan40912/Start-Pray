@@ -1,12 +1,14 @@
 ﻿import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { resolveServerAudioUrl } from "@/lib/server-audio";
+import { toPublicPrayerResponse } from "@/lib/anonymous-prayer-avatar";
 
 const SAFE_RESPONSE_SELECT = {
   id: true,
   homeCardId: true,
   message: true,
   voiceUrl: true,
+  voiceModerationStatus: true,
   isAnonymous: true,
   isBlocked: true,
   reportCount: true,
@@ -38,17 +40,34 @@ export async function GET(_req, { params }) {
       return NextResponse.json({ error: "Prayer card not found or unavailable." }, { status: 404 });
     }
 
+    // Content policy (changed 2026-07-01): visibility now follows voiceModerationStatus
+    // instead of reportCount. This field is repurposed as the single moderation gate for
+    // the whole response (text + voice), not just the audio file: new responses default to
+    // APPROVED, and a report flips it back to PENDING for re-review (see report route).
+    // reportCount alone used to hide a response permanently after a single report with no
+    // way back — that's what made replies vanish with no review path.
     const responses = await prisma.prayerResponse.findMany({
-      where: { homeCardId, isBlocked: false, reportCount: 0 },
+      where: {
+        homeCardId,
+        isBlocked: false,
+        moderationStatus: "APPROVED",
+        // NOT_APPLICABLE is included for legacy rows created before this policy change
+        // that haven't been migrated to APPROVED yet; new rows never get NOT_APPLICABLE.
+        voiceModerationStatus: { in: ["APPROVED", "NOT_APPLICABLE"] },
+      },
       orderBy: { createdAt: "desc" },
       select: SAFE_RESPONSE_SELECT,
     });
 
     return NextResponse.json(
-      responses.map((response) => ({
-        ...response,
-        voiceUrl: resolveServerAudioUrl(response.voiceUrl),
-      })),
+      responses.map((response) => {
+        const { voiceModerationStatus, ...rest } = toPublicPrayerResponse(response);
+        return {
+          ...rest,
+          voiceUrl: response.voiceUrl ? resolveServerAudioUrl(response.voiceUrl) : null,
+          voicePending: false,
+        };
+      }),
       { status: 200 }
     );
   } catch (err) {

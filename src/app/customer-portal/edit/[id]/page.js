@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 
 import PrayerLocationField from "@/components/PrayerLocationField";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
-import { parseCardMeta } from "@/lib/card-meta";
+import { buildCardMetaArray, parseCardMeta } from "@/lib/card-meta";
 
 const APPROXIMATE_LOCATION_LABEL = "\u5927\u81f4\u4f4d\u7f6e";
 const TAIPEI_LOCATION = {
@@ -30,8 +30,13 @@ const EMPTY_FORM = {
   ...TAIPEI_LOCATION,
   isPrivate: false,
 };
-const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 const MAX_GALLERY_IMAGES = 3;
+const UPLOADS_PREFIX = "/uploads/";
+
+function isInternalUploadUrl(value) {
+  return typeof value === "string" && value.startsWith(UPLOADS_PREFIX);
+}
 
 function mapCardToForm(card) {
   if (!card) return EMPTY_FORM;
@@ -124,10 +129,13 @@ export default function CustomerPortalEditCardPage() {
         if (!active) return;
 
         const parsedMeta = parseCardMeta(cardData.meta);
-        const preparedGallery = parsedMeta.gallery.map((url, index) => ({
-          url,
-          name: url.split("?")[0].split("/").pop() || `image-${index + 1}`,
-        }));
+        const preparedGallery = parsedMeta.gallery
+          .filter(isInternalUploadUrl)
+          .slice(0, MAX_GALLERY_IMAGES)
+          .map((url, index) => ({
+            url,
+            name: url.split("?")[0].split("/").pop() || `image-${index + 1}`,
+          }));
         setCard(cardData);
         setCategories(categoryData);
         setForm(mapCardToForm(cardData));
@@ -186,7 +194,7 @@ export default function CustomerPortalEditCardPage() {
 
     for (const file of imageFiles) {
       if (file.size > MAX_UPLOAD_BYTES) {
-        lastError = `圖片 “${file.name}” 大小需小於 5MB`;
+        lastError = `圖片「${file.name}」大小需小於 10MB`;
         continue;
       }
 
@@ -200,6 +208,9 @@ export default function CustomerPortalEditCardPage() {
           throw new Error(error.message || "圖片上傳失敗");
         }
         const result = await response.json();
+        if (!isInternalUploadUrl(result.url)) {
+          throw new Error("上傳圖片來源不合法，請重新上傳");
+        }
         nextImages.push({ url: result.url, name: file.name });
         successCount += 1;
       } catch (error) {
@@ -259,7 +270,7 @@ export default function CustomerPortalEditCardPage() {
       alt: form.alt,
       slug: form.slug,
       tags: tagsPreview,
-      meta: metaPreview,
+      meta: buildCardMetaArray(metaPreview, galleryUrls.filter(isInternalUploadUrl)),
       detailsHref: form.detailsHref,
       voiceHref: form.voiceHref,
       locationKey: form.locationKey,
@@ -284,8 +295,17 @@ export default function CustomerPortalEditCardPage() {
       }
 
       const updated = await response.json();
+      const parsedUpdatedMeta = parseCardMeta(updated.meta);
+      const preparedGallery = parsedUpdatedMeta.gallery
+        .filter(isInternalUploadUrl)
+        .slice(0, MAX_GALLERY_IMAGES)
+        .map((url, index) => ({
+          url,
+          name: url.split("?")[0].split("/").pop() || `image-${index + 1}`,
+        }));
       setCard(updated);
       setForm(mapCardToForm(updated));
+      setGalleryImages(preparedGallery);
       setStatus({
         type: "success",
         message: "祈禱卡片已更新，大致位置可顯示在全球禱告室。",
@@ -363,6 +383,54 @@ export default function CustomerPortalEditCardPage() {
                   <span>封面圖片 URL</span>
                   <input type="url" value={form.image} onChange={updateField("image")} />
                 </label>
+              </div>
+
+              <div className="cp-edit-gallery">
+                <label className="cp-edit-gallery__upload">
+                  <span>相簿圖片（最多 {MAX_GALLERY_IMAGES} 張）</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleGalleryUpload}
+                    disabled={saving || isUploadingImage || galleryImages.length >= MAX_GALLERY_IMAGES}
+                  />
+                  <small>
+                    支援 JPG、PNG、WEBP，每張上限 10MB。選取圖片可設為封面，移除封面時會自動改用下一張。
+                  </small>
+                </label>
+
+                {galleryImages.length ? (
+                  <div className="cp-edit-gallery__grid" aria-label="已上傳相簿圖片">
+                    {galleryImages.map(({ url, name }) => {
+                      const isActive = form.image === url;
+                      return (
+                        <figure
+                          key={url}
+                          className={`cp-edit-gallery__item${isActive ? " is-active" : ""}`}
+                        >
+                          <button
+                            type="button"
+                            className="cp-edit-gallery__select"
+                            onClick={() => selectGalleryImage(url)}
+                            aria-pressed={isActive}
+                          >
+                            <img src={url} alt={name} />
+                            {isActive ? <span>目前封面</span> : null}
+                          </button>
+                          <figcaption>
+                            <span title={name}>{name}</span>
+                            <button type="button" onClick={() => removeGalleryImage(url)}>
+                              移除
+                            </button>
+                          </figcaption>
+                        </figure>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="cp-edit-gallery__empty">尚未上傳相簿圖片。</p>
+                )}
               </div>
 
               <PrayerLocationField value={form} onChange={updateLocation} disabled={saving} />
@@ -469,6 +537,133 @@ export default function CustomerPortalEditCardPage() {
         .cp-private-toggle small {
           color: #475569;
           line-height: 1.55;
+        }
+
+        .cp-edit-gallery {
+          display: grid;
+          gap: 0.85rem;
+          border: 1px solid rgba(148, 163, 184, 0.28);
+          border-radius: 14px;
+          background: rgba(15, 23, 42, 0.46);
+          padding: 0.95rem;
+        }
+
+        .cp-edit-gallery__upload {
+          display: grid;
+          gap: 0.45rem;
+        }
+
+        .cp-edit-gallery__upload span {
+          color: #f8fafc;
+          font-weight: 700;
+        }
+
+        .cp-edit-gallery__upload input[type="file"] {
+          width: 100%;
+          color: #e2e8f0;
+        }
+
+        .cp-edit-gallery__upload input[type="file"]:disabled {
+          color: #94a3b8;
+          cursor: not-allowed;
+        }
+
+        .cp-edit-gallery__upload small,
+        .cp-edit-gallery__empty {
+          margin: 0;
+          color: #cbd5e1;
+          line-height: 1.55;
+        }
+
+        .cp-edit-gallery__grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+          gap: 0.75rem;
+        }
+
+        .cp-edit-gallery__item {
+          display: grid;
+          gap: 0;
+          margin: 0;
+          overflow: hidden;
+          border: 1px solid rgba(148, 163, 184, 0.38);
+          border-radius: 12px;
+          background: #ffffff;
+        }
+
+        .cp-edit-gallery__item.is-active {
+          border-color: #38bdf8;
+          box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.28);
+        }
+
+        .cp-edit-gallery__select {
+          position: relative;
+          display: block;
+          width: 100%;
+          aspect-ratio: 4 / 3;
+          border: 0;
+          padding: 0;
+          background: #0f172a;
+          cursor: pointer;
+          overflow: hidden;
+        }
+
+        .cp-edit-gallery__select img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
+        }
+
+        .cp-edit-gallery__select span {
+          position: absolute;
+          left: 0.45rem;
+          bottom: 0.45rem;
+          border-radius: 999px;
+          background: rgba(15, 23, 42, 0.9);
+          color: #f8fafc;
+          padding: 0.24rem 0.55rem;
+          font-size: 0.75rem;
+          font-weight: 800;
+        }
+
+        .cp-edit-gallery__item figcaption {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.55rem 0.65rem;
+          color: #111827;
+          font-size: 0.82rem;
+        }
+
+        .cp-edit-gallery__item figcaption span {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .cp-edit-gallery__item figcaption button {
+          border: 0;
+          background: transparent;
+          color: #b91c1c;
+          cursor: pointer;
+          font-weight: 800;
+        }
+
+        @media (max-width: 480px) {
+          .cp-edit-gallery__grid {
+            grid-auto-flow: column;
+            grid-auto-columns: minmax(160px, 1fr);
+            grid-template-columns: none;
+            overflow-x: auto;
+            padding-bottom: 0.35rem;
+            scroll-snap-type: x proximity;
+          }
+
+          .cp-edit-gallery__item {
+            scroll-snap-align: start;
+          }
         }
       `}</style>
     </>

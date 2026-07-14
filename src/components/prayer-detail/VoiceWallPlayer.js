@@ -46,7 +46,9 @@ function normalizeResponseTrack(item, index, prayerTitle, homeCardId = null) {
     voiceUrl: item.voiceUrl,
     speaker,
     message: item.message?.trim() || "",
-    avatarUrl: item.responder?.avatarUrl?.trim() || "",
+    avatarUrl: isAnonymous
+      ? item.anonymousAvatarUrl?.trim() || ""
+      : item.responder?.avatarUrl?.trim() || "",
     requestTitle: prayerTitle || "禱告錄音",
     isPrimary: false,
   };

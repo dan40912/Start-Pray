@@ -153,6 +153,60 @@ function normalizeCountryInput(value) {
   return COUNTRY_LOOKUP.get(normalizedKey) || String(value).trim();
 }
 
+// Returns every failing field at once (keyed by field name) instead of just the
+// first one, so the user isn't stuck fixing-and-resubmitting one error at a time.
+function getSignupFieldErrors(form) {
+  const errors = {};
+
+  if (!form.fullName.trim()) errors.fullName = "請填寫顯示名稱。";
+
+  if (!form.username.trim()) {
+    errors.username = "請填寫 Username。";
+  } else if (!/^[a-z0-9_-]{4,}$/i.test(form.username.trim())) {
+    errors.username = "Username 至少 4 碼，且只能包含英數、底線與減號。";
+  }
+
+  if (!form.email.trim()) {
+    errors.email = "請填寫電子信箱。";
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+    errors.email = "請輸入有效的電子信箱。";
+  }
+
+  if (!form.password) {
+    errors.password = "請輸入密碼。";
+  } else if (form.password.length < 8) {
+    errors.password = "密碼至少需要 8 碼。";
+  }
+
+  if (!form.confirmPassword) {
+    errors.confirmPassword = "請再次輸入密碼。";
+  } else if (form.password !== form.confirmPassword) {
+    errors.confirmPassword = "兩次輸入的密碼不一致。";
+  }
+
+  if (!form.acceptedTerms) errors.acceptedTerms = "請先閱讀並同意條款。";
+
+  return errors;
+}
+
+const SIGNUP_FIELD_ORDER = [
+  "fullName",
+  "username",
+  "email",
+  "password",
+  "confirmPassword",
+  "acceptedTerms",
+];
+
+const SIGNUP_FIELD_INPUT_ID = {
+  fullName: "full-name",
+  username: "username",
+  email: "signup-email",
+  password: "signup-password",
+  confirmPassword: "signup-confirm",
+  acceptedTerms: "terms",
+};
+
 export default function SignupForm({ locale: localeProp = "zh-TW" }) {
   const locale = normalizeLocale(localeProp);
   const text = getDictionary(locale).auth.signup;
@@ -160,6 +214,10 @@ export default function SignupForm({ locale: localeProp = "zh-TW" }) {
   const searchParams = useSearchParams();
   const [form, setForm] = useState(initialForm);
   const [status, setStatus] = useState({ state: "idle", message: "" });
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [capsLockOn, setCapsLockOn] = useState(false);
   const countrySuggestions = useMemo(() => {
     const keyword = normalizeLookupKey(form.country);
     if (!keyword) {
@@ -179,6 +237,12 @@ export default function SignupForm({ locale: localeProp = "zh-TW" }) {
   const updateField = (field) => (event) => {
     const value = field === "acceptedTerms" ? event.target.checked : event.target.value;
     setForm((prev) => ({ ...prev, [field]: value }));
+    setFieldErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
   };
 
   const applyCountry = (value) => {
@@ -201,7 +265,6 @@ export default function SignupForm({ locale: localeProp = "zh-TW" }) {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    setStatus({ state: "loading", message: "" });
 
     const nextPath = resolveSafeNextPath(searchParams?.get("next"), "/customer-portal");
     const normalizedUsername = String(form.username)
@@ -212,6 +275,29 @@ export default function SignupForm({ locale: localeProp = "zh-TW" }) {
 
     const normalizedCountry = normalizeCountryInput(form.country);
     const formToSend = { ...form, username: normalizedUsername, country: normalizedCountry };
+    const errors = getSignupFieldErrors(formToSend);
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      const errorCount = Object.keys(errors).length;
+      setStatus({
+        state: "error",
+        message:
+          errorCount > 1
+            ? `請修正以下 ${errorCount} 個欄位後再試一次。`
+            : Object.values(errors)[0],
+      });
+      const firstInvalidField = SIGNUP_FIELD_ORDER.find((field) => errors[field]);
+      const inputId = firstInvalidField ? SIGNUP_FIELD_INPUT_ID[firstInvalidField] : null;
+      if (inputId && typeof document !== "undefined") {
+        const target = document.getElementById(inputId);
+        target?.scrollIntoView?.({ behavior: "smooth", block: "center" });
+        target?.focus?.();
+      }
+      return;
+    }
+
+    setFieldErrors({});
+    setStatus({ state: "loading", message: "" });
 
     try {
       const response = await fetch("/api/auth/signup", {
@@ -243,7 +329,7 @@ export default function SignupForm({ locale: localeProp = "zh-TW" }) {
   const isSubmitting = status.state === "loading";
 
   return (
-    <form className="auth-form" onSubmit={handleSubmit}>
+    <form className="auth-form" onSubmit={handleSubmit} noValidate>
       <span className="form-section-title">{text.basicInfo}</span>
       <div className="form-grid columns-2">
         <div className="form-group">
@@ -251,30 +337,38 @@ export default function SignupForm({ locale: localeProp = "zh-TW" }) {
             {text.fullName} <span className="required-badge">{text.required}</span>
           </label>
           <input
-            className="form-control"
+            className={`form-control${fieldErrors.fullName ? " is-invalid" : ""}`}
             type="text"
             id="full-name"
             placeholder={text.fullNamePlaceholder}
             value={form.fullName}
             onChange={updateField("fullName")}
+            autoComplete="name"
+            aria-invalid={fieldErrors.fullName ? "true" : "false"}
             required
           />
-          <span className="form-helper">{text.fullNameHelper}</span>
+          <span className={`form-helper${fieldErrors.fullName ? " form-helper--error" : ""}`}>
+            {fieldErrors.fullName || text.fullNameHelper}
+          </span>
         </div>
         <div className="form-group">
           <label className="form-label" htmlFor="username">
             {text.username} <span className="required-badge">{text.required}</span>
           </label>
           <input
-            className="form-control"
+            className={`form-control${fieldErrors.username ? " is-invalid" : ""}`}
             type="text"
             id="username"
             placeholder={text.usernamePlaceholder}
             value={form.username}
             onChange={updateField("username")}
+            autoComplete="username"
+            aria-invalid={fieldErrors.username ? "true" : "false"}
             required
           />
-          <span className="form-helper">{text.usernameHelper}</span>
+          <span className={`form-helper${fieldErrors.username ? " form-helper--error" : ""}`}>
+            {fieldErrors.username || text.usernameHelper}
+          </span>
         </div>
         <div className="form-group">
           <label className="form-label" htmlFor="faith">
@@ -340,42 +434,76 @@ export default function SignupForm({ locale: localeProp = "zh-TW" }) {
             {text.email} <span className="required-badge">{text.required}</span>
           </label>
           <input
-            className="form-control"
+            className={`form-control${fieldErrors.email ? " is-invalid" : ""}`}
             type="email"
             id="signup-email"
             placeholder="you@example.com"
             value={form.email}
             onChange={updateField("email")}
+            autoComplete="email"
+            aria-invalid={fieldErrors.email ? "true" : "false"}
             required
           />
+          {fieldErrors.email ? (
+            <span className="form-helper form-helper--error">{fieldErrors.email}</span>
+          ) : null}
         </div>
         <div className="form-group">
           <label className="form-label" htmlFor="signup-password">
             {text.password} <span className="required-badge">{text.required}</span>
           </label>
           <input
-            className="form-control"
-            type="password"
+            className={`form-control${fieldErrors.password ? " is-invalid" : ""}`}
+            type={showPassword ? "text" : "password"}
             id="signup-password"
             placeholder={text.passwordPlaceholder}
             value={form.password}
             onChange={updateField("password")}
+            onKeyUp={(event) => setCapsLockOn(Boolean(event.getModifierState?.("CapsLock")))}
+            onBlur={() => setCapsLockOn(false)}
+            autoComplete="new-password"
+            aria-invalid={fieldErrors.password ? "true" : "false"}
             required
           />
+          <button
+            type="button"
+            className="auth-inline-button"
+            onClick={() => setShowPassword((prev) => !prev)}
+            aria-pressed={showPassword}
+          >
+            {showPassword ? text.hidePassword : text.showPassword}
+          </button>
+          {capsLockOn ? <span className="form-helper form-helper--warning">{text.capsLock}</span> : null}
+          {fieldErrors.password ? (
+            <span className="form-helper form-helper--error">{fieldErrors.password}</span>
+          ) : null}
         </div>
         <div className="form-group">
           <label className="form-label" htmlFor="signup-confirm">
             {text.confirmPassword} <span className="required-badge">{text.required}</span>
           </label>
           <input
-            className="form-control"
-            type="password"
+            className={`form-control${fieldErrors.confirmPassword ? " is-invalid" : ""}`}
+            type={showConfirmPassword ? "text" : "password"}
             id="signup-confirm"
             placeholder={text.confirmPasswordPlaceholder}
             value={form.confirmPassword}
             onChange={updateField("confirmPassword")}
+            autoComplete="new-password"
+            aria-invalid={fieldErrors.confirmPassword ? "true" : "false"}
             required
           />
+          <button
+            type="button"
+            className="auth-inline-button"
+            onClick={() => setShowConfirmPassword((prev) => !prev)}
+            aria-pressed={showConfirmPassword}
+          >
+            {showConfirmPassword ? text.hidePassword : text.showPassword}
+          </button>
+          {fieldErrors.confirmPassword ? (
+            <span className="form-helper form-helper--error">{fieldErrors.confirmPassword}</span>
+          ) : null}
         </div>
       </div>
 
@@ -396,6 +524,9 @@ export default function SignupForm({ locale: localeProp = "zh-TW" }) {
           {text.acceptedTerms} <a href={localizePath("/terms", locale)} target="_blank" rel="noreferrer">{text.terms}</a>
         </label>
       </div>
+      {fieldErrors.acceptedTerms ? (
+        <span className="form-helper form-helper--error">{fieldErrors.acceptedTerms}</span>
+      ) : null}
 
       {status.message && (
         <div
@@ -404,8 +535,14 @@ export default function SignupForm({ locale: localeProp = "zh-TW" }) {
             marginTop: "1rem",
             padding: "1rem",
             borderRadius: "0.75rem",
-            background: status.state === "success" ? "rgba(34,197,94,0.15)" : "rgba(248,113,113,0.15)",
-            color: status.state === "success" ? "#166534" : "#991b1b"
+            border:
+              status.state === "success"
+                ? "1px solid rgba(22,101,52,0.35)"
+                : "1px solid rgba(153,27,27,0.4)",
+            background: status.state === "success" ? "#dcfce7" : "#fee2e2",
+            color: status.state === "success" ? "#14532d" : "#7f1d1d",
+            fontWeight: 700,
+            lineHeight: 1.55
           }}
         >
           {status.message}

@@ -115,6 +115,13 @@ export function AudioProvider({ children }) {
   const playbackTimeoutRef = useRef(null);
   const playAttemptIdRef = useRef(0);
   const failureHandlingKeyRef = useRef(null);
+  // Optional pause (in ms) inserted between tracks when the current one finishes
+  // naturally, before the queue auto-advances to the next one. Defaults to 0 (the
+  // existing instant-advance behaviour used everywhere on the site). Consumers such
+  // as the companion overlay can opt into a longer gap via setAutoAdvanceDelay().
+  const autoAdvanceDelayMsRef = useRef(0);
+  const advanceDelayTimeoutRef = useRef(null);
+  const [isAdvancingQueue, setIsAdvancingQueue] = useState(false);
 
   const clearPlaybackNotice = useCallback(() => {
     setPlaybackNotice(null);
@@ -202,6 +209,18 @@ export function AudioProvider({ children }) {
     clearPlaybackAttemptTimeout();
     return playAttemptIdRef.current;
   }, [clearPlaybackAttemptTimeout]);
+
+  const clearAdvanceDelayTimeout = useCallback(() => {
+    if (advanceDelayTimeoutRef.current) {
+      clearTimeout(advanceDelayTimeoutRef.current);
+      advanceDelayTimeoutRef.current = null;
+    }
+    setIsAdvancingQueue(false);
+  }, []);
+
+  const setAutoAdvanceDelay = useCallback((ms) => {
+    autoAdvanceDelayMsRef.current = Math.max(0, Number(ms) || 0);
+  }, []);
 
   const finishQueue = useCallback(
     (reason, noticeMessage = "", noticeType = "info") => {
@@ -552,6 +571,21 @@ export function AudioProvider({ children }) {
           return;
         }
 
+        const delayMs = autoAdvanceDelayMsRef.current;
+        if (delayMs > 0) {
+          logAudioDebug("播放結束:延遲切換下一首", { delayMs, nextIndex });
+          setIsAdvancingQueue(true);
+          if (advanceDelayTimeoutRef.current) {
+            clearTimeout(advanceDelayTimeoutRef.current);
+          }
+          advanceDelayTimeoutRef.current = setTimeout(() => {
+            advanceDelayTimeoutRef.current = null;
+            setIsAdvancingQueue(false);
+            setCurrentIndex(nextIndex);
+          }, delayMs);
+          return;
+        }
+
         setCurrentIndex(nextIndex);
         return;
       }
@@ -601,6 +635,7 @@ export function AudioProvider({ children }) {
     (track) => {
       const nextTrack = sanitizeTrack(track);
       if (!nextTrack) return;
+      clearAdvanceDelayTimeout();
       clearPlaybackNotice();
       setEndedReason(null);
       setIsQueueEnded(false);
@@ -639,7 +674,7 @@ export function AudioProvider({ children }) {
         trackLabel: buildTrackLabel(nextTrack),
       });
     },
-    [clearPlaybackNotice, clearTrackFailure]
+    [clearAdvanceDelayTimeout, clearPlaybackNotice, clearTrackFailure]
   );
 
   const setQueue = useCallback(
@@ -648,6 +683,7 @@ export function AudioProvider({ children }) {
         ? tracks.map(sanitizeTrack).filter(Boolean)
         : [];
 
+      clearAdvanceDelayTimeout();
       setPlaylist(normalized);
       setEndedReason(null);
       setIsQueueEnded(false);
@@ -713,6 +749,7 @@ export function AudioProvider({ children }) {
       setIsExpanded(true);
     },
     [
+      clearAdvanceDelayTimeout,
       clearPlaybackNotice,
       findNextPlayableIndex,
       finishQueue,
@@ -726,6 +763,7 @@ export function AudioProvider({ children }) {
     (index) => {
       const audio = audioRef.current;
       const tracks = playlistRef.current;
+      clearAdvanceDelayTimeout();
       if (!audio) {
         logAudioDebug("指定索引播放:阻擋", { 原因: "沒有 Audio 實例", index });
         return false;
@@ -784,7 +822,7 @@ export function AudioProvider({ children }) {
       });
       return true;
     },
-    [clearPlaybackNotice, clearTrackFailure, tryPlayAudio]
+    [clearAdvanceDelayTimeout, clearPlaybackNotice, clearTrackFailure, tryPlayAudio]
   );
 
   const restartQueue = useCallback(() => {
@@ -798,6 +836,7 @@ export function AudioProvider({ children }) {
       return false;
     }
 
+    clearAdvanceDelayTimeout();
     clearPlaybackNotice();
     resetPlaybackFailures();
 
@@ -836,6 +875,7 @@ export function AudioProvider({ children }) {
     });
     return true;
   }, [
+    clearAdvanceDelayTimeout,
     clearPlaybackNotice,
     findFirstPlayableIndex,
     finishQueue,
@@ -846,6 +886,10 @@ export function AudioProvider({ children }) {
   const togglePlay = useCallback(() => {
     const audio = audioRef.current;
     const tracks = playlistRef.current;
+    // A manual tap during the between-tracks pause (see setAutoAdvanceDelay) should
+    // cancel the pending scheduled advance rather than fight with it — the branches
+    // below already know how to move to the next playable track on their own.
+    clearAdvanceDelayTimeout();
     if (!audio) {
       logAudioDebug("切換播放:阻擋", { 原因: "沒有 Audio 實例" });
       return;
@@ -933,6 +977,7 @@ export function AudioProvider({ children }) {
     invalidatePlaybackAttempt();
     audio.pause();
   }, [
+    clearAdvanceDelayTimeout,
     findFirstPlayableIndex,
     findNextPlayableIndex,
     finishQueue,
@@ -944,6 +989,7 @@ export function AudioProvider({ children }) {
 
   const pause = useCallback(() => {
     const audio = audioRef.current;
+    clearAdvanceDelayTimeout();
     if (audio) {
       shouldAutoPlayRef.current = false;
       invalidatePlaybackAttempt();
@@ -951,7 +997,7 @@ export function AudioProvider({ children }) {
     }
     setIsPlaying(false);
     setIsRecovering(false);
-  }, [invalidatePlaybackAttempt]);
+  }, [clearAdvanceDelayTimeout, invalidatePlaybackAttempt]);
 
   const seek = useCallback((time) => {
     if (audioRef.current) {
@@ -1048,6 +1094,7 @@ export function AudioProvider({ children }) {
   const playNext = useCallback(() => {
     const tracks = playlistRef.current;
     const total = tracks.length;
+    clearAdvanceDelayTimeout();
     if (!total) return;
 
     const nextIndex = findNextPlayableIndex(currentIndexRef.current, {
@@ -1074,10 +1121,11 @@ export function AudioProvider({ children }) {
     setIsQueueEnded(false);
     setEndedReason(null);
     setIsRecovering(false);
-  }, [findNextPlayableIndex, finishQueue, tryPlayAudio]);
+  }, [clearAdvanceDelayTimeout, findNextPlayableIndex, finishQueue, tryPlayAudio]);
 
   const playPrev = useCallback(() => {
     const tracks = playlistRef.current;
+    clearAdvanceDelayTimeout();
     if (!tracks.length) return;
 
     const prevIndex = findPrevPlayableIndex(currentIndexRef.current);
@@ -1095,13 +1143,14 @@ export function AudioProvider({ children }) {
     setIsQueueEnded(false);
     setEndedReason(null);
     setIsRecovering(false);
-  }, [findPrevPlayableIndex]);
+  }, [clearAdvanceDelayTimeout, findPrevPlayableIndex]);
 
   const selectTrack = useCallback((index) => {
     playByIndex(index);
   }, [playByIndex]);
 
   const removeTrack = useCallback((trackId) => {
+    clearAdvanceDelayTimeout();
     const removedTrack = playlistRef.current.find((track) => track.id === trackId);
     clearTrackFailure(removedTrack);
 
@@ -1131,7 +1180,7 @@ export function AudioProvider({ children }) {
 
       return next;
     });
-  }, [clearTrackFailure, stopAndResetAudio]);
+  }, [clearAdvanceDelayTimeout, clearTrackFailure, stopAndResetAudio]);
 
   useEffect(() => {
     playlistRef.current = playlist;
@@ -1148,6 +1197,15 @@ export function AudioProvider({ children }) {
   useEffect(() => {
     trackDurationsRef.current = trackDurations;
   }, [trackDurations]);
+
+  useEffect(() => {
+    return () => {
+      if (advanceDelayTimeoutRef.current) {
+        clearTimeout(advanceDelayTimeoutRef.current);
+        advanceDelayTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined" || !playlist.length) return undefined;
@@ -1288,17 +1346,19 @@ export function AudioProvider({ children }) {
   const playerPhase = useMemo(() => {
     if (!playlist.length) return "empty";
     if (isRecovering) return "recovering";
+    if (isAdvancingQueue) return "advancing";
     if (isPlaying) return "playing";
     if (isQueueEnded) return "ended";
     if (currentIndex >= 0 && playlist[currentIndex]) return "paused";
     return "ready";
-  }, [currentIndex, isPlaying, isQueueEnded, isRecovering, playlist]);
+  }, [currentIndex, isAdvancingQueue, isPlaying, isQueueEnded, isRecovering, playlist]);
 
   const value = {
     currentTrack,
     playlist,
     isPlaying,
     isQueueEnded,
+    isAdvancingQueue,
     isExpanded,
     progress,
     duration,
@@ -1325,6 +1385,7 @@ export function AudioProvider({ children }) {
     setIsLoop,
     selectTrack,
     removeTrack,
+    setAutoAdvanceDelay,
   };
 
   return (

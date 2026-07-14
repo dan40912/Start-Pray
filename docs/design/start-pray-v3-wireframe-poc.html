@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Start Pray · V3 Wireframe POC</title>
+<style>
+/* ===== PRD-010 §18-20 Tokens ===== */
+:root{
+  --surface:#FFFDF8; --surface-muted:#F5F1E8; --surface-elevated:#FFFFFF;
+  --text:#1F2933; --text-muted:#667085; --border:#DDD6C8;
+  --primary:#2F6F73; --primary-hover:#265B5F; --primary-text:#FFFFFF;
+  --accent:#D99A4E; --success:#2F7D5C; --warning:#B7791F; --danger:#B42318;
+  --focus:#2563EB; --map-dark:#102A2C; --map-light:#F5C46B;
+  --r-sm:6px; --r-md:8px; --r-lg:12px;
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px; --s7:48px;
+  --t-fast:120ms; --t-normal:180ms; --t-slow:320ms;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:"PingFang TC","Microsoft JhengHei","Noto Sans TC",system-ui,sans-serif;
+  background:#E9E4D8; color:var(--text);
+  display:flex; flex-direction:column; align-items:center;
+  min-height:100vh; padding:var(--s5) var(--s3);
+}
+.poc-note{font-size:12px;color:#7a6f5a;margin-bottom:var(--s3);text-align:center}
+.poc-note b{color:#5a4f3a}
+
+/* ===== Phone frame ===== */
+.phone{
+  width:100%; max-width:430px; height:min(860px,calc(100vh - 88px));
+  min-height:640px; background:var(--surface);
+  border-radius:28px; border:1px solid #cfc7b4;
+  box-shadow:0 24px 60px rgba(31,41,51,.18);
+  overflow:hidden; position:relative; display:flex; flex-direction:column;
+}
+.screen{display:none;flex-direction:column;height:100%;overflow:hidden}
+.screen.active{display:flex}
+.scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+
+/* ===== App bar ===== */
+.appbar{
+  display:flex;align-items:center;gap:var(--s3);
+  padding:var(--s4);border-bottom:1px solid var(--border);
+  background:var(--surface);flex-shrink:0;min-height:56px;
+}
+.appbar .title{font-size:16px;font-weight:700;flex:1}
+.appbar .brand{font-size:18px;font-weight:800;letter-spacing:.2px;flex:1;color:var(--primary)}
+.back{
+  background:none;border:none;font-size:20px;cursor:pointer;color:var(--text);
+  width:44px;height:44px;margin-left:-10px;border-radius:var(--r-sm);
+  display:flex;align-items:center;justify-content:center;
+}
+.back:hover{background:var(--surface-muted)}
+.appbar .meta{font-size:13px;color:var(--text-muted)}
+
+/* ===== Buttons ===== */
+.btn{
+  display:flex;align-items:center;justify-content:center;gap:var(--s2);
+  width:100%;min-height:52px;padding:var(--s3) var(--s4);
+  border-radius:var(--r-md);font-size:17px;font-weight:700;cursor:pointer;
+  border:1px solid transparent;
+  transition:transform 100ms,background var(--t-fast),border-color var(--t-fast);
+}
+.btn:active{transform:scale(.96)}
+.btn:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.btn-primary{background:var(--primary);color:var(--primary-text)}
+.btn-primary:hover{background:var(--primary-hover)}
+.btn-secondary{background:transparent;color:var(--primary);border-color:var(--border)}
+.btn-secondary:hover{border-color:var(--primary)}
+.btn-ghost{background:none;border:none;color:var(--text-muted);font-size:15px;font-weight:600;min-height:44px;cursor:pointer;width:100%;text-align:center;padding:var(--s3)}
+.btn-ghost:hover{color:var(--text)}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.btn.loading .label{visibility:hidden}
+.btn .spinner{
+  position:absolute;width:20px;height:20px;border:3px solid rgba(255,255,255,.35);
+  border-top-color:#fff;border-radius:50%;display:none;
+  animation:spin .8s linear infinite;
+}
+.btn{position:relative}
+.btn.loading .spinner{display:block}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ===== Cards ===== */
+.card{
+  background:var(--surface-elevated);border:1px solid var(--border);
+  border-radius:var(--r-md);padding:var(--s4);
+}
+.card + .card{margin-top:var(--s3)}
+.tagline{font-size:13px;color:var(--text-muted);display:flex;gap:var(--s2);align-items:center;flex-wrap:wrap}
+.tag{background:var(--surface-muted);border-radius:999px;padding:2px 10px;font-size:12px;color:var(--text-muted)}
+.card h3{font-size:18px;line-height:26px;margin:var(--s2) 0}
+.card p{font-size:15px;line-height:24px;color:var(--text-muted)}
+
+/* ===== Bottom nav ===== */
+.bottomnav{
+  display:flex;border-top:1px solid var(--border);background:var(--surface-elevated);
+  flex-shrink:0;padding-bottom:env(safe-area-inset-bottom);
+}
+.bottomnav button{
+  flex:1;background:none;border:none;padding:var(--s2) 0 var(--s3);cursor:pointer;
+  font-size:11px;color:var(--text-muted);display:flex;flex-direction:column;
+  align-items:center;gap:2px;min-height:52px;
+}
+.bottomnav button .ico{font-size:20px;line-height:1}
+.bottomnav button.on{color:var(--primary);font-weight:700}
+
+/* ===== Home ===== */
+.hero{padding:var(--s6) var(--s5) var(--s5);text-align:center}
+.hero h1{font-size:28px;line-height:36px;font-weight:800;margin-bottom:var(--s2)}
+.hero .sub{font-size:15px;color:var(--text-muted);margin-bottom:var(--s5)}
+.section{padding:var(--s4) var(--s4) var(--s2)}
+.section h2{font-size:15px;font-weight:700;color:var(--text-muted);margin-bottom:var(--s3);letter-spacing:.5px}
+.worldproof{
+  background:var(--map-dark);border-radius:var(--r-lg);padding:var(--s4);
+  color:#E8E2D2;text-align:center;position:relative;overflow:hidden;
+}
+.worldproof .stats{font-size:13px;opacity:.85;margin-top:var(--s2)}
+.mini-globe{width:120px;height:120px;margin:0 auto;border-radius:50%;
+  background:radial-gradient(circle at 38% 32%, #1d4a4e 0%, #102A2C 70%);
+  position:relative;border:1px solid rgba(245,196,107,.25);
+}
+.dot{position:absolute;width:6px;height:6px;border-radius:50%;background:var(--map-light);
+  box-shadow:0 0 8px 2px rgba(245,196,107,.55);animation:twinkle 3s ease-in-out infinite}
+@keyframes twinkle{0%,100%{opacity:.35}50%{opacity:1}}
+.steps{display:flex;flex-direction:column;gap:var(--s3);padding-bottom:var(--s4)}
+.step{display:flex;gap:var(--s3);align-items:center;font-size:15px}
+.step .n{width:28px;height:28px;border-radius:50%;background:var(--surface-muted);
+  display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--primary);flex-shrink:0}
+
+/* skeleton */
+.skeleton{position:relative;overflow:hidden;background:var(--surface-muted);border-radius:var(--r-sm);color:transparent!important}
+.skeleton::after{content:"";position:absolute;inset:0;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.6),transparent);
+  animation:shimmer 1.4s infinite}
+@keyframes shimmer{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
+
+/* ===== Forms ===== */
+.field{margin-bottom:var(--s4)}
+.field label{display:block;font-size:14px;font-weight:700;margin-bottom:var(--s2)}
+.field .hint{font-size:12px;color:var(--text-muted);margin-top:var(--s1)}
+input[type=text],textarea,select{
+  width:100%;padding:var(--s3);border:1px solid var(--border);border-radius:var(--r-md);
+  font-size:16px;font-family:inherit;background:var(--surface-elevated);color:var(--text);
+}
+input:focus-visible,textarea:focus-visible,select:focus-visible{outline:3px solid var(--focus);outline-offset:1px}
+textarea{resize:vertical;min-height:96px;line-height:26px}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;
+  padding:var(--s3) 0;border-bottom:1px solid var(--surface-muted)}
+.toggle-row .lbl{font-size:15px;font-weight:600}
+.toggle-row .desc{font-size:12px;color:var(--text-muted);margin-top:2px}
+.switch{width:52px;height:30px;border-radius:999px;background:#CBD2D9;border:none;
+  position:relative;cursor:pointer;transition:background var(--t-fast);flex-shrink:0}
+.switch::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;
+  border-radius:50%;background:#fff;transition:left var(--t-fast);box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.switch[aria-checked=true]{background:var(--primary)}
+.switch[aria-checked=true]::after{left:25px}
+.charcount{font-size:12px;color:var(--text-muted);text-align:right;margin-top:var(--s1)}
+.chips{display:flex;gap:var(--s2);flex-wrap:wrap}
+.chip{border:1px solid var(--border);background:var(--surface-elevated);border-radius:999px;
+  padding:8px 16px;font-size:14px;cursor:pointer;color:var(--text);min-height:38px}
+.chip.on{background:var(--primary);color:#fff;border-color:var(--primary);font-weight:700}
+
+/* ===== Voice ===== */
+.center-stage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:var(--s5);text-align:center;gap:var(--s4)}
+.breath-ring{width:150px;height:150px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  border:3px solid var(--primary);position:relative}
+.breath-ring::before{content:"";position:absolute;inset:-14px;border-radius:50%;
+  border:2px solid rgba(47,111,115,.3);animation:breathe 3s ease-in-out infinite}
+@keyframes breathe{0%,100%{transform:scale(1);opacity:.4}50%{transform:scale(1.1);opacity:1}}
+.countnum{font-size:56px;font-weight:800;color:var(--primary)}
+.wave{display:flex;align-items:center;justify-content:center;gap:3px;height:64px}
+.wave i{width:4px;background:var(--primary);border-radius:2px;animation:wavebar 1s ease-in-out infinite}
+@keyframes wavebar{0%,100%{height:12px}50%{height:52px}}
+.wave.paused i{animation-play-state:paused;height:14px}
+.wave.live i{animation:none;transition:height 80ms linear}
+.live-transcript{min-height:80px;font-size:17px;line-height:28px;color:var(--text);max-width:300px}
+.live-transcript .pending{color:var(--text-muted)}
+.rec-timer{font-variant-numeric:tabular-nums;font-weight:700}
+.dots{display:flex;gap:6px;justify-content:center}
+.dots i{width:10px;height:10px;border-radius:50%;background:var(--primary);animation:twinkle 1.2s infinite}
+.dots i:nth-child(2){animation-delay:.2s}.dots i:nth-child(3){animation-delay:.4s}
+
+/* ===== Success ===== */
+.success-star{font-size:52px;color:var(--accent);animation:starpop .6s ease-out}
+@keyframes starpop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+.success-globe{margin-top:var(--s3)}
+.newlight{animation:lightjoin .6s ease-out .3s both}
+@keyframes lightjoin{from{transform:scale(3);opacity:0}to{transform:scale(1);opacity:1}}
+
+/* ===== Playback ===== */
+.player-full{background:var(--map-dark);color:#E8E2D2;height:100%;display:flex;flex-direction:column}
+.player-full .appbar{background:transparent;border-color:rgba(232,226,210,.15)}
+.player-full .appbar .title,.player-full .back{color:#E8E2D2}
+.player-full .back:hover{background:rgba(255,255,255,.08)}
+.lyrics{flex:1;overflow-y:auto;padding:var(--s5);display:flex;flex-direction:column;gap:var(--s4);justify-content:center;text-align:center}
+.lyrics .line{font-size:19px;line-height:30px;color:rgba(232,226,210,.4);transition:color var(--t-normal),transform var(--t-normal)}
+.lyrics .line.past{color:rgba(232,226,210,.6)}
+.lyrics .line.now{color:#fff;font-weight:700;transform:scale(1.04)}
+.player-ctl{padding:var(--s4) var(--s5) var(--s6)}
+.progress{height:6px;background:rgba(232,226,210,.2);border-radius:3px;cursor:pointer;margin:var(--s3) 0}
+.progress .fill{height:100%;background:var(--map-light);border-radius:3px;width:0%}
+.ptimes{display:flex;justify-content:space-between;font-size:12px;opacity:.7;font-variant-numeric:tabular-nums}
+.pbtns{display:flex;gap:var(--s3);margin-top:var(--s3)}
+.pbtns .btn-primary{background:var(--map-light);color:var(--map-dark)}
+.pbtns .btn-secondary{color:#E8E2D2;border-color:rgba(232,226,210,.3)}
+.wave.dark i{background:var(--map-light)}
+
+/* mini player */
+.mini-player{border:1px solid var(--border);border-radius:var(--r-md);padding:var(--s3);cursor:pointer;background:var(--surface-elevated)}
+.mini-player:hover{border-color:var(--primary)}
+.mini-player .row1{display:flex;align-items:center;gap:var(--s2);font-size:13px;color:var(--text-muted)}
+.mini-player .snip{font-size:15px;margin-top:var(--s2);line-height:24px}
+
+/* ===== Toast ===== */
+.toast{
+  position:absolute;left:50%;bottom:84px;transform:translate(-50%,16px);
+  background:var(--text);color:#fff;font-size:14px;padding:var(--s3) var(--s4);
+  border-radius:var(--r-md);opacity:0;pointer-events:none;transition:all var(--t-normal);
+  max-width:85%;text-align:center;z-index:60;
+}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* ===== Screen map (reviewer aid) ===== */
+.mapfab{position:absolute;top:10px;right:10px;z-index:70;width:38px;height:38px;border-radius:50%;
+  background:var(--text);color:#fff;border:none;cursor:pointer;font-size:16px;opacity:.55}
+.mapfab:hover{opacity:1}
+.screenmap{position:absolute;inset:0;background:rgba(31,41,51,.96);z-index:80;color:#fff;
+  display:none;flex-direction:column;padding:var(--s5);overflow-y:auto}
+.screenmap.open{display:flex}
+.screenmap h2{font-size:16px;margin-bottom:var(--s4)}
+.screenmap button.jump{display:block;width:100%;text-align:left;background:none;border:none;
+  color:#E8E2D2;font-size:15px;padding:10px var(--s2);cursor:pointer;border-radius:var(--r-sm)}
+.screenmap button.jump:hover{background:rgba(255,255,255,.1)}
+.screenmap .grp{font-size:12px;color:rgba(255,255,255,.5);margin:var(--s3) 0 var(--s1);letter-spacing:1px}
+
+/* privacy preview */
+.priv-box{border-radius:var(--r-md);padding:var(--s4);margin-bottom:var(--s3);font-size:15px;line-height:26px}
+.priv-show{background:#EAF3EE;border:1px solid #BFDCCB}
+.priv-hide{background:#FBEFEA;border:1px solid #EAC7BC}
+.priv-box b{display:block;margin-bottom:var(--s1);font-size:13px}
+
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+
+<div class="poc-note"><b>Start Pray · V3 Wireframe POC</b>（PRD-010 Track A）— 假資料、可點擊完整流程。<br>語音流程是<b>真的</b>：真錄音＋瀏覽器內建免費辨識＋同步字幕，零 API 費用。右上 ⊞ 可跳任一畫面。</div>
+
+<div class="phone" id="phone">
+  <button class="mapfab" onclick="toggleMap(true)" aria-label="畫面清單">⊞</button>
+
+  <!-- ============ HOME / TODAY ============ -->
+  <section class="screen" id="s-home">
+    <div class="appbar"><span class="brand">Start Pray</span><span class="meta">EN</span></div>
+    <div class="scroll">
+      <div class="hero">
+        <h1>30 秒，為一個人<br>留下祝福。</h1>
+        <p class="sub">匿名、安靜、不需要先登入。</p>
+        <button class="btn btn-primary" onclick="startOnePrayer()"><span class="label">我願意禱告</span><span class="spinner"></span></button>
+        <button class="btn-ghost" onclick="go('s-share')">我需要代禱</button>
+      </div>
+      <div class="section">
+        <h2>今天正在被守望</h2>
+        <div class="card" id="home-featured">
+          <div class="tagline"><span class="tag">健康</span><span class="tag">匿名</span><span>需要一句祝福</span></div>
+          <h3>為張弟兄的治療過程禱告</h3>
+          <button class="btn btn-secondary" style="margin-top:12px" onclick="openCard(0,'s-home')">為他禱告</button>
+        </div>
+      </div>
+      <div class="section">
+        <h2>世界正在一起禱告</h2>
+        <div class="worldproof" onclick="go('s-world')" style="cursor:pointer">
+          <div class="mini-globe">
+            <span class="dot" style="top:22%;left:64%"></span>
+            <span class="dot" style="top:48%;left:30%;animation-delay:.8s"></span>
+            <span class="dot" style="top:66%;left:55%;animation-delay:1.6s"></span>
+            <span class="dot" style="top:35%;left:44%;animation-delay:2.2s"></span>
+          </div>
+          <div class="stats">33 代禱 · 11 光點 · 49 語音</div>
+        </div>
+      </div>
+      <div class="section">
+        <h2>三步開始</h2>
+        <div class="steps">
+          <div class="step"><span class="n">1</span>看見一份需要</div>
+          <div class="step"><span class="n">2</span>留下文字或語音</div>
+          <div class="step"><span class="n">3</span>祝福加入世界光點</div>
+        </div>
+      </div>
+    </div>
+    <nav class="bottomnav" data-nav></nav>
+  </section>
+
+  <!-- ============ ONE PRAYER START ============ -->
+  <section class="screen" id="s-one">
+    <div class="appbar"><button class="back" onclick="go('s-home')" aria-label="返回">←</button><span class="title">Start Pray</span></div>
+    <div class="scroll" style="padding:var(--s5) var(--s4)">
+      <p style="font-size:18px;font-weight:700;text-align:center;margin-bottom:var(--s4)">今天，先為這一個人禱告。</p>
+      <div class="card" id="one-card">
+        <div class="tagline"><span class="tag" id="one-cat">健康</span><span class="tag">匿名</span></div>
+        <h3 id="one-title">…</h3>
+        <p id="one-body">…</p>
+        <button class="btn btn-primary" style="margin-top:16px" onclick="go('s-choice')"><span class="label">開始禱告</span></button>
+      </div>
+      <button class="btn-ghost" onclick="nextCard()">換一份需要</button>
+    </div>
+  </section>
+
+  <!-- ============ RESPONSE CHOICE ============ -->
+  <section class="screen" id="s-choice">
+    <div class="appbar"><button class="back" onclick="go('s-one')" aria-label="返回">←</button><span class="title">為這份需要禱告</span></div>
+    <div class="scroll" style="padding:var(--s5) var(--s4)">
+      <h3 style="font-size:18px;margin-bottom:var(--s2)" id="choice-title">…</h3>
+      <p style="color:var(--text-muted);font-size:15px;margin-bottom:var(--s5)">你可以留下一句很短的祝福。</p>
+      <button class="btn btn-primary" onclick="go('s-vperm')"><span class="label">🎙 語音禱告</span></button>
+      <button class="btn btn-secondary" style="margin-top:var(--s3)" onclick="go('s-text')">文字禱告</button>
+      <div class="toggle-row" style="margin-top:var(--s5)">
+        <div><div class="lbl">匿名顯示</div><div class="desc">顯示名稱：匿名</div></div>
+        <button class="switch" role="switch" aria-checked="true" aria-label="匿名顯示" onclick="flip(this)"></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ TEXT PRAYER ============ -->
+  <section class="screen" id="s-text">
+    <div class="appbar"><button class="back" onclick="go('s-choice')" aria-label="返回">←</button><span class="title">文字禱告</span></div>
+    <div class="scroll" style="padding:var(--s4)">
+      <p style="font-size:15px;color:var(--text-muted);margin-bottom:var(--s3)" id="text-for">為張弟兄</p>
+      <div class="field">
+        <textarea id="text-input" rows="5" maxlength="1000" placeholder="願主賜你平安，也加添力量…" oninput="textCount()" aria-label="祝福內容"></textarea>
+        <div class="charcount"><span id="text-n">0</span> / 1000</div>
+      </div>
+      <div class="toggle-row" style="border:none">
+        <div class="lbl">匿名顯示</div>
+        <button class="switch" role="switch" aria-checked="true" aria-label="匿名顯示" onclick="flip(this)"></button>
+      </div>
+      <button class="btn btn-primary" id="text-submit" disabled onclick="submitText(this)"><span class="label">送出祝福</span><span class="spinner"></span></button>
+      <p class="hint" style="text-align:center;margin-top:var(--s2)" id="text-hint">寫下至少 2 個字就可以送出</p>
+    </div>
+  </section>
+
+  <!-- ============ VOICE PERMISSION ============ -->
+  <section class="screen" id="s-vperm">
+    <div class="appbar"><button class="back" onclick="go('s-choice')" aria-label="返回">←</button><span class="title">語音禱告</span></div>
+    <div class="center-stage">
+      <div style="font-size:44px">🎙</div>
+      <h3 style="font-size:20px">用你的聲音，留下 30 秒祝福。</h3>
+      <p style="color:var(--text-muted);font-size:15px;line-height:24px">我們只會儲存這次禱告，<br>不會公開你的身份。</p>
+      <button class="btn btn-primary" onclick="askMic()"><span class="label">開啟麥克風</span></button>
+      <button class="btn-ghost" onclick="go('s-text')">改用文字禱告</button>
+      <p class="hint">字幕使用瀏覽器內建語音辨識（免費）。不支援的瀏覽器仍可錄音，錄完可自行補上文字。</p>
+    </div>
+  </section>
+
+  <!-- permission denied -->
+  <section class="screen" id="s-vdenied">
+    <div class="appbar"><button class="back" onclick="go('s-choice')" aria-label="返回">←</button><span class="title">無法使用麥克風</span></div>
+    <div class="center-stage">
+      <div style="font-size:44px">🔇</div>
+      <p style="font-size:16px;line-height:26px">你可以改用文字禱告，<br>或到瀏覽器設定開啟麥克風。</p>
+      <button class="btn btn-primary" onclick="go('s-text')"><span class="label">改用文字禱告</span></button>
+      <button class="btn-ghost" onclick="go('s-vperm')">再試一次</button>
+    </div>
+  </section>
+
+  <!-- ============ COUNTDOWN ============ -->
+  <section class="screen" id="s-vcount">
+    <div class="appbar"><button class="back" onclick="cancelRec('s-vperm')" aria-label="返回">←</button><span class="title">準備錄音</span></div>
+    <div class="center-stage">
+      <div class="breath-ring"><span class="countnum" id="countnum">3</span></div>
+      <p style="font-size:17px;font-weight:600">深呼吸，慢慢說。</p>
+      <p style="color:var(--text-muted);font-size:14px">你可以說：「願你今天有平安。」</p>
+    </div>
+  </section>
+
+  <!-- ============ RECORDING ============ -->
+  <section class="screen" id="s-vrec">
+    <div class="appbar">
+      <button class="back" onclick="cancelRec('s-choice')" aria-label="取消錄音">←</button>
+      <span class="title">正在錄音</span>
+      <span class="meta rec-timer" id="rec-timer">0:00</span>
+    </div>
+    <div class="center-stage">
+      <div class="wave" id="rec-wave" aria-hidden="true">
+        <i style="animation-delay:0s"></i><i style="animation-delay:.12s"></i><i style="animation-delay:.24s"></i><i style="animation-delay:.06s"></i><i style="animation-delay:.3s"></i><i style="animation-delay:.18s"></i><i style="animation-delay:.02s"></i><i style="animation-delay:.26s"></i><i style="animation-delay:.14s"></i><i style="animation-delay:.08s"></i><i style="animation-delay:.22s"></i><i style="animation-delay:.04s"></i>
+      </div>
+      <div class="live-transcript" id="live-tx" aria-live="polite"><span class="pending">開始說話，字幕會出現在這裡…</span></div>
+      <p style="color:var(--text-muted);font-size:14px">剩餘 <span id="rec-left">60</span> 秒</p>
+      <button class="btn btn-primary" onclick="finishRec()"><span class="label">完成</span></button>
+      <button class="btn-ghost" onclick="restartRec()">重新錄</button>
+    </div>
+  </section>
+
+  <!-- ============ PROCESSING ============ -->
+  <section class="screen" id="s-vproc">
+    <div class="appbar"><span class="title" style="text-align:center;width:100%">語音禱告</span></div>
+    <div class="center-stage">
+      <p style="font-size:18px;font-weight:700">正在整理成字幕</p>
+      <div class="dots"><i></i><i></i><i></i></div>
+      <p style="color:var(--text-muted);font-size:14px">你的錄音已保留，請不要關閉。</p>
+    </div>
+  </section>
+
+  <!-- ============ CONFIRM TRANSCRIPT ============ -->
+  <section class="screen" id="s-vconfirm">
+    <div class="appbar"><button class="back" onclick="go('s-vrec');restartRec()" aria-label="返回">←</button><span class="title">確認字幕</span></div>
+    <div class="scroll" style="padding:var(--s4)">
+      <div style="display:flex;align-items:center;gap:var(--s3);margin-bottom:var(--s3)">
+        <span style="font-size:14px;color:var(--text-muted)">語音 <span id="vc-dur">0:00</span></span>
+        <button class="chip" id="vc-play" onclick="playPreview(this)">▶ 播放</button>
+      </div>
+      <div class="field">
+        <textarea id="vc-tx" rows="5" aria-label="逐字稿" placeholder="想的話，可以在這裡補上一句文字"></textarea>
+        <p class="hint" id="vc-hint">字幕可以修改，不會改變原語音。</p>
+      </div>
+      <button class="btn btn-primary" onclick="submitVoice(this)"><span class="label">送出語音祝福</span><span class="spinner"></span></button>
+      <button class="btn-ghost" onclick="go('s-vcount');runCountdown()">重新錄</button>
+    </div>
+  </section>
+
+  <!-- ============ SUCCESS ============ -->
+  <section class="screen" id="s-success">
+    <div class="center-stage">
+      <div class="success-star">✦</div>
+      <h3 style="font-size:22px">你的祝福已經留下。</h3>
+      <p style="font-size:16px;color:var(--text-muted)">今天，有一個人被記念。</p>
+      <div class="worldproof success-globe" style="width:200px">
+        <div class="mini-globe" style="width:100px;height:100px">
+          <span class="dot" style="top:30%;left:60%"></span>
+          <span class="dot" style="top:55%;left:35%;animation-delay:1s"></span>
+          <span class="dot newlight" style="top:42%;left:48%;width:9px;height:9px"></span>
+        </div>
+        <div class="stats" style="font-size:12px">你的光點已加入世界</div>
+      </div>
+      <button class="btn btn-primary" onclick="startOnePrayer()"><span class="label">再為一人禱告</span></button>
+      <button class="btn-ghost" id="suc-replay" style="display:none" onclick="openPlayback('own')">🎧 重聽你剛剛的祝福</button>
+      <button class="btn-ghost" onclick="toast('POC：開啟系統分享')">分享 Start Pray</button>
+    </div>
+  </section>
+
+  <!-- ============ SHARE NEED ============ -->
+  <section class="screen" id="s-share">
+    <div class="appbar"><button class="back" onclick="go('s-home')" aria-label="返回">←</button><span class="title">分享代禱</span></div>
+    <div class="scroll" style="padding:var(--s4)">
+      <p style="font-size:15px;color:var(--text-muted);margin-bottom:var(--s4)">把此刻最需要被祝福的事寫下來。</p>
+      <div class="field">
+        <label for="sh-title">標題</label>
+        <input type="text" id="sh-title" maxlength="80" placeholder="例如：為母親的手術禱告" oninput="shValidate()">
+      </div>
+      <div class="field">
+        <label for="sh-body">內容 <span style="font-weight:400;color:var(--text-muted)">(可選)</span></label>
+        <textarea id="sh-body" rows="4" placeholder="想說多少都可以，短短一句也很好。"></textarea>
+      </div>
+      <div class="toggle-row">
+        <div><div class="lbl">匿名分享</div><div class="desc">不顯示你的身份</div></div>
+        <button class="switch" role="switch" aria-checked="true" aria-label="匿名分享" onclick="flip(this)"></button>
+      </div>
+      <div class="toggle-row">
+        <div><div class="lbl">私密代禱</div><div class="desc">公開頁只顯示匿名光點，不顯示內容</div></div>
+        <button class="switch" id="sh-private" role="switch" aria-checked="false" aria-label="私密代禱" onclick="flip(this)"></button>
+      </div>
+      <div class="field" style="margin-top:var(--s4)">
+        <label>分類</label>
+        <div class="chips" id="sh-cats">
+          <button class="chip on" onclick="pickChip(this)">健康</button>
+          <button class="chip" onclick="pickChip(this)">家庭</button>
+          <button class="chip" onclick="pickChip(this)">工作</button>
+          <button class="chip" onclick="pickChip(this)">個人</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>大致位置 <span style="font-weight:400;color:var(--text-muted)">(可略過)</span></label>
+        <input type="text" placeholder="例如：台灣" >
+        <p class="hint">只會使用大致位置，不會記錄精確地點。</p>
+      </div>
+      <div class="field">
+        <label>附件（可選）</label>
+        <div class="chips">
+          <button class="chip" onclick="toast('POC：僅接受站內上傳 /uploads/…')">＋ 圖片</button>
+          <button class="chip" onclick="toast('POC：語音需要上傳')">＋ 語音</button>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="sh-submit" disabled onclick="go('s-preview');buildPreview()"><span class="label">送出代禱</span></button>
+      <p class="hint" style="text-align:center;margin-top:var(--s2)">填寫標題就可以送出</p>
+    </div>
+    <nav class="bottomnav" data-nav></nav>
+  </section>
+
+  <!-- ============ PRIVACY PREVIEW ============ -->
+  <section class="screen" id="s-preview">
+    <div class="appbar"><button class="back" onclick="go('s-share')" aria-label="返回">←</button><span class="title">送出前確認</span></div>
+    <div class="scroll" style="padding:var(--s4)">
+      <div class="priv-box priv-show" id="pv-show">
+        <b style="color:var(--success)">公開後會顯示</b>
+        標題、分類、匿名名稱、大致位置
+      </div>
+      <div class="priv-box priv-hide">
+        <b style="color:var(--danger)">不會顯示</b>
+        真實身份、精確位置、登入資料
+      </div>
+      <p id="pv-private-note" style="display:none;font-size:14px;color:var(--text-muted);line-height:24px;margin-bottom:var(--s4)">
+        你開啟了<b>私密代禱</b>：公開頁只會出現一個匿名光點，標題與內容都不會顯示。
+      </p>
+      <button class="btn btn-primary" onclick="submitShare(this)"><span class="label">確認送出</span><span class="spinner"></span></button>
+    </div>
+  </section>
+
+  <!-- ============ SHARE SUCCESS ============ -->
+  <section class="screen" id="s-share-done">
+    <div class="center-stage">
+      <div class="success-star">🕊</div>
+      <h3 style="font-size:22px">你的需要已被接住。</h3>
+      <p style="font-size:15px;color:var(--text-muted);line-height:26px">它已放上禱告牆，<br>有人為你禱告時你可以回來看。</p>
+      <div class="card" style="width:100%;text-align:left">
+        <b style="font-size:14px">保留這個管理連結</b>
+        <p style="font-size:13px;margin-top:6px;word-break:break-all;color:var(--primary)">startpray.online/my/k7f…q2</p>
+        <p class="hint">匿名分享不需要帳號；建立帳號可以更方便管理。</p>
+      </div>
+      <button class="btn btn-primary" onclick="go('s-home')"><span class="label">回到今天</span></button>
+      <button class="btn-ghost" onclick="toast('POC：進入註冊流程')">建立帳號以便管理</button>
+    </div>
+  </section>
+
+  <!-- ============ PRAYER WALL ============ -->
+  <section class="screen" id="s-wall">
+    <div class="appbar"><span class="brand">禱告牆</span></div>
+    <div class="scroll" style="padding:var(--s4)">
+      <button class="btn btn-primary" onclick="startOnePrayer()"><span class="label">為一人禱告</span></button>
+      <div class="field" style="margin-top:var(--s4)">
+        <input type="text" id="wall-q" placeholder="搜尋代禱主題" oninput="renderWall()" aria-label="搜尋">
+      </div>
+      <div class="chips" id="wall-cats" style="margin-bottom:var(--s4)">
+        <button class="chip on" onclick="wallCat(this,'')">全部</button>
+        <button class="chip" onclick="wallCat(this,'健康')">健康</button>
+        <button class="chip" onclick="wallCat(this,'家庭')">家庭</button>
+        <button class="chip" onclick="wallCat(this,'工作')">工作</button>
+      </div>
+      <div id="wall-list"></div>
+    </div>
+    <nav class="bottomnav" data-nav></nav>
+  </section>
+
+  <!-- ============ PRAYER DETAIL ============ -->
+  <section class="screen" id="s-detail">
+    <div class="appbar"><button class="back" onclick="go('s-wall')" aria-label="返回">←</button><span class="title">代禱卡</span><button class="back" style="margin:0" onclick="toast('已回報，謝謝你幫忙守護這裡')" aria-label="檢舉">⚑</button></div>
+    <div class="scroll" style="padding:var(--s4)">
+      <div class="tagline" id="dt-tags"></div>
+      <h3 style="font-size:20px;line-height:30px;margin:var(--s2) 0" id="dt-title"></h3>
+      <p style="color:var(--text-muted);font-size:15px;line-height:26px" id="dt-body"></p>
+      <button class="btn btn-primary" style="margin:var(--s4) 0" onclick="go('s-choice')"><span class="label">留下祝福</span></button>
+      <div class="section" style="padding:var(--s2) 0">
+        <h2>語音祝福</h2>
+        <div class="mini-player" onclick="openPlayback()">
+          <div class="row1"><span>匿名</span><span>·</span><span>0:12</span><span style="margin-left:auto">▶ 播放</span></div>
+          <div class="snip">「願主賜你力量，陪你走過這段治療…」</div>
+        </div>
+      </div>
+      <div class="section" style="padding:var(--s4) 0 0">
+        <h2>文字祝福</h2>
+        <div class="card"><p style="color:var(--text)">願你今天有平安。 <span class="tag" style="margin-left:6px">匿名</span></p></div>
+        <div class="card"><p style="color:var(--text)">為你禱告，不要怕。 <span class="tag" style="margin-left:6px">匿名</span></p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PLAYBACK / LYRICS ============ -->
+  <section class="screen" id="s-playback">
+    <div class="player-full">
+      <div class="appbar">
+        <button class="back" onclick="closePB()" aria-label="收合">↓</button>
+        <span class="title">語音祝福</span>
+        <button class="back" style="margin:0;font-size:14px;width:auto;padding:0 10px" onclick="cycleSpeed(this)">1x</button>
+      </div>
+      <div class="wave dark" id="pb-wave" style="margin-top:var(--s4)" aria-hidden="true">
+        <i style="animation-delay:0s"></i><i style="animation-delay:.15s"></i><i style="animation-delay:.3s"></i><i style="animation-delay:.08s"></i><i style="animation-delay:.22s"></i><i style="animation-delay:.02s"></i><i style="animation-delay:.28s"></i><i style="animation-delay:.12s"></i>
+      </div>
+      <div class="lyrics" id="pb-lyrics" aria-live="polite"></div>
+      <div class="player-ctl">
+        <div class="progress" id="pb-prog" onclick="seek(event)"><div class="fill" id="pb-fill"></div></div>
+        <div class="ptimes"><span id="pb-cur">0:00</span><span id="pb-dur">0:12</span></div>
+        <div class="pbtns">
+          <button class="btn btn-secondary" id="pb-toggle" onclick="togglePlay()">暫停</button>
+          <button class="btn btn-primary" onclick="stopPlayback();startOnePrayer()"><span class="label">下一篇代禱</span></button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ WORLD ============ -->
+  <section class="screen" id="s-world">
+    <div class="appbar"><span class="brand">世界正在一起禱告</span></div>
+    <div class="scroll" style="padding:var(--s4)">
+      <div class="worldproof" style="padding:var(--s5)">
+        <div class="mini-globe" style="width:180px;height:180px">
+          <span class="dot" style="top:20%;left:66%"></span>
+          <span class="dot" style="top:45%;left:28%;animation-delay:.6s"></span>
+          <span class="dot" style="top:62%;left:58%;animation-delay:1.2s"></span>
+          <span class="dot" style="top:33%;left:45%;animation-delay:1.8s"></span>
+          <span class="dot" style="top:72%;left:38%;animation-delay:2.4s"></span>
+          <span class="dot" style="top:52%;left:72%;animation-delay:3s"></span>
+        </div>
+        <div class="stats">今天新增 12 個祝福光點</div>
+      </div>
+      <div class="section" style="padding:var(--s4) 0">
+        <h2>最近的光點</h2>
+        <div class="card"><div class="tagline"><span class="tag">台灣</span><span class="tag">健康</span></div><p style="margin-top:8px;color:var(--text)">一份匿名代禱正在被守望</p></div>
+        <div class="card"><div class="tagline"><span class="tag">日本</span><span class="tag">家庭</span></div><p style="margin-top:8px;color:var(--text)">有人剛留下一段語音祝福</p></div>
+        <div class="card"><div class="tagline"><span class="tag">私密</span></div><p style="margin-top:8px;color:var(--text-muted)">一份私密代禱正在被守望（不顯示內容）</p></div>
+      </div>
+      <button class="btn btn-primary" onclick="startOnePrayer()"><span class="label">為一人禱告</span></button>
+      <p class="hint" style="text-align:center;margin:var(--s3) 0">地圖只顯示匿名的大致光點，永遠不會顯示私密內容。</p>
+    </div>
+    <nav class="bottomnav" data-nav></nav>
+  </section>
+
+  <!-- ============ ME ============ -->
+  <section class="screen" id="s-me">
+    <div class="appbar"><span class="brand">我</span></div>
+    <div class="scroll" style="padding:var(--s5) var(--s4)">
+      <div class="card" style="text-align:center;padding:var(--s5)">
+        <div style="font-size:36px;margin-bottom:var(--s2)">🤍</div>
+        <h3 style="font-size:18px">你現在是匿名使用</h3>
+        <p style="font-size:14px;margin:var(--s2) 0 var(--s4)">不需要帳號也可以禱告與分享。<br>建立帳號可以管理你的代禱卡、查看收到的祝福。</p>
+        <button class="btn btn-secondary" onclick="toast('POC：進入登入 / 註冊')">登入或建立帳號</button>
+        <button class="btn-ghost" onclick="startOnePrayer()">先繼續匿名禱告</button>
+      </div>
+      <div class="section" style="padding:var(--s4) 0">
+        <h2>安心使用</h2>
+        <div class="steps">
+          <div class="step"><span class="n">🔒</span>匿名是預設，不會公開你的身份</div>
+          <div class="step"><span class="n">🛡</span>私密代禱只會顯示匿名光點</div>
+          <div class="step"><span class="n">⚑</span>每則內容旁都有檢舉入口</div>
+        </div>
+      </div>
+    </div>
+    <nav class="bottomnav" data-nav></nav>
+  </section>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <!-- screen map -->
+  <div class="screenmap" id="screenmap">
+    <h2>畫面清單（審閱用）<button class="jump" style="float:right;width:auto" onclick="toggleMap(false)">✕ 關閉</button></h2>
+    <div class="grp">主要分頁</div>
+    <button class="jump" onclick="jump('s-home')">Home / Today</button>
+    <button class="jump" onclick="jump('s-wall')">禱告牆</button>
+    <button class="jump" onclick="jump('s-share')">分享代禱</button>
+    <button class="jump" onclick="jump('s-world')">世界</button>
+    <button class="jump" onclick="jump('s-me')">我</button>
+    <div class="grp">禱告流程</div>
+    <button class="jump" onclick="jump('s-one')">一人禱告（出卡）</button>
+    <button class="jump" onclick="jump('s-choice')">回應方式選擇</button>
+    <button class="jump" onclick="jump('s-text')">文字禱告</button>
+    <button class="jump" onclick="jump('s-success')">成功頁</button>
+    <div class="grp">語音流程</div>
+    <button class="jump" onclick="jump('s-vperm')">麥克風權限</button>
+    <button class="jump" onclick="jump('s-vdenied')">權限被拒</button>
+    <button class="jump" onclick="toggleMap(false);askMic()">倒數＋錄音（真實麥克風）</button>
+    <button class="jump" onclick="jump('s-vproc')">處理中</button>
+    <button class="jump" onclick="jump('s-vconfirm')">確認字幕</button>
+    <div class="grp">分享流程</div>
+    <button class="jump" onclick="jump('s-preview');buildPreview()">隱私預覽</button>
+    <button class="jump" onclick="jump('s-share-done')">分享成功</button>
+    <div class="grp">播放</div>
+    <button class="jump" onclick="jump('s-detail')">代禱卡詳情</button>
+    <button class="jump" onclick="openPlayback()">全螢幕同步字幕播放</button>
+  </div>
+</div>
+
+<script>
+/* ================= Mock data ================= */
+const CARDS=[
+ {cat:'健康',title:'為張弟兄的治療過程禱告',body:'他正在面對一段辛苦的療程，家人也需要力量。一句短短的祝福，就能讓他知道自己沒有被忘記。',forWho:'為張弟兄',n:'0 則祝福'},
+ {cat:'家庭',title:'為家人的關係恢復禱告',body:'一段長久的誤會讓家裡變得安靜。願這個家重新有溫度。',forWho:'為這個家庭',n:'3 則祝福'},
+ {cat:'工作',title:'為工作焦慮禱告',body:'最近的變動讓人喘不過氣，希望能有平靜和清晰的方向。',forWho:'為這位朋友',n:'12 則祝福'},
+ {cat:'健康',title:'為母親的手術禱告',body:'下週要進行手術，全家都很緊張。求平安順利。',forWho:'為這位母親',n:'1 則祝福'},
+ {isPrivate:true,cat:'私密'},
+];
+const LYRICS=[
+ {s:0,  e:3,  t:'願主賜你力量'},
+ {s:3,  e:6.2,t:'陪你走過這段治療'},
+ {s:6.2,e:9,  t:'你不是一個人'},
+ {s:9,  e:12, t:'今天也被記念'},
+];
+const PB_DUR=12;
+let cardIdx=0, timers=[];
+
+/* ================= Router ================= */
+function go(id){
+  clearTimers();
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('[data-nav]').forEach(paintNav);
+}
+function jump(id){toggleMap(false);go(id);}
+function clearTimers(){timers.forEach(t=>clearInterval(t));timers=[];}
+function T(fn,ms,once){const t=once?setTimeout(()=>{fn()},ms):setInterval(fn,ms);timers.push(t);return t;}
+
+/* bottom nav */
+const NAV=[['s-home','⌂','今天'],['s-wall','🙏','禱告'],['s-share','＋','分享'],['s-world','◍','世界'],['s-me','●','我']];
+function paintNav(nav){
+  const cur=nav.closest('.screen').id;
+  nav.innerHTML=NAV.map(([id,ico,lbl])=>
+    `<button class="${id===cur?'on':''}" onclick="go('${id}')"><span class="ico">${ico}</span>${lbl}</button>`).join('');
+}
+document.querySelectorAll('[data-nav]').forEach(paintNav);
+
+/* ================= Toast ================= */
+let toastT;
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2400);
+}
+
+/* ================= One prayer ================= */
+function startOnePrayer(){
+  go('s-one');
+  /* skeleton loading per PRD §14 */
+  const el=document.getElementById('one-card');
+  ['one-title','one-body'].forEach(i=>document.getElementById(i).classList.add('skeleton'));
+  T(()=>{fillCard();},600,true);
+}
+function fillCard(){
+  const pub=CARDS.filter(c=>!c.isPrivate);
+  const c=pub[cardIdx%pub.length];
+  document.getElementById('one-cat').textContent=c.cat;
+  document.getElementById('one-title').textContent=c.title;
+  document.getElementById('one-body').textContent=c.body;
+  document.getElementById('choice-title').textContent=c.title;
+  document.getElementById('text-for').textContent=c.forWho;
+  ['one-title','one-body'].forEach(i=>document.getElementById(i).classList.remove('skeleton'));
+}
+function nextCard(){cardIdx++;startOnePrayer();}
+function openCard(i,from){cardIdx=i;fillCard();buildDetail();go('s-detail');}
+
+/* ================= Toggles / chips ================= */
+function flip(sw){sw.setAttribute('aria-checked',sw.getAttribute('aria-checked')!=='true');}
+function pickChip(ch){ch.parentElement.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));ch.classList.add('on');}
+
+/* ================= Text prayer ================= */
+function textCount(){
+  const v=document.getElementById('text-input').value;
+  document.getElementById('text-n').textContent=v.length;
+  document.getElementById('text-submit').disabled=v.trim().length<2;
+  document.getElementById('text-hint').textContent=v.trim().length<2?'寫下至少 2 個字就可以送出':'';
+}
+function submitText(btn){
+  btn.classList.add('loading');
+  T(()=>{btn.classList.remove('loading');document.getElementById('text-input').value='';textCount();cardIdx++;
+    document.getElementById('suc-replay').style.display='none';go('s-success');},900,true);
+}
+
+/* ================= Voice flow (REAL, zero-cost) =================
+   MediaRecorder = 錄音（瀏覽器內建）
+   Web Speech API = 免費語音辨識，逐句時間戳（瀏覽器內建）
+   都不可用時 → 純錄音＋手動補字幕 → 都失敗 → 導向文字禱告 */
+const REC_MAX=60, REC_MIN=3;
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+let recSec=0,recStartMs=0,mediaStream=null,mediaRecorder=null,chunks=[],rafId=null;
+let audioCtx=null,recog=null,segStart=0;
+let rec={url:null,duration:0,transcript:'',segments:[]};
+
+async function askMic(){
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){go('s-vdenied');return;}
+  try{
+    mediaStream=await navigator.mediaDevices.getUserMedia({audio:true});
+    go('s-vcount');runCountdown();
+  }catch(e){go('s-vdenied');}
+}
+function runCountdown(){
+  let n=3;const el=document.getElementById('countnum');el.textContent=n;
+  T(()=>{n--;if(n>0){el.textContent=n;}else{go('s-vrec');startRec();}},1000);
+}
+function startRec(){
+  recSec=0;chunks=[];rec={url:null,duration:0,transcript:'',segments:[]};
+  recStartMs=performance.now();segStart=0;
+  const tx=document.getElementById('live-tx');
+  tx.innerHTML='<span class="pending">'+(SR?'開始說話，字幕會出現在這裡…':'此瀏覽器不支援即時字幕，錄完可以自己補上')+'</span>';
+  paintRecTime();
+  try{mediaRecorder=new MediaRecorder(mediaStream);}
+  catch(e){toast('這個瀏覽器無法錄音，改用文字禱告');go('s-text');return;}
+  mediaRecorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
+  mediaRecorder.onstop=()=>{
+    const blob=new Blob(chunks,{type:mediaRecorder.mimeType||'audio/webm'});
+    if(rec.url)URL.revokeObjectURL(rec.url);
+    rec.url=URL.createObjectURL(blob);
+  };
+  mediaRecorder.start();
+  startWave();startRecog();
+  T(()=>{recSec++;paintRecTime();
+    if(recSec>=REC_MAX){toast('已達 60 秒上限，已自動保存錄音');finishRec(true);}},1000);
+}
+function startWave(){ /* Web Audio AnalyserNode：真實音訊反應波形，免費 */
+  const bars=[...document.querySelectorAll('#rec-wave i')];
+  const waveEl=document.getElementById('rec-wave');
+  try{
+    audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();
+    const src=audioCtx.createMediaStreamSource(mediaStream);
+    const analyser=audioCtx.createAnalyser();analyser.fftSize=64;src.connect(analyser);
+    const data=new Uint8Array(analyser.frequencyBinCount);
+    waveEl.classList.add('live');
+    (function loop(){
+      analyser.getByteFrequencyData(data);
+      bars.forEach((b,i)=>{b.style.height=Math.max(10,(data[i+2]||0)/255*56)+'px';});
+      rafId=requestAnimationFrame(loop);
+    })();
+  }catch(e){waveEl.classList.remove('live');} /* 失敗就用 CSS 環境波形 */
+}
+function startRecog(){ /* 免費辨識 + 逐句時間戳（PRD §28 transcriptJson 格式） */
+  if(!SR)return;
+  recog=new SR();recog.lang='zh-TW';recog.continuous=true;recog.interimResults=true;
+  const tx=document.getElementById('live-tx');
+  recog.onresult=ev=>{
+    let interim='';
+    const now=(performance.now()-recStartMs)/1000;
+    for(let i=ev.resultIndex;i<ev.results.length;i++){
+      const r=ev.results[i];
+      if(r.isFinal){
+        const t=r[0].transcript.trim();
+        if(t){rec.segments.push({s:+segStart.toFixed(1),e:+now.toFixed(1),t});segStart=now;}
+      }else interim+=r[0].transcript;
+    }
+    const shown=rec.segments.map(s=>s.t).join('，')+(interim?('，'+interim):'');
+    if(shown)tx.textContent=shown;
+  };
+  recog.onerror=()=>{}; /* 辨識失敗不影響錄音，走 fallback */
+  try{recog.start();}catch(e){}
+}
+function stopAll(){
+  if(rafId){cancelAnimationFrame(rafId);rafId=null;}
+  document.getElementById('rec-wave').classList.remove('live');
+  if(recog){try{recog.stop();}catch(e){}recog=null;}
+}
+function stopRecorder(){try{if(mediaRecorder&&mediaRecorder.state!=='inactive')mediaRecorder.stop();}catch(e){}}
+function releaseMic(){if(mediaStream){mediaStream.getTracks().forEach(t=>t.stop());mediaStream=null;}}
+function finishRec(force){
+  if(!force&&recSec<REC_MIN){toast('再多說一句祝福就可以送出');return;}
+  rec.duration=recSec;
+  stopAll();stopRecorder();
+  go('s-vproc');
+  T(()=>{ /* 給最後一句辨識與 onstop 一點時間 */
+    rec.transcript=rec.segments.map(s=>s.t).join('，');
+    document.getElementById('vc-dur').textContent=fmt(rec.duration);
+    document.getElementById('vc-tx').value=rec.transcript;
+    document.getElementById('vc-hint').textContent=rec.transcript
+      ?'字幕可以修改，不會改變原語音。'
+      :'沒有取得即時字幕；可以自己補一句，或直接送出純語音。';
+    go('s-vconfirm');
+  },1200,true);
+}
+function restartRec(){stopAll();stopRecorder();go('s-vcount');runCountdown();}
+function cancelRec(to){stopAll();stopRecorder();releaseMic();go(to);}
+let pvAudio=null;
+function playPreview(btn){
+  if(!rec.url){toast('沒有可播放的錄音');return;}
+  if(pvAudio&&!pvAudio.paused){pvAudio.pause();btn.textContent='▶ 播放';return;}
+  pvAudio=new Audio(rec.url);btn.textContent='⏸ 暫停';
+  pvAudio.onended=()=>{btn.textContent='▶ 播放';};
+  pvAudio.play();
+}
+function submitVoice(btn){
+  const edited=document.getElementById('vc-tx').value.trim();
+  if(edited!==rec.transcript){ /* 使用者改過字幕 → 逐句平均分配時間戳（免費 fallback 同步） */
+    const lines=edited?edited.split(/[，。,.!?！？\n]+/).filter(Boolean):[];
+    rec.segments=lines.map((t,i)=>({s:+(i*rec.duration/lines.length).toFixed(1),e:+((i+1)*rec.duration/lines.length).toFixed(1),t}));
+    rec.transcript=edited;
+  }
+  if(pvAudio)pvAudio.pause();
+  btn.classList.add('loading');
+  T(()=>{btn.classList.remove('loading');cardIdx++;releaseMic();
+    document.getElementById('suc-replay').style.display=rec.url?'block':'none';
+    go('s-success');},900,true);
+}
+function fmt(s){return Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0');}
+function paintRecTime(){
+  document.getElementById('rec-timer').textContent=fmt(recSec);
+  document.getElementById('rec-left').textContent=REC_MAX-recSec;
+}
+
+/* ================= Share flow ================= */
+function shValidate(){
+  document.getElementById('sh-submit').disabled=document.getElementById('sh-title').value.trim().length===0;
+}
+function buildPreview(){
+  const priv=document.getElementById('sh-private').getAttribute('aria-checked')==='true';
+  document.getElementById('pv-private-note').style.display=priv?'block':'none';
+  document.getElementById('pv-show').style.opacity=priv?.45:1;
+}
+function submitShare(btn){
+  btn.classList.add('loading');
+  T(()=>{btn.classList.remove('loading');go('s-share-done');},900,true);
+}
+
+/* ================= Wall ================= */
+let wallC='';
+function wallCat(ch,c){pickChip(ch);wallC=c;renderWall();}
+function renderWall(){
+  const q=(document.getElementById('wall-q').value||'').trim();
+  const list=document.getElementById('wall-list');
+  const rows=CARDS.map((c,i)=>({c,i})).filter(({c})=>{
+    if(c.isPrivate) return !wallC&&!q;             /* private card: placeholder only, never searchable */
+    if(wallC&&c.cat!==wallC) return false;
+    if(q&&!(c.title+c.body).includes(q)) return false;
+    return true;
+  });
+  if(!rows.length){
+    list.innerHTML=`<div class="card" style="text-align:center;padding:var(--s5)">
+      <p style="margin-bottom:var(--s3)">找不到相符的代禱。</p>
+      <button class="btn btn-secondary" onclick="startOnePrayer()">看一份需要代禱的卡片</button></div>`;
+    return;
+  }
+  list.innerHTML=rows.map(({c,i})=>{
+    if(c.isPrivate) return `<div class="card" style="background:var(--surface-muted)">
+      <div class="tagline"><span class="tag">私密</span><span class="tag">匿名</span></div>
+      <p style="margin-top:8px;color:var(--text-muted)">一份私密代禱正在被守望（不顯示內容）</p></div>`;
+    return `<div class="card">
+      <div class="tagline"><span class="tag">匿名</span><span class="tag">${c.cat}</span><span>${c.n}</span></div>
+      <h3>${c.title}</h3>
+      <button class="btn btn-secondary" style="margin-top:12px" onclick="openCard(${i})">為他禱告</button></div>`;
+  }).join('');
+}
+function buildDetail(){
+  const c=CARDS.filter(x=>!x.isPrivate)[cardIdx%4];
+  document.getElementById('dt-tags').innerHTML=`<span class="tag">匿名</span><span class="tag">${c.cat}</span><span class="tag">大致位置</span>`;
+  document.getElementById('dt-title').textContent=c.title;
+  document.getElementById('dt-body').textContent=c.body;
+}
+
+/* ================= Playback (mock 資料 + 真實錄音回放) ================= */
+let pbCur=0,pbSpeed=1,pbPlaying=false,pbOwn=false,pbAudio=null,pbDur=PB_DUR,pbSegs=LYRICS,pbFrom='s-detail';
+function openPlayback(mode){
+  pbOwn=(mode==='own'&&!!rec.url);
+  pbSegs=pbOwn
+    ?(rec.segments.length?rec.segments:[{s:0,e:rec.duration||1,t:rec.transcript||'（純語音，沒有字幕）'}])
+    :LYRICS;
+  pbDur=pbOwn?(rec.duration||1):PB_DUR;
+  pbFrom=document.querySelector('.screen.active')?.id||'s-detail';
+  go('s-playback');
+  document.getElementById('pb-lyrics').innerHTML=pbSegs.map((l,i)=>`<div class="line" data-i="${i}">${esc(l.t)}</div>`).join('');
+  pbCur=0;pbPlaying=true;
+  document.getElementById('pb-toggle').textContent='暫停';
+  document.getElementById('pb-wave').classList.remove('paused');
+  if(pbOwn){
+    pbAudio=new Audio(rec.url);pbAudio.playbackRate=pbSpeed;
+    pbAudio.onended=()=>{pbCur=pbDur;endPB();};
+    pbAudio.play();
+  }
+  paintPB();
+  T(()=>{
+    if(!pbPlaying)return;
+    if(pbOwn){pbCur=Math.min(pbAudio.currentTime,pbDur);}
+    else{pbCur+=0.25*pbSpeed;if(pbCur>=pbDur){pbCur=pbDur;endPB();}}
+    paintPB();
+  },250);
+}
+function endPB(){
+  pbPlaying=false;
+  document.getElementById('pb-toggle').textContent='重播';
+  document.getElementById('pb-wave').classList.add('paused');
+  paintPB();
+}
+function paintPB(){
+  document.getElementById('pb-fill').style.width=(pbCur/pbDur*100)+'%';
+  document.getElementById('pb-cur').textContent=fmt(pbCur);
+  document.getElementById('pb-dur').textContent=fmt(pbDur);
+  document.querySelectorAll('#pb-lyrics .line').forEach((el,i)=>{
+    const l=pbSegs[i];
+    el.classList.toggle('now',pbCur>=l.s&&pbCur<l.e);
+    el.classList.toggle('past',pbCur>=l.e);
+  });
+}
+function togglePlay(){
+  if(pbCur>=pbDur){pbCur=0;pbPlaying=true;if(pbOwn){pbAudio.currentTime=0;pbAudio.play();}}
+  else{pbPlaying=!pbPlaying;if(pbOwn){pbPlaying?pbAudio.play():pbAudio.pause();}}
+  document.getElementById('pb-toggle').textContent=pbPlaying?'暫停':'播放';
+  document.getElementById('pb-wave').classList.toggle('paused',!pbPlaying);
+}
+function seek(ev){
+  const r=ev.currentTarget.getBoundingClientRect();
+  pbCur=Math.max(0,Math.min(pbDur,(ev.clientX-r.left)/r.width*pbDur));
+  if(pbOwn&&pbAudio)pbAudio.currentTime=pbCur;
+  paintPB();
+}
+function cycleSpeed(btn){
+  const sp=[0.75,1,1.25,1.5];
+  pbSpeed=sp[(sp.indexOf(pbSpeed)+1)%sp.length];
+  if(pbOwn&&pbAudio)pbAudio.playbackRate=pbSpeed;
+  btn.textContent=pbSpeed+'x';
+}
+function stopPlayback(){pbPlaying=false;if(pbAudio)pbAudio.pause();}
+function closePB(){stopPlayback();go(pbFrom);}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+/* ================= Screen map ================= */
+function toggleMap(open){document.getElementById('screenmap').classList.toggle('open',open);}
+
+/* init */
+renderWall();
+go('s-home');
+</script>
+</body>
+</html>

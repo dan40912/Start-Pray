@@ -43,10 +43,10 @@ export default function ForgotPasswordPage() {
   return (
     <>
       <SiteHeader activePath="/login" />
-      <main>
+      <main className="auth-page auth-page--compact">
         <div className="auth-wrapper">
           <div className="auth-grid">
-            <section className="auth-card">
+            <section className="auth-card auth-card--compact">
               <div>
                 <h1>忘記密碼</h1>
                 <p>輸入註冊信箱，我們會寄送重設密碼連結。</p>
@@ -92,8 +92,7 @@ export default function ForgotPasswordPage() {
 
                 <button
                   type="submit"
-                  className="btn btn-primary"
-                  style={{ width: "100%", justifyContent: "center" }}
+                  className="btn btn-primary auth-submit"
                   disabled={status.state === "loading"}
                 >
                   {status.state === "loading" ? "送出中…" : "寄送重設連結"}

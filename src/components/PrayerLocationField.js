@@ -7,6 +7,7 @@ import {
   findCountryFocus,
   getCountrySuggestions,
 } from "@/lib/countryFocus";
+import { GlobalPrayerRoomEmbed } from "@/components/GlobalPrayerRoom";
 
 const TEXT = {
   approximateLocation: "\u5927\u81f4\u4f4d\u7f6e",
@@ -146,6 +147,7 @@ export default function PrayerLocationField({ disabled = false, onChange, value 
   const frameRef = useRef(null);
   const selectedCountryRef = useRef(initialCountry);
   const onChangeRef = useRef(onChange);
+  const globeRef = useRef(null);
 
   const mapView = useMemo(() => buildMapTiles(point, zoom), [point, zoom]);
   const countrySuggestions = useMemo(
@@ -173,7 +175,23 @@ export default function PrayerLocationField({ disabled = false, onChange, value 
 
   useEffect(() => {
     onChangeRef.current(toLocationPayload(point, selectedCountryRef.current));
+    globeRef.current?.focusLocation?.({ lat: point.lat, lng: point.lng, globeHeight: 2200000 });
   }, [point]);
+
+  const selectedPrayer = useMemo(
+    () => ({
+      id: "create-location-preview",
+      title: "目前選擇的位置",
+      description: "建立代禱時使用的大致位置",
+      locationCity: selectedLocationLabel || APPROXIMATE_LOCATION_LABEL,
+      locationCountry: selectedCountryRef.current?.label || "",
+      locationLat: point.lat,
+      locationLng: point.lng,
+      createdAt: new Date(0).toISOString(),
+      isPrivate: false,
+    }),
+    [point, selectedLocationLabel]
+  );
 
   useEffect(
     () => () => {
@@ -349,7 +367,29 @@ export default function PrayerLocationField({ disabled = false, onChange, value 
         ))}
       </div>
 
-      <div className="prayer-location__map-wrap">
+      <div className="prayer-location__globe-wrap">
+        <GlobalPrayerRoomEmbed
+          prayers={[selectedPrayer]}
+          title="選擇全球大致位置"
+          isHero
+          fullscreen
+          heroMap
+          focusPrayerId={selectedPrayer.id}
+          externalGlobeRef={globeRef}
+          onHeroLocationSelect={(nextPoint) => {
+            if (!disabled) updatePoint(nextPoint);
+          }}
+        />
+        <div className="prayer-location__globe-zoom" aria-label={TEXT.zoomControls}>
+          <button type="button" onClick={() => globeRef.current?.zoomIn?.()} disabled={disabled}>+</button>
+          <button type="button" onClick={() => globeRef.current?.zoomOut?.()} disabled={disabled}>−</button>
+        </div>
+        <p>拖曳旋轉地球，點一下地球表面即可選擇大致位置。</p>
+      </div>
+
+      <details className="prayer-location__precision-map">
+        <summary>使用平面地圖精細調整</summary>
+        <div className="prayer-location__map-wrap">
         <button
           type="button"
           className={`prayer-location__map${isDragging ? " is-dragging" : ""}`}
@@ -406,7 +446,8 @@ export default function PrayerLocationField({ disabled = false, onChange, value 
             -
           </button>
         </div>
-      </div>
+        </div>
+      </details>
 
       <p className="prayer-location__helper">
         {selectedLocationLabel
@@ -529,6 +570,79 @@ export default function PrayerLocationField({ disabled = false, onChange, value 
 
         .prayer-location__map-wrap {
           position: relative;
+        }
+
+        .prayer-location__globe-wrap {
+          position: relative;
+          min-height: clamp(360px, 52vw, 520px);
+          overflow: hidden;
+          border: 1px solid rgba(56, 189, 248, 0.3);
+          border-radius: 18px;
+          background: #020817;
+        }
+
+        .prayer-location__globe-wrap :global(.global-room-embed--hero) {
+          position: absolute;
+          inset: 0;
+        }
+
+        .prayer-location__globe-wrap :global(.global-room__canvas) {
+          inset: 0 !important;
+          width: 100% !important;
+          height: 100% !important;
+          min-height: 100% !important;
+          border-radius: 0 !important;
+        }
+
+        .prayer-location__globe-wrap > p {
+          position: absolute;
+          z-index: 5;
+          left: 0.75rem;
+          bottom: 0.65rem;
+          margin: 0;
+          border-radius: 999px;
+          padding: 0.38rem 0.68rem;
+          color: rgba(240, 249, 255, 0.92);
+          background: rgba(2, 6, 23, 0.7);
+          font-size: 0.78rem;
+          pointer-events: none;
+        }
+
+        .prayer-location__globe-zoom {
+          position: absolute;
+          z-index: 6;
+          top: 0.65rem;
+          right: 0.65rem;
+          display: grid;
+          gap: 0.35rem;
+        }
+
+        .prayer-location__globe-zoom button {
+          width: 42px;
+          min-height: 42px;
+          border: 1px solid rgba(186, 230, 253, 0.32);
+          border-radius: 50%;
+          color: #f8fafc;
+          background: rgba(2, 6, 23, 0.76);
+          font-size: 1.15rem;
+          cursor: pointer;
+        }
+
+        .prayer-location__precision-map {
+          border: 1px solid rgba(125, 211, 252, 0.14);
+          border-radius: 14px;
+          padding: 0.65rem;
+          color: rgba(226, 232, 240, 0.88);
+          background: rgba(2, 6, 23, 0.22);
+        }
+
+        .prayer-location__precision-map summary {
+          cursor: pointer;
+          font-weight: 800;
+        }
+
+        .prayer-location__precision-map[open] summary {
+          margin-bottom: 0.65rem;
         }
 
         .prayer-location__map {

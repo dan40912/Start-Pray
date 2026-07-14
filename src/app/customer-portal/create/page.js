@@ -643,8 +643,11 @@ export default function CustomerPortalCreatePage() {
                   ) : null}
                 </div>
 
-                <div className="customer-create__preview">
-                  <img src={previewImage} alt={form.alt || form.title || "禱告卡預覽"} />
+                <div className="customer-create__preview-block">
+                  <span>封面預覽</span>
+                  <div className="customer-create__preview">
+                    <img src={previewImage} alt={form.alt || form.title || "禱告卡預覽"} />
+                  </div>
                 </div>
               </div>
             </details>
@@ -810,6 +813,17 @@ export default function CustomerPortalCreatePage() {
           place-items: center;
           background:
             linear-gradient(180deg, rgba(15, 23, 42, 0.58), rgba(2, 6, 23, 0.42));
+        }
+
+        .customer-create__preview-block {
+          display: grid;
+          gap: 0.45rem;
+        }
+
+        .customer-create__preview-block > span {
+          color: rgba(226, 232, 240, 0.95);
+          font-size: 0.84rem;
+          font-weight: 800;
         }
 
         .customer-create__privacy-card {

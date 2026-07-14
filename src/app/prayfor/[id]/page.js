@@ -5,6 +5,7 @@ import Comments from "@/components/Comments";
 import DetailAudioQueueBootstrap from "@/components/prayer-detail/DetailAudioQueueBootstrap";
 import PrayerRequestActions from "@/components/PrayerRequestActions";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
+import { parseCardMeta } from "@/lib/card-meta";
 import {
   readAdjacentHomeCards,
   readHomeCard,
@@ -112,6 +113,9 @@ export default async function PrayerDetailPage({ params, locale: localeProp = "z
     : updatedDisplay;
 
   const detailImage = card.image || "/img/categories/popular.jpg";
+  const galleryImages = parseCardMeta(card.meta).gallery
+    .filter((url) => typeof url === "string" && url.startsWith("/uploads/"))
+    .slice(0, 3);
   const plainDescription = sanitizeHtmlToPlainText(card.description || "");
   const descriptionHtml = sanitizeHtmlForDisplay(card.description || `<p>${text.emptyDescription}</p>`);
   const responseCount = Number(card?._count?.responses || 0);
@@ -228,6 +232,26 @@ export default async function PrayerDetailPage({ params, locale: localeProp = "z
           <article className="pdv2-content-card">
             <div className="pdv2-content-body" dangerouslySetInnerHTML={{ __html: descriptionHtml }} />
           </article>
+
+          {galleryImages.length ? (
+            <section className="pdv2-gallery-card" aria-labelledby="prayer-gallery-title">
+              <div className="pdv2-gallery-card__head">
+                <h2 id="prayer-gallery-title">代禱相簿</h2>
+                <span>{galleryImages.length} 張圖片</span>
+              </div>
+              <div className="pdv2-gallery-card__grid">
+                {galleryImages.map((url, index) => (
+                  <figure key={url} className="pdv2-gallery-card__item">
+                    <img
+                      src={url}
+                      alt={`${card.title} 相簿圖片 ${index + 1}`}
+                      loading="lazy"
+                    />
+                  </figure>
+                ))}
+              </div>
+            </section>
+          ) : null}
 
           <section className="pdv2-comments-card" id="responses-panel">
             <div className="pdv2-comments-head">

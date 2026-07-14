@@ -5,6 +5,9 @@ import { ensureActiveCustomer } from "@/lib/customer-access";
 import { requireSessionUser } from "@/lib/server-session";
 import { REPORT_REASON_SET } from "@/constants/reportReasons";
 
+// PRD-005:檢舉數達此門檻,卡片自動轉待審並標記作者
+const REPORT_REVIEW_THRESHOLD = 3;
+
 function normalizeRemarks(value) {
   if (!value) return "";
   return String(value).trim().slice(0, 600);
@@ -34,7 +37,15 @@ export async function POST(request) {
 
     const card = await prisma.homePrayerCard.findUnique({
       where: { id: cardId },
-      select: { id: true, isBlocked: true, isPrivate: true, reportCount: true, title: true },
+      select: {
+        id: true,
+        isBlocked: true,
+        isPrivate: true,
+        reportCount: true,
+        title: true,
+        ownerId: true,
+        needsReview: true,
+      },
     });
 
     if (!card || card.isBlocked || card.isPrivate) {
@@ -75,6 +86,35 @@ export async function POST(request) {
           where: { id: cardId },
           data: { reportCount: { increment: 1 } },
         });
+
+        // PRD-005:檢舉達門檻 → 卡片轉待審,作者 flaggedCount +1
+        const newReportCount = (card.reportCount ?? 0) + 1;
+        if (newReportCount >= REPORT_REVIEW_THRESHOLD && !card.needsReview) {
+          await tx.homePrayerCard.update({
+            where: { id: cardId },
+            data: { needsReview: true },
+          });
+          if (card.ownerId) {
+            await tx.user.update({
+              where: { id: card.ownerId },
+              data: { flaggedCount: { increment: 1 } },
+            });
+          }
+          await tx.adminLog.create({
+            data: {
+              category: "ACTION",
+              level: "WARNING",
+              message: `禱告事項 ${cardId} 檢舉達門檻，已自動轉為待審`,
+              action: "prayfor/auto-review",
+              actorId: reporterId,
+              actorEmail: user.email ?? null,
+              targetType: "home_prayer_card",
+              targetId: String(cardId),
+              requestPath: "/api/prayfor/report",
+              metadata: { newReportCount, threshold: REPORT_REVIEW_THRESHOLD },
+            },
+          });
+        }
       }
 
       await tx.adminLog.create({

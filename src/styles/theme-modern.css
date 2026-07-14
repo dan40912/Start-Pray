@@ -817,17 +817,20 @@ button {
 
 .home-proof__promise {
   display: grid;
-  gap: 0.85rem;
-  border: 1px solid rgba(253, 230, 138, 0.14);
-  border-radius: 18px;
-  padding: clamp(1rem, 2vw, 1.25rem);
-  background: rgba(255, 247, 237, 0.045);
+  gap: 1rem;
+  border: 1px solid rgba(125, 211, 252, 0.2);
+  border-radius: 20px;
+  padding: clamp(1.1rem, 2.4vw, 1.5rem);
+  background:
+    linear-gradient(135deg, rgba(30, 64, 175, 0.13), rgba(15, 23, 42, 0.5));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
 }
 
 .home-proof__promise h3 {
   margin: 0;
-  color: #fffaf0;
-  font-size: 1.2rem;
+  color: #f8fafc;
+  font-size: clamp(1.15rem, 2vw, 1.32rem);
+  letter-spacing: -0.01em;
 }
 
 .home-proof__promise-grid {
@@ -839,21 +842,23 @@ button {
 .home-proof__promise-grid article {
   display: grid;
   gap: 0.35rem;
-  border: 1px solid rgba(148, 163, 184, 0.14);
-  border-radius: 14px;
-  padding: 0.9rem;
-  background: rgba(15, 23, 42, 0.38);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 15px;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.58);
 }
 
 .home-proof__promise-grid strong {
-  color: #e0f2fe;
+  color: #dbeafe;
+  font-size: 1rem;
+  line-height: 1.4;
 }
 
 .home-proof__promise-grid p {
   margin: 0;
-  color: rgba(226, 232, 240, 0.74);
-  font-size: 0.9rem;
-  line-height: 1.62;
+  color: rgba(226, 232, 240, 0.8);
+  font-size: 0.91rem;
+  line-height: 1.68;
 }
 
 .home-final-cta {
@@ -1332,7 +1337,22 @@ button {
 .home-card__actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: flex-end;
   gap: var(--space-sm);
+  /* This sits in .home-card__content's flexible middle grid row (the same
+     row that used to be empty spacer space on cards without a play button),
+     so anchor it to the bottom instead of stretching/centering. */
+  height: 100%;
+  /* Sit above .home-card__cover-link (z-index: 3), which otherwise covers the
+     whole card and would swallow every click before it reaches this button. */
+  position: relative;
+  z-index: 4;
+}
+
+.home-card__category--voice {
+  border-color: rgba(96, 165, 250, 0.45);
+  background: rgba(37, 99, 235, 0.28);
+  color: #dbeafe;
 }
 
 .home-card__action {
@@ -1345,6 +1365,7 @@ button {
   border: 1px solid rgba(255, 255, 255, 0.15);
   background: rgba(255, 255, 255, 0.08);
   color: var(--text-main);
+  cursor: pointer;
   transition: background var(--transition-fast), transform var(--transition-fast);
 }
 
@@ -2048,6 +2069,34 @@ img.track-avatar {
   border-bottom: 1px solid rgba(148, 163, 184, 0.28);
   background: rgba(24, 34, 50, 0.88);
   transform: rotate(45deg);
+}
+
+.companion-overlay__caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: -0.15em;
+  background: rgba(241, 245, 249, 0.9);
+  animation: companion-caret-blink 0.9s steps(1) infinite;
+}
+
+@keyframes companion-caret-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .companion-overlay__caret {
+    animation: none;
+    opacity: 0.6;
+  }
 }
 
 .companion-overlay__card.is-voice .companion-overlay__text {

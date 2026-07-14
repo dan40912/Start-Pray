@@ -5,6 +5,9 @@ import { logAdminAction, logSystemError } from "@/lib/logger";
 import prisma from "@/lib/prisma";
 import { resolveServerAudioUrl } from "@/lib/server-audio";
 
+const VOICE_MODERATION_STATUSES = new Set(["PENDING", "APPROVED", "REJECTED", "NOT_APPLICABLE"]);
+const RESPONSE_MODERATION_STATUSES = new Set(["PENDING", "APPROVED", "REJECTED"]);
+
 function normalizeMessage(value) {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -27,6 +30,9 @@ function buildResponseDetail(response) {
     isAnonymous: response.isAnonymous,
     isBlocked: response.isBlocked,
     reportCount: response.reportCount,
+    moderationStatus: response.moderationStatus,
+    responseSource: response.responderId ? (response.voiceUrl ? "MEMBER_VOICE" : "MEMBER_TEXT") : "GUEST_TEXT",
+    voiceModerationStatus: response.voiceModerationStatus,
     createdAt: response.createdAt,
     responder: response.responder,
     homeCard: response.homeCard,
@@ -110,6 +116,26 @@ export async function PATCH(request, { params }) {
 
     if (typeof body?.isBlocked === "boolean") {
       updateData.isBlocked = body.isBlocked;
+    }
+
+    if (
+      typeof body?.moderationStatus === "string" &&
+      RESPONSE_MODERATION_STATUSES.has(body.moderationStatus)
+    ) {
+      updateData.moderationStatus = body.moderationStatus;
+      if (body.moderationStatus === "APPROVED") updateData.reportCount = 0;
+    }
+
+    if (
+      typeof body?.voiceModerationStatus === "string" &&
+      VOICE_MODERATION_STATUSES.has(body.voiceModerationStatus)
+    ) {
+      updateData.voiceModerationStatus = body.voiceModerationStatus;
+      // Approving a response back out of review clears the report count that put it
+      // there, so it doesn't stay flagged in the reports column after being cleared.
+      if (body.voiceModerationStatus === "APPROVED") {
+        updateData.reportCount = 0;
+      }
     }
 
     const updated = await prisma.prayerResponse.update({

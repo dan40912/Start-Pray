@@ -1,9 +1,27 @@
 ﻿import { NextResponse } from "next/server";
 
 import { ensureActiveCustomer } from "@/lib/customer-access";
+import { isDefaultThumbnailUrl } from "@/lib/default-thumbnail";
 import prisma from "@/lib/prisma";
 import { sanitizePrayerLocationPayload } from "@/lib/prayerLocations";
 import { requireSessionUser } from "@/lib/server-session";
+
+const GALLERY_PREFIX = "gallery::";
+const UPLOADS_PREFIX = "/uploads/";
+const STATIC_IMAGE_PREFIX = "/img/";
+
+function isInternalUploadUrl(value) {
+  return typeof value === "string" && value.startsWith(UPLOADS_PREFIX);
+}
+
+function isSupportedInternalImageUrl(value) {
+  if (!value) return true;
+  return (
+    isInternalUploadUrl(value) ||
+    isDefaultThumbnailUrl(value) ||
+    (typeof value === "string" && value.startsWith(STATIC_IMAGE_PREFIX))
+  );
+}
 
 function normalizeTags(value) {
   if (Array.isArray(value)) {
@@ -21,14 +39,26 @@ function normalizeTags(value) {
 }
 
 function normalizeMeta(value) {
+  const normalizeEntry = (entry) => {
+    const normalized = String(entry).trim();
+    if (!normalized) return "";
+    if (!normalized.startsWith(GALLERY_PREFIX)) return normalized;
+
+    const url = normalized.slice(GALLERY_PREFIX.length).trim();
+    if (!isInternalUploadUrl(url)) {
+      throw new Error("Gallery images must use uploaded files.");
+    }
+    return `${GALLERY_PREFIX}${url}`;
+  };
+
   if (Array.isArray(value)) {
-    return value.map((line) => String(line).trim()).filter(Boolean);
+    return value.map(normalizeEntry).filter(Boolean);
   }
 
   if (typeof value === "string") {
     return value
       .split("\n")
-      .map((line) => line.trim())
+      .map(normalizeEntry)
       .filter(Boolean);
   }
 
@@ -58,6 +88,10 @@ function sanitizeUpdatePayload(body) {
 
   if (!categoryId) {
     throw new Error("Category is required.");
+  }
+
+  if (!isSupportedInternalImageUrl(image)) {
+    throw new Error("Image must be uploaded from this site or use the default thumbnail.");
   }
 
   return {
@@ -239,7 +273,9 @@ export async function PUT(request, { params }) {
     }
 
     const message = error instanceof Error ? error.message : "Failed to update prayer card.";
-    const status = /required|invalid|provide|title|category/i.test(message) ? 400 : 500;
+    const status = /required|invalid|provide|title|category|image|gallery|uploaded|thumbnail/i.test(message)
+      ? 400
+      : 500;
 
     console.error("PUT /api/customer/cards/[id] error:", error);
     return NextResponse.json({ message }, { status });

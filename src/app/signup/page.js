@@ -21,7 +21,7 @@ export default function SignupPage({ locale: localeProp = "zh-TW" } = {}) {
     <>
       <SiteHeader activePath={localizePath("/signup", locale)} locale={locale} />
 
-      <main>
+      <main className="auth-page auth-page--signup">
         <div className="auth-wrapper">
           <div className="auth-grid">
             {/* Hero Section */}

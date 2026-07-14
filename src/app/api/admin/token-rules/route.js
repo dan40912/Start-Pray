@@ -47,6 +47,12 @@ export async function PATCH(request) {
       rewardTokens: payload.rewardTokens,
       observationDays: payload.observationDays,
       allowedReports: payload.allowedReports,
+      // PRD-002 去風險化參數
+      rewardsEnabled: payload.rewardsEnabled,
+      dailyRewardCap: payload.dailyRewardCap,
+      perCardRewardCap: payload.perCardRewardCap,
+      minMessageLength: payload.minMessageLength,
+      requireVoiceApproved: payload.requireVoiceApproved,
       updatedBy: role,
     });
 
@@ -64,6 +70,11 @@ export async function PATCH(request) {
         rewardTokens: normalized.rewardTokens,
         observationDays: normalized.observationDays,
         allowedReports: normalized.allowedReports,
+        rewardsEnabled: normalized.rewardsEnabled,
+        dailyRewardCap: normalized.dailyRewardCap,
+        perCardRewardCap: normalized.perCardRewardCap,
+        minMessageLength: normalized.minMessageLength,
+        requireVoiceApproved: normalized.requireVoiceApproved,
       },
       requestPath: request.url,
     });

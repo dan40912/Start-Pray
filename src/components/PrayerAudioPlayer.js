@@ -47,7 +47,9 @@ export default function PrayerAudioPlayer({ requestId, initialTrack = null, pray
           ? "匿名代禱者"
           : item.responder?.name || item.responder?.username || FALLBACK_SPEAKER,
         message: item.message?.trim() || "",
-        avatarUrl: item.responder?.avatarUrl?.trim() || "",
+        avatarUrl: item.isAnonymous
+          ? item.anonymousAvatarUrl?.trim() || ""
+          : item.responder?.avatarUrl?.trim() || "",
         responderId: item.responderId ?? null,
         requestTitle: prayerTitle || item.card?.title || "社群禱告",
       }));

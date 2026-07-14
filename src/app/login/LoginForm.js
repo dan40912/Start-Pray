@@ -72,6 +72,7 @@ export default function LoginForm({ locale: localeProp = "zh-TW" }) {
           placeholder="you@example.com"
           value={form.email}
           onChange={updateField("email")}
+          autoComplete="email"
           required
         />
       </div>
@@ -88,6 +89,7 @@ export default function LoginForm({ locale: localeProp = "zh-TW" }) {
           onChange={updateField("password")}
           onKeyUp={(event) => setCapsLockOn(Boolean(event.getModifierState?.("CapsLock")))}
           onBlur={() => setCapsLockOn(false)}
+          autoComplete="current-password"
           required
         />
         <button
@@ -106,17 +108,17 @@ export default function LoginForm({ locale: localeProp = "zh-TW" }) {
         </span>
         {capsLockOn ? <span className="form-helper form-helper--warning">{text.capsLock}</span> : null}
       </div>
-      <div className="auth-status-slot" aria-live="polite">
-        {status.message ? (
+      {status.message ? (
+        <div className="auth-status-slot" aria-live="polite">
           <div
             role="alert"
             className={`auth-status auth-status--${status.state === "success" ? "success" : "error"}`}
           >
             {status.message}
           </div>
-        ) : null}
-      </div>
-      <button type="submit" className="btn btn-primary" style={{ width: "100%", justifyContent: "center" }} disabled={status.state === "loading"}>
+        </div>
+      ) : null}
+      <button type="submit" className="btn btn-primary auth-submit" disabled={status.state === "loading"}>
         {status.state === "loading" ? text.loading : text.submit}
       </button>
     </form>
