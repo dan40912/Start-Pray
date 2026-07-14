@@ -97,7 +97,7 @@ npx prisma migrate deploy
 - `HomePrayerCard`：目前前台「禱告牆」的主要代禱卡模型。包含標題、描述、封面、分類、標籤、meta、擁有者、回應、檢舉與全球禱告室位置欄位。
 - `HomePrayerCategory`：禱告分類。
 - `PrayerResponse`：代禱回應。可掛到 `HomePrayerCard` 或舊模型 `PrayerRequest`。
-- `PrayerRequest`：較早期的代禱請求模型，目前仍存在，但新前台主流程多使用 `HomePrayerCard`。
+- `PrayerRequest`：較早期的代禱請求模型，**已凍結(PRD-006)**，標記為 `@deprecated`，僅供歷史資料相容，不應再建立新資料。遷移腳本：`scripts/migrate-prayerrequest-to-homecard.js`(支援 `--dry-run`)。實際 drop 表/欄位待資料驗證無誤後另開 PRD 處理。新前台主流程一律使用 `HomePrayerCard`。
 - `TokenTransaction`：Start Pray 代幣 / 點數交易紀錄。
 - `TokenRewardRule`：代禱回應獎勵規則。
 - `AdminAccount`：後台管理員帳號。

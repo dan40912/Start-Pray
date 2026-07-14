@@ -6,7 +6,9 @@ import { buildDefaultThumbnailUrl, isDefaultThumbnailUrl } from "@/lib/default-t
 import { createHomeCard, readHomeCards } from "@/lib/homeCards";
 import { sanitizePrayerLocationPayload } from "@/lib/prayerLocations";
 import prisma from "@/lib/prisma";
+import { checkRateLimit } from "@/lib/rateLimit";
 import { readSessionUser } from "@/lib/server-session";
+import { isLowTrust } from "@/lib/trustScore";
 
 const GALLERY_PREFIX = "gallery::";
 const UPLOADS_PREFIX = "/uploads/";
@@ -222,11 +224,20 @@ function filterFallbackCards(options = {}) {
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
+  const mode = searchParams.get("mode");
 
   const options = {};
 
-  const sort = searchParams.get("sort");
-  if (sort) options.sort = sort;
+  // PRD-004:對外只接受 latest / popular / needsPrayer,非白名單一律 fallback latest
+  const SORT_ALIASES = {
+    latest: "recent",
+    recent: "recent",
+    popular: "responses",
+    responses: "responses",
+    needsPrayer: "needsPrayer",
+  };
+  const rawSort = searchParams.get("sort");
+  if (rawSort) options.sort = SORT_ALIASES[rawSort] || "recent";
 
   const limit = searchParams.get("limit");
   if (limit) options.limit = limit;
@@ -248,14 +259,38 @@ export async function GET(request) {
   if (!options.sort && categorySlug === "popular") {
     options.sort = "responses";
   }
+  if (mode === "one") {
+    options.sort = "needsPrayer";
+    options.limit = 1;
+  }
 
   try {
-    const cards = await readHomeCards(options);
-    return NextResponse.json(cards, { status: 200 });
+    // PRD-004:附帶公開回應數與最後回應時間;回應數排除已封鎖回應
+    const include = {
+      category: true,
+      owner: { select: { name: true, username: true, avatarUrl: true } },
+      _count: { select: { responses: { where: { isBlocked: false, moderationStatus: "APPROVED" } } } },
+      responses: {
+        where: { isBlocked: false, moderationStatus: "APPROVED" },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { createdAt: true },
+      },
+    };
+    const cards = await readHomeCards({ ...options, include });
+    const mapped = cards.map((card) => {
+      const { responses, ...rest } = card;
+      return {
+        ...rest,
+        responseCount: card._count?.responses ?? 0,
+        lastRespondedAt: responses?.[0]?.createdAt ?? null,
+      };
+    });
+    return NextResponse.json(mode === "one" ? mapped[0] || null : mapped, { status: 200 });
   } catch (error) {
     console.error("[GET /api/home-cards] database error", error);
     const fallback = filterFallbackCards(options);
-    return NextResponse.json(fallback, {
+    return NextResponse.json(mode === "one" ? fallback[0] || null : fallback, {
       status: 200,
       headers: { "x-fallback-data": "static-home-cards" },
     });
@@ -278,8 +313,32 @@ export async function POST(request) {
     if (!user) {
       assertGuestCanCreate(request, body, payload);
     }
+
+    // PRD-005:登入會員的頻率限制與信任分數判斷
+    let needsReview = false;
+    if (user?.id) {
+      const profile = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { createdAt: true, flaggedCount: true, isBlocked: true },
+      });
+      const lowTrust = isLowTrust(profile || {});
+      const limit = await checkRateLimit({
+        userId: user.id,
+        action: "createCard",
+        multiplier: lowTrust ? 0.5 : 1,
+      });
+      if (!limit.allowed) {
+        return NextResponse.json(
+          { message: "短時間內建立的代禱卡較多，請稍後再試。" },
+          { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } }
+        );
+      }
+      needsReview = lowTrust;
+    }
+
     let created = await createHomeCard({
       ...payload,
+      needsReview,
       ownerId: user?.id ?? null,
     });
     const expectedDetailsHref = `/prayfor/${created.id}`;

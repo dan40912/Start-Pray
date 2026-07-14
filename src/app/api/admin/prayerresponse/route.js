@@ -11,7 +11,7 @@ export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search") || "";
-    const status = searchParams.get("status"); // all | active | blocked
+    const status = searchParams.get("status"); // all | active | blocked | pending
     const sort = searchParams.get("sort") || "createdAt"; // createdAt | reportCount
     const order = searchParams.get("order") || "desc";
     const page = parseInt(searchParams.get("page") || "1", 10);
@@ -33,6 +33,8 @@ export async function GET(request) {
           ? { isBlocked: true }
           : status === "active"
           ? { isBlocked: false }
+          : status === "pending"
+          ? { moderationStatus: "PENDING" }
           : {},
       ],
     };
@@ -52,10 +54,16 @@ export async function GET(request) {
     ]);
 
     return NextResponse.json({
-      data: responses.map((response) => ({
-        ...response,
-        voiceUrl: resolveServerAudioUrl(response.voiceUrl),
-      })),
+      data: responses.map((response) => {
+        const safeResponse = { ...response };
+        delete safeResponse.guestSessionHash;
+        delete safeResponse.ipHash;
+        return {
+          ...safeResponse,
+          responseSource: response.responderId ? (response.voiceUrl ? "MEMBER_VOICE" : "MEMBER_TEXT") : "GUEST_TEXT",
+          voiceUrl: resolveServerAudioUrl(response.voiceUrl),
+        };
+      }),
       pagination: {
         total,
         page,

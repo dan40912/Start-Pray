@@ -22,6 +22,7 @@
     "seed:admins": "node scripts/seed-admins.js",
     "seed:demo": "node scripts/seed-demo.js",
     "seed:prayers": "node scripts/seed-prayers.js",
+    "migrate:approve-responses": "node scripts/approve-existing-responses.js",
     "qa": "node scripts/qa-flow.mjs",
     "qa:full": "node scripts/qa-flow.mjs full",
     "i18n:check": "node scripts/check-i18n.cjs",

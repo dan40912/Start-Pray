@@ -233,6 +233,7 @@ export default function CustomerPortalPage() {
   const [profileSaving, setProfileSaving] = useState(false);
 
   const [profileForm, setProfileForm] = useState({
+    name: "",
     avatarUrl: "",
     bio: "",
     publicProfileEnabled: true,
@@ -549,6 +550,7 @@ export default function CustomerPortalPage() {
     setProfileStatus(null);
     const currentAvatar = profile?.avatarUrl?.trim() || defaultAvatar;
     setProfileForm({
+      name: profile?.name ?? authUser?.name ?? "",
       avatarUrl: currentAvatar,
       bio: profile?.bio ?? "",
       publicProfileEnabled: profile?.publicProfileEnabled ?? true,
@@ -755,6 +757,7 @@ export default function CustomerPortalPage() {
 
   const handleSaveProfile = async () => {
     const trimmedAvatar = (profileForm.avatarUrl || "").trim();
+    const trimmedName = (profileForm.name || "").trim();
     const trimmedBio = profileForm.bio.trim();
     const trimmedStoryYoutubeUrl = (profileForm.storyYoutubeUrl || "").trim();
     let nextStoryAudioUrl = (profileForm.storyAudioUrl || "").trim();
@@ -830,6 +833,7 @@ export default function CustomerPortalPage() {
       }
 
       const payload = {
+        name: trimmedName || null,
         avatarUrl: nextAvatarUrl || null,
         bio: trimmedBio || null,
         publicProfileEnabled: Boolean(profileForm.publicProfileEnabled),
@@ -853,6 +857,7 @@ export default function CustomerPortalPage() {
 
       setProfile(data);
       setProfileForm({
+        name: data.name ?? "",
         avatarUrl: savedAvatar,
         bio: data.bio ?? "",
         publicProfileEnabled: Boolean(data.publicProfileEnabled),
@@ -973,10 +978,14 @@ export default function CustomerPortalPage() {
     setCardAction({ id: card.id, type: "visibility" });
 
     try {
+      // This toggles the card's own "不公開" (private) flag, not the admin-only
+      // "isBlocked" moderation flag guarded above — those two used to be conflated
+      // here, which meant hiding your own card set isBlocked=true and permanently
+      // disabled this same button (the guard above would then always fire).
       const res = await fetch(`/api/customer/cards/${card.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isBlocked: !card.isBlocked }),
+        body: JSON.stringify({ isPrivate: !card.isPrivate }),
       });
 
       const data = await res.json().catch(() => null);
@@ -988,7 +997,7 @@ export default function CustomerPortalPage() {
       setCards((prev) => prev.map((item) => (item.id === data.id ? data : item)));
       setToast({
         type: "success",
-        message: data.isBlocked ? "祈禱卡已封存" : "祈禱卡已重新顯示",
+        message: data.isPrivate ? "祈禱卡已設為不公開" : "祈禱卡已重新公開",
       });
     } catch (error) {
       console.error("更新顯示狀態發生錯誤:", error);
@@ -1164,7 +1173,7 @@ export default function CustomerPortalPage() {
                       onClick={() => handleToggleVisibility(card)}
                       disabled={!canManage || isToggling}
                     >
-                      {isToggling ? "切換中..." : card.isBlocked ? "公開" : "隱藏"}
+                      {isToggling ? "切換中..." : card.isPrivate ? "公開" : "隱藏"}
                     </button>
                   </div>
                 </div>
@@ -1527,6 +1536,34 @@ export default function CustomerPortalPage() {
               <p>更新自我介紹與大頭貼，讓大家更了解你。</p>
 
             </header>
+
+
+
+            <label className="cp-modal__field">
+
+              <span>顯示名稱</span>
+
+              <input
+
+                type="text"
+
+                value={profileForm.name}
+
+                onChange={updateProfileField("name")}
+
+                placeholder="例如：小美、代禱夥伴"
+
+                disabled={profileSaving}
+
+              />
+
+              <small className="cp-helper">
+
+                這個名稱會顯示在你的代禱卡與公開見證頁。
+
+              </small>
+
+            </label>
 
 
 

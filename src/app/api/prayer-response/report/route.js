@@ -79,7 +79,12 @@ export async function POST(request) {
           where: { id: responseId },
           data: {
             reportCount: { increment: 1 },
-            ...(shouldBlock ? { isBlocked: true } : {}),
+            // Content policy (changed 2026-07-01): a report sends the response back to
+            // PENDING for re-review instead of leaving it silently visible or permanently
+            // hidden. If the card owner is the reporter, isBlocked still wins (harder gate).
+            ...(shouldBlock
+              ? { isBlocked: true }
+              : { moderationStatus: "PENDING" }),
           },
         });
       }

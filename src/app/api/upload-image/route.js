@@ -11,6 +11,7 @@ import {
   ensureMediaWriteDirectory,
 } from "@/lib/server-media-storage";
 import { requireSessionUser } from "@/lib/server-session";
+import { assertStorageWritable } from "@/lib/storage";
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 const MAX_DIMENSION = 1600;
@@ -69,6 +70,9 @@ export async function POST(request) {
         { status: 400 }
       );
     }
+
+    // PRD-009:依設定的 storage driver 判斷是否可寫(object driver 未設定時丟出可捕捉錯誤)
+    assertStorageWritable();
 
     const safeName = sanitizeFileStem(file.name);
     const filename = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}-${safeName}.webp`;

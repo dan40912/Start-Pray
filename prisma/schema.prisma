@@ -30,6 +30,10 @@ model User {
   sessionVersion       Int       @default(0)
   publicProfileEnabled Boolean   @default(true)
 
+  // PRD-005 匿名下的真實性與防濫用
+  trustScore   Int @default(50)
+  flaggedCount Int @default(0)
+
   walletBalance     Decimal            @default(0.00) @db.Decimal(10, 2)
   bscAddress        String?            @db.VarChar(191)
   isAddressVerified Boolean            @default(false)
@@ -48,6 +52,7 @@ model User {
   @@map("user")
 }
 
+/// @deprecated 由 HomePrayerCard 取代,僅供歷史資料相容,勿用於新流程。見 PRD-006。
 model PrayerRequest {
   id          String       @id @default(cuid())
   slug        String       @unique
@@ -66,18 +71,28 @@ model PrayerRequest {
 }
 
 model PrayerResponse {
-  id                String       @id @default(cuid())
+  id                String                   @id @default(cuid())
   message           String
   voiceUrl          String?
-  tokensAwarded     Decimal      @default(0) @db.Decimal(10, 2)
-  isSettled         Boolean      @default(false)
-  isAnonymous       Boolean      @default(false)
-  isBlocked         Boolean      @default(false)
-  reportCount       Int          @default(0)
-  rewardStatus      RewardStatus @default(PENDING)
+  tokensAwarded     Decimal                  @default(0) @db.Decimal(10, 2)
+  isSettled         Boolean                  @default(false)
+  isAnonymous       Boolean                  @default(false)
+  isBlocked         Boolean                  @default(false)
+  reportCount       Int                      @default(0)
+  moderationStatus  ResponseModerationStatus @default(APPROVED)
+  guestSessionHash  String?                  @db.VarChar(64)
+  ipHash            String?                  @db.VarChar(64)
+  rewardStatus      RewardStatus             @default(PENDING)
   rewardEligibleAt  DateTime?
   rewardEvaluatedAt DateTime?
-  createdAt         DateTime     @default(now())
+
+  // PRD-001 語音審核
+  voiceModerationStatus VoiceModerationStatus @default(NOT_APPLICABLE)
+  voiceModeratedAt      DateTime?
+  voiceModeratedBy      String?
+  voiceAutoFlags        String?               @db.Text
+
+  createdAt DateTime @default(now())
 
   prayerRequestId String?
   prayerRequest   PrayerRequest? @relation(fields: [prayerRequestId], references: [id])
@@ -90,6 +105,8 @@ model PrayerResponse {
   tokenTransactions TokenTransaction[]     @relation("PrayerResponseTransactions")
   reports           PrayerResponseReport[]
 
+  @@index([guestSessionHash, createdAt])
+  @@index([ipHash, createdAt])
   @@map("prayerresponse")
 }
 
@@ -172,12 +189,20 @@ model SiteSetting {
 }
 
 model TokenRewardRule {
-  id              Int      @id @default(1)
-  rewardTokens    Decimal  @default(10.00) @db.Decimal(10, 2)
-  observationDays Int      @default(3)
-  allowedReports  Int      @default(0)
-  updatedAt       DateTime @updatedAt
-  updatedBy       String?
+  id              Int     @id @default(1)
+  rewardTokens    Decimal @default(10.00) @db.Decimal(10, 2)
+  observationDays Int     @default(3)
+  allowedReports  Int     @default(0)
+
+  // PRD-002 代幣去風險化
+  rewardsEnabled       Boolean @default(true)
+  dailyRewardCap       Int     @default(3)
+  perCardRewardCap     Int     @default(1)
+  minMessageLength     Int     @default(15)
+  requireVoiceApproved Boolean @default(true)
+
+  updatedAt DateTime @updatedAt
+  updatedBy String?
 
   @@map("token_reward_rule")
 }
@@ -230,6 +255,9 @@ model HomePrayerCard {
   isSettled     Boolean  @default(false)
   settledAmount Decimal? @db.Decimal(10, 2)
 
+  // PRD-005:低信任使用者或檢舉達標的卡片進入待審,不立即公開
+  needsReview Boolean @default(false)
+
   @@index([categoryId])
   @@map("home_prayer_card")
 }
@@ -238,6 +266,19 @@ enum RewardStatus {
   PENDING
   BLOCKED
   REWARDED
+}
+
+enum VoiceModerationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  NOT_APPLICABLE
+}
+
+enum ResponseModerationStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 enum TransactionType {

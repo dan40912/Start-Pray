@@ -7,12 +7,21 @@ import AdminHintPanel from "@/components/admin/AdminHintPanel";
 import { useAdminFeedback } from "@/components/admin/useAdminFeedback";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 
+const MODERATION_STATUS_LABELS = {
+  PENDING: "待審核",
+  APPROVED: "已核准",
+  REJECTED: "已退回",
+  NOT_APPLICABLE: "無需審核",
+};
+
 function createEmptyForm() {
   return {
     message: "",
     voiceUrl: "",
     isAnonymous: false,
     isBlocked: false,
+    moderationStatus: "APPROVED",
+    voiceModerationStatus: "APPROVED",
   };
 }
 
@@ -22,6 +31,8 @@ function mapDetailToForm(detail) {
     voiceUrl: detail?.voiceUrl || "",
     isAnonymous: Boolean(detail?.isAnonymous),
     isBlocked: Boolean(detail?.isBlocked),
+    moderationStatus: detail?.moderationStatus || "APPROVED",
+    voiceModerationStatus: detail?.voiceModerationStatus || "APPROVED",
   };
 }
 
@@ -229,6 +240,54 @@ export default function AdminPrayerResponsePage() {
     [confirmAction, detail?.id, notifyError, notifySuccess],
   );
 
+  const handleModerationAction = useCallback(
+    async (id, nextStatus) => {
+      const isApprove = nextStatus === "APPROVED";
+      const shouldContinue = await confirmAction({
+        title: isApprove ? "確認核准回應" : "確認退回回應",
+        message: isApprove
+          ? "核准後前台會重新顯示此回應（文字與已審核通過的語音）。"
+          : "退回後前台不會顯示此回應，直到再次核准為止。",
+        confirmText: isApprove ? "核准" : "退回",
+        tone: isApprove ? "default" : "warning",
+      });
+
+      if (!shouldContinue) return;
+
+      try {
+        setActionId(id);
+        const res = await fetch(`/api/admin/prayerresponse/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: responses.find((item) => item.id === id)?.message || "",
+            moderationStatus: nextStatus,
+          }),
+        });
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.message || "更新審核狀態失敗");
+        }
+
+        const updated = await res.json();
+        setResponses((prev) => prev.map((item) => (item.id === updated.id ? { ...item, ...updated } : item)));
+        notifySuccess(isApprove ? "已核准回應" : "已退回回應");
+
+        if (detail?.id === updated.id) {
+          setDetail((prev) => ({ ...prev, ...updated }));
+          setForm((prev) => ({ ...prev, moderationStatus: updated.moderationStatus }));
+          setOriginalForm((prev) => ({ ...prev, moderationStatus: updated.moderationStatus }));
+        }
+      } catch (err) {
+        notifyError(err.message || "更新審核狀態失敗");
+      } finally {
+        setActionId(null);
+      }
+    },
+    [confirmAction, detail?.id, notifyError, notifySuccess, responses],
+  );
+
   const handleEditField = useCallback((key, value) => {
     setForm((prev) => ({
       ...prev,
@@ -249,6 +308,8 @@ export default function AdminPrayerResponsePage() {
       voiceUrl: form.voiceUrl,
       isAnonymous: Boolean(form.isAnonymous),
       isBlocked: Boolean(form.isBlocked),
+      moderationStatus: form.moderationStatus,
+      voiceModerationStatus: form.voiceModerationStatus,
     };
 
     try {
@@ -279,6 +340,7 @@ export default function AdminPrayerResponsePage() {
                 isAnonymous: updated.isAnonymous,
                 isBlocked: updated.isBlocked,
                 reportCount: updated.reportCount,
+                voiceModerationStatus: updated.voiceModerationStatus,
                 responder: updated.responder || item.responder,
                 homeCard: updated.homeCard || item.homeCard,
               }
@@ -356,6 +418,7 @@ export default function AdminPrayerResponsePage() {
               <option value="all">全部</option>
               <option value="active">啟用中</option>
               <option value="blocked">封鎖中</option>
+              <option value="pending">待審核</option>
             </select>
           </div>
         </header>
@@ -375,6 +438,7 @@ export default function AdminPrayerResponsePage() {
                   <th>內容</th>
                   <th>所屬禱告</th>
                   <th>狀態</th>
+                  <th>審核狀態</th>
                   <th>檢舉數</th>
                   <th>建立時間</th>
                   <th>操作</th>
@@ -383,7 +447,7 @@ export default function AdminPrayerResponsePage() {
               <tbody>
                 {responses.length === 0 ? (
                   <tr>
-                    <td colSpan={9}>目前沒有回應資料</td>
+                    <td colSpan={10}>目前沒有回應資料</td>
                   </tr>
                 ) : (
                   responses.map((resp) => (
@@ -403,7 +467,7 @@ export default function AdminPrayerResponsePage() {
                             {resp.responder?.name || "匿名"}
                           </button>
                         ) : (
-                          resp.responder?.name || "匿名"
+                          resp.responder?.name || "訪客文字"
                         )}
                       </td>
                       <td>{resp.responder?.email || "-"}</td>
@@ -416,16 +480,49 @@ export default function AdminPrayerResponsePage() {
                           <span className="status-badge status-badge--active">啟用中</span>
                         )}
                       </td>
+                      <td>
+                        <span
+                          className={`status-badge${
+                            resp.moderationStatus === "PENDING"
+                              ? " status-badge--blocked"
+                              : resp.moderationStatus === "REJECTED"
+                              ? " status-badge--blocked"
+                              : " status-badge--active"
+                          }`}
+                        >
+                          {MODERATION_STATUS_LABELS[resp.moderationStatus] || resp.moderationStatus}
+                        </span>
+                      </td>
                       <td>{resp.reportCount}</td>
                       <td>{new Date(resp.createdAt).toLocaleString()}</td>
                       <td>
-                        <button
-                          className="link-button"
-                          onClick={() => handleToggleBlock(resp.id, !resp.isBlocked)}
-                          disabled={actionId === resp.id}
-                        >
-                          {actionId === resp.id ? "處理中..." : resp.isBlocked ? "解除封鎖" : "封鎖"}
-                        </button>
+                        <div className="admin-table__action-group">
+                          <button
+                            className="link-button"
+                            onClick={() => handleToggleBlock(resp.id, !resp.isBlocked)}
+                            disabled={actionId === resp.id}
+                          >
+                            {actionId === resp.id ? "處理中..." : resp.isBlocked ? "解除封鎖" : "封鎖"}
+                          </button>
+                          {resp.moderationStatus === "PENDING" || resp.moderationStatus === "REJECTED" ? (
+                            <button
+                              className="link-button"
+                              onClick={() => handleModerationAction(resp.id, "APPROVED")}
+                              disabled={actionId === resp.id}
+                            >
+                              核准
+                            </button>
+                          ) : null}
+                          {resp.moderationStatus === "APPROVED" ? (
+                            <button
+                              className="link-button"
+                              onClick={() => handleModerationAction(resp.id, "REJECTED")}
+                              disabled={actionId === resp.id}
+                            >
+                              退回
+                            </button>
+                          ) : null}
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -501,6 +598,10 @@ export default function AdminPrayerResponsePage() {
                         ) : null}
                       </span>
                       <span>所屬禱告：{detail?.homeCard?.title || "未綁定"}</span>
+                      <span>
+                        審核狀態：
+                        {MODERATION_STATUS_LABELS[detail?.voiceModerationStatus] || detail?.voiceModerationStatus || "-"}
+                      </span>
                       <span>檢舉數：{detail?.reportCount ?? 0}</span>
                       <span>建立：{detail?.createdAt ? new Date(detail.createdAt).toLocaleString() : "-"}</span>
                     </div>
@@ -538,6 +639,18 @@ export default function AdminPrayerResponsePage() {
                         onChange={(event) => handleEditField("voiceUrl", event.target.value)}
                         placeholder="https://..."
                       />
+                    </label>
+
+                    <label className="admin-editor__field">
+                      <span>審核狀態</span>
+                      <select
+                        value={form.moderationStatus}
+                        onChange={(event) => handleEditField("moderationStatus", event.target.value)}
+                      >
+                        <option value="PENDING">待審核</option>
+                        <option value="APPROVED">已核准</option>
+                        <option value="REJECTED">已退回</option>
+                      </select>
                     </label>
                   </div>
 

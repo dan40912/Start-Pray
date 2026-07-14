@@ -11,7 +11,7 @@ const CARD_DEFAULT_INCLUDE = {
   },
   _count: {
     select: {
-      responses: true,
+      responses: { where: { isBlocked: false, moderationStatus: "APPROVED" } },
     },
   },
 };
@@ -28,6 +28,7 @@ function buildWhereClause({ categorySlug, categoryId, search }) {
   const where = {
     isBlocked: false,
     isPrivate: false,
+    needsReview: false, // PRD-005:待審卡片不出現在公開列表
   };
   const and = [];
 
@@ -61,7 +62,8 @@ function buildOrder(sort) {
     return [{ responses: { _count: "desc" } }, { createdAt: "desc" }];
   }
   if (sort === "needsPrayer") {
-    return [{ responses: { _count: "asc" } }, { createdAt: "desc" }];
+    // 回應數少的優先,同回應數時最久未建立(最舊)優先 → 最需要陪伴
+    return [{ responses: { _count: "asc" } }, { createdAt: "asc" }];
   }
   if (sort === "recent" || sort === "created") {
     return [{ createdAt: "desc" }];
@@ -95,7 +97,7 @@ export async function readHomeCard(id) {
     include: {
       category: true,
       owner: { select: { id: true, name: true, avatarUrl: true, bio: true } },
-      _count: { select: { responses: true } },
+      _count: { select: { responses: { where: { isBlocked: false, moderationStatus: "APPROVED" } } } },
     },
   });
 }
@@ -122,6 +124,7 @@ export async function createHomeCard(payload = {}) {
       locationLat: payload.locationLat ?? null,
       locationLng: payload.locationLng ?? null,
       isPrivate: Boolean(payload.isPrivate),
+      needsReview: Boolean(payload.needsReview),
       categoryId: Number(payload.categoryId),
       ownerId: cardOwnerId ?? null,
     },

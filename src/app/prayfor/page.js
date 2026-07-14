@@ -43,6 +43,15 @@ export default async function PrayforWallPage({ searchParams = {}, locale: local
       <SiteHeader activePath={localizePath("/prayfor", locale)} locale={locale} />
 
       <main>
+        {searchParams?.match === "empty" ? (
+          <div className="section__container">
+            <p className="cp-alert" role="status">
+              {locale === "en"
+                ? "There is no prayer available for automatic matching right now. Please choose another public prayer below."
+                : "目前沒有可配對的代禱，請看看下方其他公開代禱。"}
+            </p>
+          </div>
+        ) : null}
         <section>
           <HomePrayerExplorer
             initialCategories={categories}

@@ -6,7 +6,8 @@ import { findCountryFocus } from "@/lib/countryFocus";
 import { useAudio } from "@/context/AudioContext";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { PRAYER_RESPONSE_CREATED } from "@/lib/events";
-import { getDictionary, localizePath, normalizeLocale } from "@/lib/i18n";
+import { REPORT_REASONS } from "@/constants/reportReasons";
+import VoicePrayerOverlay from "@/components/VoicePrayerOverlay";
 
 const TAIPEI = {
   id: "__taipei",
@@ -22,18 +23,6 @@ const TAIPEI = {
   isDefaultFocus: true,
   prayers: [],
 };
-
-function getTaipeiDefaultCluster(locale = "zh-TW") {
-  if (normalizeLocale(locale) !== "en") return TAIPEI;
-
-  return {
-    ...TAIPEI,
-    cityLabel: "Taipei",
-    fullLabel: "Taipei, Taiwan",
-    locationCity: "Taipei",
-    locationCountry: "Taiwan",
-  };
-}
 
 const TAIWAN_VIEW = {
   lng: 120.95,
@@ -60,7 +49,6 @@ const FULL_GLOBE_MIN_HEIGHT = 220000;
 const FULL_GLOBE_MAX_HEIGHT = 22000000;
 const HERO_GLOBE_MIN_HEIGHT = 380000;
 const HERO_GLOBE_MAX_HEIGHT = 6500000;
-const NORTHERN_HEMISPHERE_MAX_HEIGHT = 18000000;
 const DETAIL_LABEL_HEIGHT = 3800000;
 const HOTSPOT_ONLY_HEIGHT = 9500000;
 
@@ -85,7 +73,11 @@ const CESIUM_VERSION = "1.132.0";
 const CESIUM_BASE_URL = `https://cdn.jsdelivr.net/npm/cesium@${CESIUM_VERSION}/Build/Cesium/`;
 const DEFAULT_TILE_URL =
   process.env.NEXT_PUBLIC_CESIUM_TILE_URL || "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+const EARTH_TEXTURE_URL = "/img/earth/earth-day-2048.webp";
+const COUNTRY_BOUNDARIES_URL = "/data/earth/country-boundaries.json";
+const COUNTRY_LABELS_URL = "/data/earth/country-labels.json";
 let cesiumLoaderPromise = null;
+let earthDataPromise = null;
 
 function addResourceHint(rel, href, options = {}) {
   if (
@@ -160,63 +152,6 @@ function loadCesium() {
   return cesiumLoaderPromise;
 }
 
-function scheduleGlobeLoad(element, callback, { timeout = 900, rootMargin = "320px" } = {}) {
-  if (typeof window === "undefined" || !element) {
-    return () => {};
-  }
-
-  let started = false;
-  let fallbackTimer = null;
-  let idleId = null;
-  let idleTimer = null;
-  let observer = null;
-
-  const clear = () => {
-    if (fallbackTimer) window.clearTimeout(fallbackTimer);
-    if (idleTimer) window.clearTimeout(idleTimer);
-    if (idleId && typeof window.cancelIdleCallback === "function") {
-      window.cancelIdleCallback(idleId);
-    }
-    observer?.disconnect();
-    fallbackTimer = null;
-    idleTimer = null;
-    idleId = null;
-    observer = null;
-  };
-
-  const run = () => {
-    if (started) return;
-    started = true;
-    clear();
-
-    if (typeof window.requestIdleCallback === "function") {
-      idleId = window.requestIdleCallback(callback, { timeout: Math.max(600, timeout) });
-      return;
-    }
-
-    window.requestAnimationFrame(() => {
-      idleTimer = window.setTimeout(callback, 80);
-    });
-  };
-
-  if ("IntersectionObserver" in window) {
-    observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((entry) => entry.isIntersecting || entry.intersectionRatio > 0)) {
-          run();
-        }
-      },
-      { rootMargin }
-    );
-    observer.observe(element);
-    fallbackTimer = window.setTimeout(run, timeout);
-  } else {
-    fallbackTimer = window.setTimeout(run, 40);
-  }
-
-  return clear;
-}
-
 function getClusterColor(Cesium, cluster) {
   const visibility = getClusterVisibility(cluster);
   if (cluster?.isDefaultFocus) return Cesium.Color.SKYBLUE;
@@ -243,65 +178,6 @@ function createCesiumImageryProvider(Cesium) {
   });
 }
 
-function drawLandPath(ctx, points, width, height) {
-  ctx.beginPath();
-  points.forEach(([x, y], index) => {
-    const px = x * width;
-    const py = y * height;
-    if (index === 0) ctx.moveTo(px, py);
-    else ctx.lineTo(px, py);
-  });
-  ctx.closePath();
-  ctx.fill();
-}
-
-function createProceduralEarthImageryProvider(Cesium) {
-  const canvas = document.createElement("canvas");
-  canvas.width = 2048;
-  canvas.height = 1024;
-  const ctx = canvas.getContext("2d");
-  const ocean = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-  ocean.addColorStop(0, "#0b3b63");
-  ocean.addColorStop(0.45, "#075985");
-  ocean.addColorStop(1, "#082f49");
-  ctx.fillStyle = ocean;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  ctx.fillStyle = "rgba(46, 125, 93, 0.9)";
-  [
-    [[0.07, 0.24], [0.16, 0.19], [0.24, 0.26], [0.22, 0.42], [0.15, 0.47], [0.08, 0.39]],
-    [[0.20, 0.47], [0.28, 0.52], [0.30, 0.68], [0.24, 0.84], [0.18, 0.70]],
-    [[0.43, 0.22], [0.58, 0.18], [0.70, 0.28], [0.67, 0.43], [0.54, 0.42], [0.43, 0.34]],
-    [[0.49, 0.42], [0.59, 0.41], [0.62, 0.58], [0.56, 0.78], [0.49, 0.62]],
-    [[0.62, 0.30], [0.76, 0.27], [0.86, 0.39], [0.82, 0.55], [0.70, 0.49]],
-    [[0.79, 0.66], [0.86, 0.69], [0.88, 0.78], [0.81, 0.82]],
-  ].forEach((shape) => drawLandPath(ctx, shape, canvas.width, canvas.height));
-
-  ctx.fillStyle = "rgba(167, 139, 250, 0.12)";
-  drawLandPath(ctx, [[0, 0.84], [1, 0.84], [1, 1], [0, 1]], canvas.width, canvas.height);
-
-  ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
-  ctx.lineWidth = 2;
-  for (let x = 0; x <= canvas.width; x += canvas.width / 12) {
-    ctx.beginPath();
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, canvas.height);
-    ctx.stroke();
-  }
-  for (let y = 0; y <= canvas.height; y += canvas.height / 8) {
-    ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(canvas.width, y);
-    ctx.stroke();
-  }
-
-  return new Cesium.SingleTileImageryProvider({
-    url: canvas.toDataURL("image/png"),
-    rectangle: Cesium.Rectangle.MAX_VALUE,
-    credit: "Start Pray procedural earth",
-  });
-}
-
 function latLngToVector3(THREE, lat, lng, radius) {
   const phi = (90 - Number(lat)) * (Math.PI / 180);
   const theta = (Number(lng) + 180) * (Math.PI / 180);
@@ -325,8 +201,15 @@ function createFallbackTexture(THREE, color = "#0b6d9c") {
   return texture;
 }
 
-function createEarthTexture(THREE) {
-  return createFallbackTexture(THREE, "#0b6d9c");
+async function loadEarthTexture(THREE) {
+  try {
+    const texture = await new THREE.TextureLoader().loadAsync(EARTH_TEXTURE_URL);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.anisotropy = 8;
+    return texture;
+  } catch {
+    return createFallbackTexture(THREE, "#0b6d9c");
+  }
 }
 
 function createCloudTexture(THREE) {
@@ -334,7 +217,69 @@ function createCloudTexture(THREE) {
 }
 
 function createGlowTexture(THREE) {
-  return createFallbackTexture(THREE, "#facc15");
+  const canvas = document.createElement("canvas");
+  canvas.width = 96;
+  canvas.height = 96;
+  const ctx = canvas.getContext("2d");
+  const gradient = ctx.createRadialGradient(48, 48, 2, 48, 48, 46);
+  gradient.addColorStop(0, "rgba(250, 204, 21, 0.95)");
+  gradient.addColorStop(0.22, "rgba(250, 204, 21, 0.46)");
+  gradient.addColorStop(0.58, "rgba(125, 211, 252, 0.18)");
+  gradient.addColorStop(1, "rgba(250, 204, 21, 0)");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+async function loadEarthData() {
+  if (earthDataPromise) return earthDataPromise;
+
+  earthDataPromise = Promise.all([
+    fetch(COUNTRY_BOUNDARIES_URL).then((response) => {
+      if (!response.ok) throw new Error("country boundaries unavailable");
+      return response.json();
+    }),
+    fetch(COUNTRY_LABELS_URL).then((response) => {
+      if (!response.ok) throw new Error("country labels unavailable");
+      return response.json();
+    }),
+  ])
+    .then(([boundaries, labels]) => ({
+      boundaries: Array.isArray(boundaries?.countries) ? boundaries.countries : [],
+      labels: Array.isArray(labels?.countries) ? labels.countries : [],
+    }))
+    .catch(() => ({ boundaries: [], labels: [] }));
+
+  return earthDataPromise;
+}
+
+function createCountryBoundaryGroup(THREE, countries, radius = 1.565) {
+  const positions = [];
+
+  countries.forEach((country) => {
+    country.lines?.forEach((line) => {
+      for (let index = 1; index < line.length; index += 1) {
+        const previous = line[index - 1];
+        const current = line[index];
+        if (Math.abs(Number(current?.[0]) - Number(previous?.[0])) > 35) continue;
+        const start = latLngToVector3(THREE, previous[1], previous[0], radius);
+        const end = latLngToVector3(THREE, current[1], current[0], radius);
+        positions.push(start.x, start.y, start.z, end.x, end.y, end.z);
+      }
+    });
+  });
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  const material = new THREE.LineBasicMaterial({
+    color: 0xdff7ff,
+    transparent: true,
+    opacity: 0.32,
+    depthWrite: false,
+  });
+  return new THREE.LineSegments(geometry, material);
 }
 
 function createClusterCanvas(_Cesium, color, count) {
@@ -426,7 +371,6 @@ function getClusterVisibility(cluster) {
 
 function getPrayerCategoryKey(prayer) {
   if (!prayer) return "personal";
-  if (prayer.isPrivate) return "personal";
   if (prayer.isUrgent) return "urgent";
   if (Number(prayer.audioCount || 0) > 0 || prayer.voiceHref) return "audio";
 
@@ -481,9 +425,6 @@ function isMajorHotspot(cluster) {
 
 function isPrayerUrgent(prayer) {
   if (!prayer) return false;
-  if (prayer.isPrivate) {
-    return Number(prayer.responseCount || 0) <= URGENT_RESPONSE_THRESHOLD;
-  }
   const text = `${prayer.title || ""} ${prayer.description || ""} ${
     prayer.category?.slug || prayer.category?.name || ""
   }`.toLowerCase();
@@ -783,14 +724,10 @@ const CesiumPrayerGlobe = forwardRef(function CesiumPrayerGlobe(
       }
     }
 
-    const cancelScheduledLoad = scheduleGlobeLoad(mountRef.current, initGlobe, {
-      timeout: heroMap ? 700 : 350,
-      rootMargin: heroMap ? "520px" : "240px",
-    });
+    initGlobe();
 
     return () => {
       disposed = true;
-      cancelScheduledLoad();
       cleanup();
     };
   }, [clusters, onAutoRotateChange, onReady, onSelectCluster, ref]);
@@ -937,13 +874,9 @@ const CesiumPrayerGlobe = forwardRef(function CesiumPrayerGlobe(
   );
 });
 
-export function GlobalPrayerRoomSkeleton({ hidden, label = "正在載入全球禱告地球" }) {
+export function GlobalPrayerRoomSkeleton({ hidden }) {
   return (
-    <div
-      className={`global-room__skeleton${hidden ? " is-hidden" : ""}`}
-      aria-hidden={hidden}
-      style={hidden ? { opacity: 0, visibility: "hidden", pointerEvents: "none" } : undefined}
-    >
+    <div className={`global-room__skeleton${hidden ? " is-hidden" : ""}`} aria-hidden={hidden}>
       <div className="global-room__fake-orbit" />
       <div className="global-room__fake-globe">
         <span className="global-room__fake-shine" />
@@ -953,7 +886,7 @@ export function GlobalPrayerRoomSkeleton({ hidden, label = "正在載入全球�
         <span className="global-room__fake-marker global-room__fake-marker--two" />
         <span className="global-room__fake-marker global-room__fake-marker--three" />
       </div>
-      <p>{label}</p>
+      <p>正在載入全球禱告地球</p>
     </div>
   );
 }
@@ -968,16 +901,6 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
     onHoverCluster,
     staticView = false,
     heroMap = false,
-    initialView = null,
-    enableIdleRotation = false,
-    startAutoRotate = true,
-    maxCameraHeightOverride = null,
-    useImagery = true,
-    enableTileImagery = true,
-    ariaLabel = "真實互動式全球代禱地球",
-    loadingLabel = "正在載入全球禱告地球",
-    loadErrorTitle = "全球禱告地球暫時無法載入",
-    loadErrorFallback = "全球禱告地球載入失敗，請稍後再試。",
   },
   ref
 ) {
@@ -985,16 +908,10 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
   const entitiesRef = useRef([]);
   const activeEntityRef = useRef(null);
   const hoveredEntityRef = useRef(null);
-  const autoRotateRef = useRef(startAutoRotate);
+  const autoRotateRef = useRef(true);
   const rotationReadyRef = useRef(false);
   const [globeReady, setGlobeReady] = useState(false);
   const [loadError, setLoadError] = useState("");
-
-  useEffect(() => {
-    if (typeof window === "undefined") return undefined;
-    const timer = window.setTimeout(addCesiumResourceHints, heroMap ? 120 : 0);
-    return () => window.clearTimeout(timer);
-  }, [heroMap]);
 
   useEffect(() => {
     let disposed = false;
@@ -1004,7 +921,6 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
       try {
         setGlobeReady(false);
         setLoadError("");
-        autoRotateRef.current = Boolean(startAutoRotate);
 
         const Cesium = await loadCesium();
         if (disposed || !mountRef.current) return;
@@ -1028,34 +944,16 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
           shouldAnimate: true,
           skyBox: false,
         });
+
         viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString("#082f49");
         viewer.scene.globe.enableLighting = false;
-        if (!heroMap) {
-          viewer.scene.globe.showGroundAtmosphere = true;
-          viewer.scene.skyAtmosphere.show = true;
-        }
-        viewer.scene.fog.enabled = !heroMap;
-        if (useImagery && !(heroMap && enableTileImagery)) {
-          viewer.imageryLayers.addImageryProvider(createProceduralEarthImageryProvider(Cesium));
-        }
-        if (!useImagery) {
-          viewer.scene.backgroundColor = Cesium.Color.TRANSPARENT;
-        }
+        viewer.scene.globe.showGroundAtmosphere = true;
+        viewer.scene.skyAtmosphere.show = true;
+        viewer.scene.fog.enabled = true;
         const controller = viewer.scene.screenSpaceCameraController;
         const isCompactViewport = window.matchMedia?.("(max-width: 767px)")?.matches;
-        if (heroMap) {
-          viewer.resolutionScale = isCompactViewport ? 0.62 : 0.78;
-          viewer.scene.fxaa = false;
-          viewer.scene.globe.showGroundAtmosphere = false;
-          viewer.scene.skyAtmosphere.show = false;
-        }
         const minCameraHeight = heroMap ? HERO_GLOBE_MIN_HEIGHT : FULL_GLOBE_MIN_HEIGHT;
-        const requestedMaxCameraHeight = Number(maxCameraHeightOverride);
-        const maxCameraHeight = Number.isFinite(requestedMaxCameraHeight)
-          ? requestedMaxCameraHeight
-          : heroMap
-            ? HERO_GLOBE_MAX_HEIGHT
-            : FULL_GLOBE_MAX_HEIGHT;
+        const maxCameraHeight = heroMap ? HERO_GLOBE_MAX_HEIGHT : FULL_GLOBE_MAX_HEIGHT;
         if (staticView) {
           controller.enableInputs = false;
           controller.enableRotate = false;
@@ -1066,7 +964,10 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
         } else if (heroMap) {
           controller.enableInputs = true;
           controller.enableRotate = true;
-          controller.enableZoom = true;
+          // 首頁 hero 停用滾輪縮放，把滾輪還給頁面捲動（PRD-011 WP-B）。
+          // 縮放仍由 +/- 按鈕的 viewer.camera.zoomIn/zoomOut 提供，
+          // 高度界限由 clampCameraHeight postRender 保證。
+          controller.enableZoom = false;
           controller.enableTranslate = false;
           controller.enableTilt = false;
           controller.enableLook = false;
@@ -1157,7 +1058,7 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
 
         // Put the camera somewhere useful before any network tiles exist, so first paint is not blank.
         if (heroMap) {
-          viewer.camera.setView(buildTopDownView(initialView || TAIWAN_VIEW));
+          viewer.camera.setView(buildTopDownView(TAIWAN_VIEW));
         } else {
           viewer.camera.setView({
             destination: staticView
@@ -1208,11 +1109,7 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
           return isMajorHotspot(cluster) || height < 1800000;
         }
 
-        const useLightweightMarkers = heroMap;
-        const markerSource = (clusters.length ? clusters : [TAIPEI]).slice(
-          0,
-          heroMap ? (isCompactViewport ? 14 : 24) : undefined
-        );
+        const markerSource = clusters.length ? clusters : [TAIPEI];
 
         function addEntity(cluster, index = 0) {
           const color = getClusterColor(Cesium, cluster);
@@ -1227,58 +1124,8 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
             : Math.min(34, 11 + Math.sqrt(heat) * 3.7);
           const hasAudio = Number(cluster.audioCount || 0) > 0;
           const isHot = getClusterHeat(cluster) >= 10 || Number(cluster.totalCount || 0) >= 4;
-          if (useLightweightMarkers) {
-            const entity = viewer.entities.add({
-              name: cluster.fullLabel,
-              position: Cesium.Cartesian3.fromDegrees(
-                Number(cluster.locationLng),
-                Number(cluster.locationLat),
-                6500
-              ),
-              point: {
-                show: true,
-                color: color.withAlpha(isHot || cluster.isDefaultFocus ? 0.98 : 0.84),
-                pixelSize: Math.min(24, Math.max(9, pixelSize * 0.82)),
-                outlineColor: Cesium.Color.WHITE.withAlpha(0.82),
-                outlineWidth: visibility === "private" ? 2 : 3,
-                scaleByDistance: new Cesium.NearFarScalar(250000, 1.25, 12000000, 0.48),
-                translucencyByDistance: new Cesium.NearFarScalar(250000, 1, 17000000, 0.44),
-                disableDepthTestDistance: 6500000,
-              },
-              label: {
-                show: cluster.isDefaultFocus || isMajorHotspot(cluster) || Number(cluster.totalCount || 0) >= 2,
-                text: labelText,
-                font: "700 13px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif",
-                fillColor: Cesium.Color.WHITE,
-                backgroundColor: Cesium.Color.fromCssColorString("#020617").withAlpha(0.68),
-                showBackground: true,
-                backgroundPadding: new Cesium.Cartesian2(8, 5),
-                pixelOffset: new Cesium.Cartesian2(0, -28),
-                horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
-                verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-                scaleByDistance: new Cesium.NearFarScalar(250000, 1, 9000000, 0.58),
-                translucencyByDistance: new Cesium.NearFarScalar(250000, 1, 13000000, 0),
-                disableDepthTestDistance: 6500000,
-              },
-            });
-
-            entity.clusterData = cluster;
-            entitiesRef.current.push(entity);
-            return entity;
-          }
-
           const pulseStrength = cluster.isUrgent ? 0.24 : cluster.isFresh ? 0.16 : hasAudio ? 0.1 : 0.035;
           const pulseSpeed = cluster.isUrgent ? 0.0032 : hasAudio ? 0.0046 : 0.0024;
-          const revealStart = Date.now() + (enableIdleRotation ? index * 95 : index * 34);
-          const revealProgress = () => {
-            const elapsed = Date.now() - revealStart;
-            if (elapsed <= 0) return 0;
-            return Math.min(1, elapsed / (enableIdleRotation ? 1200 : 520));
-          };
-          const revealEase = () => {
-            const progress = revealProgress();
-            return progress * progress * (3 - 2 * progress);
-          };
           const pulseValue = () =>
             1 + Math.sin(Date.now() * pulseSpeed + index * 0.23) * pulseStrength;
           let entity;
@@ -1306,20 +1153,15 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
             ),
             point: {
               show: new Cesium.CallbackProperty(
-                () =>
-                  Boolean(entity?.isActive || entity?.isHovered || shouldShowPoint(cluster)) &&
-                  revealProgress() > 0.02,
+                () => Boolean(entity?.isActive || entity?.isHovered || shouldShowPoint(cluster)),
                 false
               ),
               color: new Cesium.CallbackProperty(
-                () =>
-                  color.withAlpha(
-                    (entity?.isActive || entity?.isHovered || isHot ? 1 : 0.88) * revealEase()
-                  ),
+                () => color.withAlpha(entity?.isActive || entity?.isHovered || isHot ? 1 : 0.88),
                 false
               ),
               pixelSize: new Cesium.CallbackProperty(
-                () => pixelSize * pulseValue() * stateBoost() * (0.58 + revealEase() * 0.42),
+                () => pixelSize * pulseValue() * stateBoost(),
                 false
               ),
               outlineColor: new Cesium.CallbackProperty(
@@ -1348,7 +1190,6 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
               show: new Cesium.CallbackProperty(
                 () =>
                   Boolean(entity?.isActive || entity?.isHovered || shouldShowPoint(cluster)) &&
-                  revealProgress() > 0.58 &&
                   (cluster.isFresh || cluster.isUrgent || hasAudio || isHot || entity?.isActive),
                 false
               ),
@@ -1382,9 +1223,7 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
             },
             label: {
               show: new Cesium.CallbackProperty(
-                () =>
-                  Boolean(entity?.isActive || entity?.isHovered || shouldShowLabel(cluster)) &&
-                  revealProgress() > 0.86,
+                () => Boolean(entity?.isActive || entity?.isHovered || shouldShowLabel(cluster)),
                 false
               ),
               text: labelText,
@@ -1429,10 +1268,7 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
         }
 
         // First batch is intentionally smaller on mobile so the hero can become useful quickly.
-        const initialBatchSize = Math.min(
-          heroMap ? markerSource.length : isCompactViewport ? 28 : 45,
-          markerSource.length
-        );
+        const initialBatchSize = Math.min(isCompactViewport ? 28 : 45, markerSource.length);
         markerSource.slice(0, initialBatchSize).forEach(addEntity);
 
         const entityTimer = window.setTimeout(() => {
@@ -1443,8 +1279,7 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
         }, 1200);
 
         function setAutoRotate(value) {
-          autoRotateRef.current =
-            staticView || (heroMap && !enableIdleRotation) ? false : Boolean(value);
+          autoRotateRef.current = staticView || heroMap ? false : Boolean(value);
           onAutoRotateChange?.(autoRotateRef.current);
         }
 
@@ -1507,12 +1342,10 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
         if (!staticView) {
           handler.setInputAction(() => setAutoRotate(false), Cesium.ScreenSpaceEventType.LEFT_DOWN);
           handler.setInputAction(() => setAutoRotate(false), Cesium.ScreenSpaceEventType.WHEEL);
-          if (!heroMap) {
-            handler.setInputAction((movement) => {
-              const picked = viewer.scene.pick(movement.endPosition);
-              setHoveredEntity(picked?.id?.clusterData ? picked.id : null);
-            }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
-          }
+          handler.setInputAction((movement) => {
+            const picked = viewer.scene.pick(movement.endPosition);
+            setHoveredEntity(picked?.id?.clusterData ? picked.id : null);
+          }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
         }
         handler.setInputAction((movement) => {
           const picked = viewer.scene.pick(movement.position);
@@ -1540,7 +1373,7 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
           if (
             !rotationReadyRef.current ||
             staticView ||
-            (heroMap && !enableIdleRotation) ||
+            heroMap ||
             !autoRotateRef.current ||
             viewer.camera.positionCartographic.height < 1800000
           ) {
@@ -1549,11 +1382,7 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
 
           viewer.scene.camera.rotate(
             Cesium.Cartesian3.UNIT_Z,
-            heroMap && enableIdleRotation
-              ? (isCompactViewport ? -0.00002 : -0.00004)
-              : isCompactViewport
-                ? -0.000055
-                : -0.00012
+            isCompactViewport ? -0.000055 : -0.00012
           );
           clampCameraHeight();
         };
@@ -1563,59 +1392,30 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
           if (!disposed) rotationReadyRef.current = true;
         }, 1800);
 
+        const imageryTimer = window.setTimeout(() => {
+          if (disposed || viewer.isDestroyed()) return;
+
+          // Delay OSM so slow first tile requests cannot block the initial Cesium globe render.
+          viewer.imageryLayers.addImageryProvider(createCesiumImageryProvider(Cesium));
+
+          const tileProgress = (remaining) => {
+            if (remaining === 0) {
+              rotationReadyRef.current = true;
+              viewer.scene.globe.tileLoadProgressEvent.removeEventListener(tileProgress);
+            }
+          };
+          viewer.scene.globe.tileLoadProgressEvent.addEventListener(tileProgress);
+        }, 800);
+
         let hasShownFirstFrame = false;
-        let hasRenderedFirstFrame = false;
-        let minimumHeroReadyDelayPassed = !heroMap;
-        let imageryReadyForFirstPaint = !useImagery || (heroMap && !enableTileImagery);
         const showFirstFrame = () => {
           if (disposed || hasShownFirstFrame) return;
           hasShownFirstFrame = true;
           setGlobeReady(true);
           onReady?.();
         };
-        const maybeShowFirstFrame = () => {
-          if (disposed || hasShownFirstFrame || !hasRenderedFirstFrame) return;
-          if (heroMap && (!minimumHeroReadyDelayPassed || !imageryReadyForFirstPaint)) return;
-          showFirstFrame();
-        };
-
-        const imageryTimer = window.setTimeout(() => {
-          if (disposed || viewer.isDestroyed()) return;
-          if (!useImagery || !enableTileImagery) {
-            rotationReadyRef.current = true;
-            imageryReadyForFirstPaint = true;
-            maybeShowFirstFrame();
-            return;
-          }
-
-          // Keep the hero covered by its loading artwork until real tiles have settled.
-          viewer.imageryLayers.addImageryProvider(createCesiumImageryProvider(Cesium));
-
-          const tileProgress = (remaining) => {
-            if (remaining === 0) {
-              rotationReadyRef.current = true;
-              imageryReadyForFirstPaint = true;
-              maybeShowFirstFrame();
-              viewer.scene.globe.tileLoadProgressEvent.removeEventListener(tileProgress);
-            }
-          };
-          viewer.scene.globe.tileLoadProgressEvent.addEventListener(tileProgress);
-        }, heroMap ? 0 : 800);
-
-        const minimumHeroReadyTimer = window.setTimeout(() => {
-          minimumHeroReadyDelayPassed = true;
-          maybeShowFirstFrame();
-        }, heroMap ? 450 : 0);
-
-        const imageryReadyFallbackTimer = window.setTimeout(() => {
-          // On slow tile servers, keep the hero from flashing to a blank first render forever.
-          imageryReadyForFirstPaint = true;
-          maybeShowFirstFrame();
-        }, heroMap ? 3600 : 0);
-
         const firstRender = () => {
-          hasRenderedFirstFrame = true;
-          maybeShowFirstFrame();
+          showFirstFrame();
           viewer.scene.postRender.removeEventListener(firstRender);
         };
         viewer.scene.postRender.addEventListener(firstRender);
@@ -1623,8 +1423,7 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
 
         const firstRenderFallbackTimer = window.setTimeout(() => {
           // Some browsers can complete the first Cesium render during construction.
-          hasRenderedFirstFrame = true;
-          maybeShowFirstFrame();
+          showFirstFrame();
         }, 1600);
 
         ref.current = {
@@ -1694,13 +1493,57 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
           setAutoRotate,
         };
 
+        // 滾輪還給頁面（PRD-011 WP-B）：Cesium 的 wheel handler 掛在 canvas 上且會
+        // preventDefault，單靠 enableZoom=false 擋不住。在容器 capture 階段攔截 wheel，
+        // 不讓事件到達 canvas（不呼叫 preventDefault），瀏覽器就會執行原生頁面捲動。
+        let heroWheelInterceptor = null;
+        if (heroMap && mountRef.current) {
+          heroWheelInterceptor = (event) => {
+            event.stopPropagation();
+          };
+          mountRef.current.addEventListener("wheel", heroWheelInterceptor, {
+            capture: true,
+            passive: true,
+          });
+        }
+
+        // 渲染暫停（PRD-011 WP-B）：分頁隱藏或地球滾出視口時停止 render loop，
+        // 避免 Cesium 在背景持續全速渲染造成整頁卡頓。
+        let pageVisible = typeof document !== "undefined" ? !document.hidden : true;
+        let inViewport = true;
+        const syncRenderLoop = () => {
+          if (viewer.isDestroyed?.()) return;
+          viewer.useDefaultRenderLoop = pageVisible && inViewport;
+        };
+        const onVisibilityChange = () => {
+          pageVisible = !document.hidden;
+          syncRenderLoop();
+        };
+        document.addEventListener("visibilitychange", onVisibilityChange);
+        let viewportObserver = null;
+        if (typeof IntersectionObserver !== "undefined" && mountRef.current) {
+          viewportObserver = new IntersectionObserver(
+            (entries) => {
+              inViewport = entries[0]?.isIntersecting ?? true;
+              syncRenderLoop();
+            },
+            { threshold: 0.05 }
+          );
+          viewportObserver.observe(mountRef.current);
+        }
+
         cleanup = () => {
           window.clearTimeout(entityTimer);
           window.clearTimeout(imageryTimer);
           window.clearTimeout(rotationFallbackTimer);
-          window.clearTimeout(minimumHeroReadyTimer);
-          window.clearTimeout(imageryReadyFallbackTimer);
           window.clearTimeout(firstRenderFallbackTimer);
+          document.removeEventListener("visibilitychange", onVisibilityChange);
+          viewportObserver?.disconnect();
+          if (heroWheelInterceptor && mountRef.current) {
+            mountRef.current.removeEventListener("wheel", heroWheelInterceptor, {
+              capture: true,
+            });
+          }
           ref.current = null;
           viewer.clock.onTick.removeEventListener(tick);
           viewer.scene.postRender.removeEventListener(firstRender);
@@ -1715,31 +1558,19 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
       } catch (error) {
         if (disposed) return;
         setGlobeReady(true);
-        setLoadError(error?.message || loadErrorFallback);
-        onReady?.();
+        setLoadError(error?.message || "全球禱告地球載入失敗，請稍後再試。");
       }
     }
 
-    const cancelScheduledLoad = scheduleGlobeLoad(mountRef.current, initGlobe, {
-      timeout: heroMap ? 180 : 350,
-      rootMargin: heroMap ? "520px" : "240px",
-    });
+    initGlobe();
 
     return () => {
       disposed = true;
-      cancelScheduledLoad();
       cleanup();
     };
   }, [
     clusters,
-    enableIdleRotation,
-    enableTileImagery,
     heroMap,
-    initialView,
-    maxCameraHeightOverride,
-    startAutoRotate,
-    useImagery,
-    loadErrorFallback,
     onAutoRotateChange,
     onBlankClick,
     onHoverCluster,
@@ -1752,13 +1583,13 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
   return (
     <div
       ref={mountRef}
-      className={`global-room__canvas${globeReady ? " is-ready" : ""}${staticView ? " is-static-view" : ""}${heroMap ? " is-hero-map" : ""}${!useImagery ? " is-no-imagery" : ""}`}
-      aria-label={ariaLabel}
+      className={`global-room__canvas${globeReady ? " is-ready" : ""}${staticView ? " is-static-view" : ""}${heroMap ? " is-hero-map" : ""}`}
+      aria-label="真實互動式全球代禱地球"
     >
-      <GlobalPrayerRoomSkeleton hidden={globeReady || Boolean(loadError)} label={loadingLabel} />
+      <GlobalPrayerRoomSkeleton hidden={globeReady && !loadError} />
       {loadError ? (
         <div className="global-room__loader global-room__loader--error" role="alert">
-          <strong>{loadErrorTitle}</strong>
+          <strong>全球禱告地球暫時無法載入</strong>
           <small>{loadError}</small>
         </div>
       ) : null}
@@ -1777,23 +1608,6 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
             radial-gradient(circle at 50% 42%, rgba(14, 165, 233, 0.28), transparent 38%), #020617;
         }
 
-        .global-room__canvas.is-no-imagery {
-          background:
-            radial-gradient(
-              circle at 66% 48%,
-              rgba(14, 165, 233, 0.34),
-              rgba(8, 47, 73, 0.72) 30%,
-              rgba(2, 8, 23, 0.96) 58%,
-              transparent 72%
-            ),
-            radial-gradient(circle at 68% 48%, rgba(14, 165, 233, 0.18), transparent 34%),
-            #020817;
-        }
-
-        .global-room__canvas.is-no-imagery .cesium-widget canvas {
-          opacity: 0.16;
-        }
-
         .global-room__canvas:active {
           cursor: grabbing;
         }
@@ -1807,15 +1621,6 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
           max-width: none !important;
           outline: none;
           touch-action: none;
-        }
-
-        .global-room__canvas:not(.is-ready):not(.is-no-imagery) .cesium-widget canvas {
-          opacity: 0;
-        }
-
-        .global-room__canvas.is-ready:not(.is-no-imagery) .cesium-widget canvas {
-          opacity: 1;
-          transition: opacity 420ms ease;
         }
 
         .global-room__canvas .cesium-viewer {
@@ -1841,8 +1646,7 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
           color: #dff7ff;
           background:
             radial-gradient(circle at 50% 42%, rgba(8, 145, 178, 0.24), transparent 34%),
-            radial-gradient(circle at 50% 52%, rgba(15, 23, 42, 0.72), #020617 74%),
-            #020617;
+            radial-gradient(circle at 50% 52%, rgba(15, 23, 42, 0), #020617 74%);
           opacity: 1;
           transition:
             opacity 520ms ease,
@@ -2010,10 +1814,8 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
   );
 });
 
-const GlobalPrayerGlobe = GlobalPrayerRoomOptimized;
-
 const LegacyPrayerGlobe = forwardRef(function LegacyPrayerGlobe(
-  { clusters, onSelectCluster, onAutoRotateChange, onReady },
+  { clusters, onSelectCluster, onLocationSelect, onAutoRotateChange, onReady, countryLabelMode = "hero", wheelZoom = true },
   ref
 ) {
   const mountRef = useRef(null);
@@ -2034,6 +1836,10 @@ const LegacyPrayerGlobe = forwardRef(function LegacyPrayerGlobe(
         const [THREE, { OrbitControls }] = await Promise.all([
           import("three"),
           import("three/examples/jsm/controls/OrbitControls.js"),
+        ]);
+        const [earthTexture, earthData] = await Promise.all([
+          loadEarthTexture(THREE),
+          loadEarthData(),
         ]);
 
         if (disposed || !mountRef.current) return;
@@ -2064,6 +1870,16 @@ const LegacyPrayerGlobe = forwardRef(function LegacyPrayerGlobe(
         controls.enableDamping = true;
         controls.dampingFactor = 0.07;
         controls.enablePan = false;
+        // 首頁 hero 停用滾輪縮放（PRD-011 WP-B）：OrbitControls 在 enableZoom=false 時
+        // 會在 preventDefault 之前 return，滾輪事件回歸瀏覽器原生頁面捲動。
+        // 縮放仍由 +/- 按鈕（globeRef.zoomIn/zoomOut）提供。
+        // 完整頁（/global-prayer-room）不傳 wheelZoom={false}，滾輪縮放照舊。
+        controls.enableZoom = wheelZoom !== false;
+        if (wheelZoom === false) {
+          // 允許垂直觸控捲動通過（OrbitControls 建構子會把 touchAction 設成 none，
+          // 必須在它之後覆寫）。水平拖曳仍可旋轉地球。
+          renderer.domElement.style.touchAction = "pan-y";
+        }
         controls.minDistance = 2.45;
         controls.maxDistance = 6.1;
         controls.rotateSpeed = 0.72;
@@ -2082,7 +1898,7 @@ const LegacyPrayerGlobe = forwardRef(function LegacyPrayerGlobe(
         const earth = new THREE.Mesh(
           new THREE.SphereGeometry(1.55, 128, 96),
           new THREE.MeshStandardMaterial({
-            map: createEarthTexture(THREE),
+            map: earthTexture,
             roughness: 0.78,
             metalness: 0.03,
             emissive: new THREE.Color(0x06213b),
@@ -2090,6 +1906,9 @@ const LegacyPrayerGlobe = forwardRef(function LegacyPrayerGlobe(
           })
         );
         scene.add(earth);
+
+        const countryBoundaries = createCountryBoundaryGroup(THREE, earthData.boundaries);
+        scene.add(countryBoundaries);
 
         const clouds = new THREE.Mesh(
           new THREE.SphereGeometry(1.58, 96, 64),
@@ -2142,6 +1961,26 @@ const LegacyPrayerGlobe = forwardRef(function LegacyPrayerGlobe(
         const markerGroup = new THREE.Group();
         const markerTexture = createGlowTexture(THREE);
         const markerSource = clusters.length ? clusters : [TAIPEI];
+        const prayedCountryNames = new Set(
+          markerSource
+            .flatMap((cluster) => [cluster.locationCountry, cluster.fullLabel, cluster.cityLabel])
+            .filter(Boolean)
+            .map((value) => String(value).toLowerCase())
+        );
+        const featuredCountryIds = new Set(["TWN", "CHN", "JPN", "KOR", "USA", "CAN", "BRA", "GBR", "FRA", "DEU", "IND", "IDN", "AUS", "ZAF"]);
+        const countryAnchors = earthData.labels
+          .map((country) => ({
+            ...country,
+            position: latLngToVector3(THREE, country.lat, country.lng, 1.74),
+            hasPrayer:
+              prayedCountryNames.has(String(country.name).toLowerCase()) ||
+              prayedCountryNames.has(String(country.shortName).toLowerCase()),
+          }))
+          .filter((country) =>
+            countryLabelMode === "full"
+              ? country.rank <= 5 || country.hasPrayer || featuredCountryIds.has(country.id)
+              : country.rank <= 2 || country.hasPrayer || featuredCountryIds.has(country.id)
+          );
 
         markerSource.forEach((cluster) => {
           const point = latLngToVector3(THREE, cluster.locationLat, cluster.locationLng, 1.64);
@@ -2171,8 +2010,8 @@ const LegacyPrayerGlobe = forwardRef(function LegacyPrayerGlobe(
                   ? 0xfff176
                   : 0x9fe8ff;
           const coreSize = cluster.isDefaultFocus
-            ? 0.045
-            : Math.min(0.105, 0.05 + cluster.totalCount * 0.009);
+            ? 0.032
+            : Math.min(0.055, 0.032 + Math.sqrt(Math.max(1, cluster.totalCount || 1)) * 0.004);
           const core = new THREE.Mesh(
             new THREE.SphereGeometry(coreSize, 24, 16),
             new THREE.MeshBasicMaterial({
@@ -2187,14 +2026,14 @@ const LegacyPrayerGlobe = forwardRef(function LegacyPrayerGlobe(
               map: markerTexture,
               color: glowColor,
               transparent: true,
-              opacity: visibility === "private" ? 0.78 : isHot ? 1 : 0.68,
+              opacity: visibility === "private" ? 0.16 : isHot ? 0.22 : 0.16,
               depthWrite: false,
               blending: THREE.AdditiveBlending,
             })
           );
           const glowSize = cluster.isDefaultFocus
-            ? 0.34
-            : Math.min(0.76, (visibility === "private" ? 0.42 : 0.36) + cluster.totalCount * 0.04);
+            ? 0.045
+            : Math.min(0.06, (visibility === "private" ? 0.04 : 0.038) + cluster.totalCount * 0.0008);
           sprite.scale.set(glowSize, glowSize, 1);
           sprite.userData.cluster = cluster;
           marker.add(sprite);
@@ -2205,12 +2044,12 @@ const LegacyPrayerGlobe = forwardRef(function LegacyPrayerGlobe(
                 map: markerTexture,
                 color: visibility === "private" ? 0xbfdbfe : 0xa7f3d0,
                 transparent: true,
-                opacity: 0.32,
+                opacity: 0.14,
                 depthWrite: false,
                 blending: THREE.AdditiveBlending,
               })
             );
-            halo.scale.set(glowSize * 1.75, glowSize * 1.75, 1);
+            halo.scale.set(glowSize * 1.18, glowSize * 1.18, 1);
             halo.userData.cluster = cluster;
             marker.add(halo);
           }
@@ -2225,6 +2064,7 @@ const LegacyPrayerGlobe = forwardRef(function LegacyPrayerGlobe(
         const desiredCameraPosition = { current: null };
         let frame = 0;
         let rafId = 0;
+        let renderPaused = false;
 
         function setAutoRotate(value) {
           controls.autoRotate = Boolean(value);
@@ -2242,6 +2082,29 @@ const LegacyPrayerGlobe = forwardRef(function LegacyPrayerGlobe(
           );
         }
 
+        function getLegacyCameraDistance(location, fallback = camera.position.length()) {
+          const height = Number(location?.height || location?.globeHeight);
+          if (!Number.isFinite(height)) return fallback;
+          if (height <= 800000) return 2.75;
+          if (height <= 2200000) return 3.35;
+          if (height <= 7000000) return 4.35;
+          return 5.35;
+        }
+
+        function focusLocation(location, fallbackDistance = camera.position.length()) {
+          const lat = Number(location?.lat ?? location?.locationLat);
+          const lng = Number(location?.lng ?? location?.locationLng);
+          if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+          setAutoRotate(false);
+          desiredCameraPosition.current = latLngToVector3(
+            THREE,
+            lat,
+            lng,
+            getLegacyCameraDistance(location, fallbackDistance)
+          );
+        }
+
         function resize() {
           if (!mount.isConnected) return;
           const rect = mount.getBoundingClientRect();
@@ -2255,33 +2118,67 @@ const LegacyPrayerGlobe = forwardRef(function LegacyPrayerGlobe(
         function updateLabels() {
           const rect = renderer.domElement.getBoundingClientRect();
           const cameraDirection = camera.position.clone().normalize();
-          const nextLabels = markerGroup.children
+          const projectPoint = (point) => {
+            const visibility = point.clone().normalize().dot(cameraDirection);
+            if (visibility < 0.14) return null;
+
+            const projected = point.clone().project(camera);
+            const x = (projected.x * 0.5 + 0.5) * rect.width;
+            const y = (-projected.y * 0.5 + 0.5) * rect.height;
+            if (x < 0 || x > rect.width || y < 0 || y > rect.height) return null;
+
+            return { visibility, x, y };
+          };
+
+          const prayerLabels = markerGroup.children
             .map((marker) => {
               const cluster = marker.userData.cluster;
               const world = new THREE.Vector3();
               marker.getWorldPosition(world);
-              const visibility = world.clone().normalize().dot(cameraDirection);
-              if (visibility < 0.14) return null;
-
-              const projected = world.clone().project(camera);
-              const x = (projected.x * 0.5 + 0.5) * rect.width;
-              const y = (-projected.y * 0.5 + 0.5) * rect.height;
-              if (x < 0 || x > rect.width || y < 0 || y > rect.height) return null;
+              const projected = projectPoint(world);
+              if (!projected) return null;
 
               return {
+                type: "prayer",
                 id: cluster.id,
-                cityLabel: cluster.cityLabel,
+                displayLabel: cluster.cityLabel,
                 totalCount: cluster.totalCount,
                 isFresh: cluster.isFresh,
                 isDefaultFocus: cluster.isDefaultFocus,
                 visibility: getClusterVisibility(cluster),
-                left: x,
-                top: y,
-                opacity: Math.min(1, Math.max(0.35, visibility)),
+                left: projected.x,
+                top: projected.y,
+                opacity: Math.min(1, Math.max(0.35, projected.visibility)),
               };
             })
             .filter(Boolean)
             .slice(0, 9);
+
+          const maxCountryLabels = countryLabelMode === "full" ? 18 : 8;
+          const countryLabels = countryAnchors
+            .map((country) => {
+              const projected = projectPoint(country.position);
+              if (!projected) return null;
+              return {
+                type: "country",
+                id: `country-${country.id}`,
+                displayLabel: country.shortName || country.name,
+                isCountry: true,
+                hasPrayer: country.hasPrayer,
+                left: projected.x,
+                top: projected.y,
+                opacity: Math.min(0.82, Math.max(0.28, projected.visibility * 0.74)),
+                priority:
+                  (country.hasPrayer ? 200 : 0) +
+                  (featuredCountryIds.has(country.id) ? 90 : 0) +
+                  Math.max(0, 20 - Number(country.rank || 9) * 3),
+              };
+            })
+            .filter(Boolean)
+            .sort((a, b) => b.priority - a.priority || b.opacity - a.opacity)
+            .slice(0, maxCountryLabels);
+
+          const nextLabels = [...countryLabels, ...prayerLabels];
 
           const signature = JSON.stringify(nextLabels);
           if (signature !== labelsRef.current) {
@@ -2310,6 +2207,14 @@ const LegacyPrayerGlobe = forwardRef(function LegacyPrayerGlobe(
           if (cluster) {
             focusCluster(cluster, Math.max(camera.position.length() * 0.9, controls.minDistance));
             onSelectCluster?.(cluster);
+          } else if (onLocationSelect) {
+            const earthHit = raycaster.intersectObject(earth, false)[0];
+            if (earthHit?.point) {
+              const normal = earthHit.point.clone().normalize();
+              const lat = THREE.MathUtils.radToDeg(Math.asin(normal.y));
+              const lng = ((THREE.MathUtils.radToDeg(Math.atan2(normal.z, -normal.x)) - 180 + 540) % 360) - 180;
+              onLocationSelect({ lat, lng });
+            }
           }
         }
 
@@ -2324,7 +2229,17 @@ const LegacyPrayerGlobe = forwardRef(function LegacyPrayerGlobe(
 
         ref.current = {
           focusCluster,
+          focusLocation,
+          focusCountry: (country) => focusLocation(country, getLegacyCameraDistance(country, 4.1)),
+          clearActiveCluster: () => {},
+          resetView: () => focusLocation(WORLD_VIEW, 5.35),
           resetTaipei: () => focusCluster(TAIPEI, 4.1),
+          resetHeroTaipei: () => focusCluster(TAIPEI, 4.1),
+          showTaiwan: () => focusLocation(TAIWAN_VIEW, 3.35),
+          showAllMarkers: () => {
+            setAutoRotate(false);
+            desiredCameraPosition.current = camera.position.clone().setLength(5.2);
+          },
           zoomIn: () => {
             setAutoRotate(false);
             desiredCameraPosition.current = camera.position
@@ -2365,7 +2280,35 @@ const LegacyPrayerGlobe = forwardRef(function LegacyPrayerGlobe(
           if (frame % 4 === 0) updateLabels();
           frame += 1;
           renderer.render(scene, camera);
-          rafId = requestAnimationFrame(animate);
+          rafId = renderPaused ? null : requestAnimationFrame(animate);
+        }
+
+        // 渲染暫停（PRD-011 WP-B）：分頁隱藏或地球滾出視口時停止 RAF loop，
+        // 避免 three.js 在背景持續全速渲染造成整頁卡頓。
+        const resumeLoop = () => {
+          if (!renderPaused && rafId == null) rafId = requestAnimationFrame(animate);
+        };
+        let pageVisible = typeof document !== "undefined" ? !document.hidden : true;
+        let inViewport = true;
+        const syncRenderLoop = () => {
+          renderPaused = !(pageVisible && inViewport);
+          if (!renderPaused) resumeLoop();
+        };
+        const onVisibilityChange = () => {
+          pageVisible = !document.hidden;
+          syncRenderLoop();
+        };
+        document.addEventListener("visibilitychange", onVisibilityChange);
+        let viewportObserver = null;
+        if (typeof IntersectionObserver !== "undefined") {
+          viewportObserver = new IntersectionObserver(
+            (entries) => {
+              inViewport = entries[0]?.isIntersecting ?? true;
+              syncRenderLoop();
+            },
+            { threshold: 0.05 }
+          );
+          viewportObserver.observe(mount);
         }
 
         setIsLoading(false);
@@ -2373,7 +2316,9 @@ const LegacyPrayerGlobe = forwardRef(function LegacyPrayerGlobe(
         animate();
 
         cleanup = () => {
-          cancelAnimationFrame(rafId);
+          if (rafId != null) cancelAnimationFrame(rafId);
+          document.removeEventListener("visibilitychange", onVisibilityChange);
+          viewportObserver?.disconnect();
           ref.current = null;
           resizeObserver.disconnect();
           renderer.domElement.removeEventListener("pointerdown", handlePointerDown);
@@ -2410,7 +2355,7 @@ const LegacyPrayerGlobe = forwardRef(function LegacyPrayerGlobe(
       disposed = true;
       cleanup();
     };
-  }, [clusters, onAutoRotateChange, onReady, onSelectCluster, ref]);
+  }, [clusters, countryLabelMode, onAutoRotateChange, onLocationSelect, onReady, onSelectCluster, ref, wheelZoom]);
 
   return (
     <div ref={mountRef} className="global-room__canvas" aria-label="互動式全球禱告地球">
@@ -2432,14 +2377,14 @@ const LegacyPrayerGlobe = forwardRef(function LegacyPrayerGlobe(
             key={label.id}
             className={`global-room__label${label.isFresh ? " is-hot" : ""}${
               label.isDefaultFocus ? " is-default" : ""
-            } is-${label.visibility}`}
+            }${label.isCountry ? " is-country" : ""}${label.hasPrayer ? " has-prayer" : ""} is-${label.visibility || "country"}`}
             style={{
               left: `${label.left}px`,
               top: `${label.top}px`,
               opacity: label.opacity,
             }}
           >
-            {label.cityLabel}
+            {label.displayLabel}
             {label.totalCount > 1 ? <b>{label.totalCount}</b> : null}
           </span>
         ))}
@@ -2510,6 +2455,7 @@ const LegacyPrayerGlobe = forwardRef(function LegacyPrayerGlobe(
 
         .global-room__label {
           position: absolute;
+          z-index: 2;
           display: inline-flex;
           align-items: center;
           gap: 0.28rem;
@@ -2530,6 +2476,23 @@ const LegacyPrayerGlobe = forwardRef(function LegacyPrayerGlobe(
           border-color: rgba(254, 240, 138, 0.6);
           color: #fef08a;
           box-shadow: 0 0 26px rgba(250, 204, 21, 0.34);
+        }
+
+        .global-room__label.is-country {
+          z-index: 1;
+          border-color: rgba(191, 219, 254, 0.16);
+          background: rgba(2, 6, 23, 0.38);
+          color: rgba(226, 232, 240, 0.68);
+          box-shadow: none;
+          padding: 0.18rem 0.42rem;
+          font-size: 0.68rem;
+          font-weight: 800;
+        }
+
+        .global-room__label.is-country.has-prayer {
+          border-color: rgba(254, 240, 138, 0.32);
+          color: rgba(254, 243, 199, 0.86);
+          background: rgba(30, 41, 59, 0.5);
         }
 
         .global-room__label b {
@@ -2558,8 +2521,9 @@ const LegacyPrayerGlobe = forwardRef(function LegacyPrayerGlobe(
   );
 });
 
-function usePrayerClusters(prayers, locale = "zh-TW") {
-  const defaultTaipei = useMemo(() => getTaipeiDefaultCluster(locale), [locale]);
+const GlobalPrayerGlobe = LegacyPrayerGlobe;
+
+function usePrayerClusters(prayers) {
   const locatedPrayers = useMemo(
     () =>
       prayers.filter(
@@ -2572,39 +2536,24 @@ function usePrayerClusters(prayers, locale = "zh-TW") {
   );
 
   const clusters = useMemo(() => buildCityClusters(locatedPrayers), [locatedPrayers]);
-  const displayClusters = useMemo(
-    () => (clusters.length ? clusters : [defaultTaipei]),
-    [clusters, defaultTaipei]
-  );
-  const recent24Count = useMemo(
-    () =>
-      locatedPrayers.filter((prayer) => {
-        const time = getCreatedTime(prayer);
-        return time > 0 && Date.now() - time <= ONE_DAY_MS;
-      }).length,
-    [locatedPrayers]
-  );
-  const unansweredCount = useMemo(
-    () => locatedPrayers.filter((prayer) => Number(prayer.responseCount ?? 0) === 0).length,
-    [locatedPrayers]
-  );
-  const nearestCluster = useMemo(
-    () =>
-      clusters.length
-        ? [...clusters].sort((a, b) => distanceFromTaipei(a) - distanceFromTaipei(b))[0]
-        : defaultTaipei,
-    [clusters, defaultTaipei]
-  );
-  const taipeiCluster = useMemo(
-    () =>
-      clusters.find(
-        (cluster) =>
-          cluster.locationCity === TAIPEI.locationCity &&
-          Math.abs(Number(cluster.locationLat) - TAIPEI.locationLat) < 0.5 &&
-          Math.abs(Number(cluster.locationLng) - TAIPEI.locationLng) < 0.5
-      ) || defaultTaipei,
-    [clusters, defaultTaipei]
-  );
+  const displayClusters = clusters.length ? clusters : [TAIPEI];
+  const recent24Count = locatedPrayers.filter((prayer) => {
+    const time = getCreatedTime(prayer);
+    return time > 0 && Date.now() - time <= ONE_DAY_MS;
+  }).length;
+  const unansweredCount = locatedPrayers.filter(
+    (prayer) => Number(prayer.responseCount ?? 0) === 0
+  ).length;
+  const nearestCluster = clusters.length
+    ? [...clusters].sort((a, b) => distanceFromTaipei(a) - distanceFromTaipei(b))[0]
+    : TAIPEI;
+  const taipeiCluster =
+    clusters.find(
+      (cluster) =>
+        cluster.locationCity === TAIPEI.locationCity &&
+        Math.abs(Number(cluster.locationLat) - TAIPEI.locationLat) < 0.5 &&
+        Math.abs(Number(cluster.locationLng) - TAIPEI.locationLng) < 0.5
+    ) || TAIPEI;
 
   return {
     locatedPrayers,
@@ -2631,15 +2580,9 @@ export function GlobalPrayerRoomEmbed({
   onHeroClusterSelect,
   onHeroReady,
   onHeroBlankClick,
+  onHeroLocationSelect,
   externalGlobeRef = null,
   heroMap = false,
-  useImagery = true,
-  enableTileImagery = true,
-  initialView = null,
-  ariaLabel = "真實互動式全球代禱地球",
-  loadingLabel = "正在載入全球禱告地球",
-  loadErrorTitle = "全球禱告地球暫時無法載入",
-  loadErrorFallback = "全球禱告地球暫時無法載入，請稍後再試。",
 }) {
   const internalGlobeRef = useRef(null);
   const globeRef = externalGlobeRef || internalGlobeRef;
@@ -2647,12 +2590,7 @@ export function GlobalPrayerRoomEmbed({
   const [selectedCluster, setSelectedCluster] = useState(null);
   const { clusters, displayClusters, latestClusters, recent24Count, nearestCluster } =
     usePrayerClusters(prayers);
-  const nearestClusterRef = useRef(nearestCluster);
   const selectedPrayer = selectedCluster?.prayers?.[0] || null;
-
-  useEffect(() => {
-    nearestClusterRef.current = nearestCluster;
-  }, [nearestCluster]);
 
   useEffect(() => {
     setSelectedCluster((current) => current || nearestCluster);
@@ -2679,8 +2617,8 @@ export function GlobalPrayerRoomEmbed({
       onHeroReady?.();
       return;
     }
-    globeRef.current?.focusCluster?.(nearestClusterRef.current);
-  }, [globeRef, isHero, onHeroReady]);
+    globeRef.current?.focusCluster?.(nearestCluster);
+  }, [globeRef, isHero, nearestCluster, onHeroReady]);
 
   useEffect(() => {
     if (!isHero || focusPrayerId == null) return;
@@ -2710,14 +2648,10 @@ export function GlobalPrayerRoomEmbed({
           clusters={displayClusters}
           staticView={!heroMap}
           heroMap={heroMap}
-          useImagery={useImagery}
-          enableTileImagery={enableTileImagery}
-          initialView={initialView}
-          ariaLabel={ariaLabel}
-          loadingLabel={loadingLabel}
-          loadErrorTitle={loadErrorTitle}
-          loadErrorFallback={loadErrorFallback}
+          wheelZoom={!heroMap}
+          countryLabelMode="hero"
           onSelectCluster={handleSelectCluster}
+          onLocationSelect={onHeroLocationSelect}
           onBlankClick={onHeroBlankClick}
           onAutoRotateChange={setAutoRotate}
           onReady={handleEmbedReady}
@@ -2855,6 +2789,7 @@ export function GlobalPrayerRoomEmbed({
         <GlobalPrayerGlobe
           ref={globeRef}
           clusters={displayClusters}
+          countryLabelMode="hero"
           onSelectCluster={handleSelectCluster}
           onAutoRotateChange={setAutoRotate}
           onReady={handleEmbedReady}
@@ -3291,6 +3226,7 @@ export default function GlobalPrayerRoom({ prayers = [] }) {
             <GlobalPrayerGlobe
               ref={globeRef}
               clusters={displayClusters}
+              countryLabelMode="full"
               onSelectCluster={handleSelectCluster}
               onAutoRotateChange={setAutoRotate}
               onReady={() => globeRef.current?.focusCluster?.(nearestCluster)}
@@ -4614,11 +4550,8 @@ export default function GlobalPrayerRoom({ prayers = [] }) {
   );
 }
 
-export function GlobalPrayerRoomPageExperience({ prayers = [], locale: localeProp = "zh-TW" }) {
-  const locale = normalizeLocale(localeProp);
-  const text = getDictionary(locale).globalRoom;
+export function GlobalPrayerRoomPageExperience({ prayers = [] }) {
   const globeRef = useRef(null);
-  const autoRotateStartTimerRef = useRef(null);
   const authUser = useAuthSession();
   const { currentTrack, isPlaying, playTrack, setQueue, setIsExpanded } = useAudio();
   const [selectedCluster, setSelectedCluster] = useState(null);
@@ -4628,34 +4561,25 @@ export function GlobalPrayerRoomPageExperience({ prayers = [], locale: localePro
   const [countrySearchMessage, setCountrySearchMessage] = useState("");
   const activeLayers = useMemo(() => new Set(PRAYER_LAYERS.map((layer) => layer.key)), []);
   const [searchQuery, setSearchQuery] = useState("");
-  const [drawerMode, setDrawerMode] = useState("pray");
+  const [drawerMode, setDrawerMode] = useState("text");
   const [replyText, setReplyText] = useState("");
   const [replyNotice, setReplyNotice] = useState("");
   const [replySubmitting, setReplySubmitting] = useState(false);
+  const [audioUploading, setAudioUploading] = useState(false);
+  const [showVoiceOverlay, setShowVoiceOverlay] = useState(false);
   const [flashClusterId, setFlashClusterId] = useState(null);
   const [showGuide, setShowGuide] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [reportReason, setReportReason] = useState("");
+  const [reportRemarks, setReportRemarks] = useState("");
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [reportError, setReportError] = useState("");
+  const [reportFeedback, setReportFeedback] = useState("");
   const {
     clusters,
     nearestCluster,
     taipeiCluster,
-  } = usePrayerClusters(prayers, locale);
-
-  const formatTitle = useCallback(
-    (prayer) => {
-      if (!prayer) return text.cityPrayer;
-      return prayer.isPrivate ? text.privateTitle : prayer.title || text.cityPrayer;
-    },
-    [text]
-  );
-
-  const formatDescription = useCallback(
-    (prayer) => {
-      if (!prayer) return "";
-      if (prayer.isPrivate) return text.privateDescription;
-      return toPlainText(prayer.description);
-    },
-    [text]
-  );
+  } = usePrayerClusters(prayers);
 
   const filteredClusters = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -4670,7 +4594,7 @@ export function GlobalPrayerRoomPageExperience({ prayers = [], locale: localePro
           if (!layerMatch) return false;
           if (!query) return true;
 
-          return `${formatTitle(prayer)} ${formatDescription(prayer)} ${cluster.fullLabel} ${
+          return `${getPrayerTitle(prayer)} ${getPrayerDescription(prayer)} ${cluster.fullLabel} ${
             prayer.categoryLabel || ""
           }`
             .toLowerCase()
@@ -4716,16 +4640,13 @@ export function GlobalPrayerRoomPageExperience({ prayers = [], locale: localePro
       })
       .filter(Boolean)
       .sort((a, b) => Number(b.priority || b.heatScore || 0) - Number(a.priority || a.heatScore || 0));
-  }, [activeLayers, clusters, formatDescription, formatTitle, searchQuery]);
+  }, [activeLayers, clusters, searchQuery]);
 
-  const displayClusters = useMemo(
-    () => (filteredClusters.length ? filteredClusters : [TAIPEI]),
-    [filteredClusters]
-  );
+  const displayClusters = filteredClusters.length ? filteredClusters : [TAIPEI];
 
-  const totalPrayerCount = useMemo(
-    () => filteredClusters.reduce((sum, cluster) => sum + Number(cluster.totalCount || 0), 0),
-    [filteredClusters]
+  const totalPrayerCount = filteredClusters.reduce(
+    (sum, cluster) => sum + Number(cluster.totalCount || 0),
+    0
   );
 
   useEffect(() => {
@@ -4756,12 +4677,22 @@ export function GlobalPrayerRoomPageExperience({ prayers = [], locale: localePro
     globeRef.current?.focusCluster?.(cluster);
   }, []);
 
+  // Stable references for the globe's props: an inline arrow function here would get a
+  // new identity on every render (e.g. every audio "timeupdate" tick while a track is
+  // playing), which made LegacyPrayerGlobe's init effect think its deps changed and
+  // tear down + rebuild the whole three.js scene several times a second — that's what
+  // showed up as the globe "jumping around" while playback was active.
+  const handleGlobeAutoRotateChange = useCallback(() => {}, []);
+  const handleGlobeReady = useCallback(() => {
+    globeRef.current?.showTaiwan?.();
+  }, []);
+
   const focusCountry = useCallback((country) => {
     if (!country) return;
     setCountryQuery(country.label);
-    setCountrySearchMessage(text.searchLocated.replace("{location}", country.localLabel || country.label));
+    setCountrySearchMessage(`${country.localLabel || country.label} 已定位`);
     globeRef.current?.focusCountry?.(country);
-  }, [text.searchLocated]);
+  }, []);
 
   const handleCountrySearch = (event) => {
     event.preventDefault();
@@ -4778,18 +4709,18 @@ export function GlobalPrayerRoomPageExperience({ prayers = [], locale: localePro
     const normalized = query.toLowerCase();
     const matchedCluster = clusters.find((cluster) =>
       `${cluster.fullLabel} ${cluster.locationCity || ""} ${cluster.locationCountry || ""} ${
-        cluster.prayers?.map((prayer) => `${formatTitle(prayer)} ${formatDescription(prayer)}`).join(" ") || ""
+        cluster.prayers?.map((prayer) => `${getPrayerTitle(prayer)} ${getPrayerDescription(prayer)}`).join(" ") || ""
       }`
         .toLowerCase()
         .includes(normalized)
     );
 
     if (!matchedCluster) {
-      setCountrySearchMessage(text.searchNotFound);
+      setCountrySearchMessage("找不到相關國家、城市或事件，請試 Taiwan, Japan, USA, Healing");
       return;
     }
 
-    setCountrySearchMessage(text.searchLocatedWithPrayers.replace("{location}", matchedCluster.fullLabel));
+    setCountrySearchMessage(`${matchedCluster.fullLabel} 已定位，右側顯示相關代禱`);
     handleSelectCluster(matchedCluster);
   };
 
@@ -4806,19 +4737,14 @@ export function GlobalPrayerRoomPageExperience({ prayers = [], locale: localePro
 
   const handlePlayAudio = useCallback(async (prayer = drawerPrayer) => {
     if (!prayer) return;
-    if (prayer.isPrivate) {
-      setReplyNotice(text.privateAudioNotice);
-      return;
-    }
     const queue = [];
     if (prayer.voiceHref) {
       queue.push({
         id: `card-${prayer.id}`,
-        homeCardId: prayer.id,
         voiceUrl: prayer.voiceHref,
-        speaker: prayer.owner?.name || prayer.owner?.username || text.prayerPartner,
-        message: formatTitle(prayer),
-        requestTitle: formatTitle(prayer),
+        speaker: prayer.owner?.name || prayer.owner?.username || "Prayer Partner",
+        message: getPrayerTitle(prayer),
+        requestTitle: getPrayerTitle(prayer),
       });
     }
 
@@ -4832,106 +4758,156 @@ export function GlobalPrayerRoomPageExperience({ prayers = [], locale: localePro
             if (queue.some((track) => track.voiceUrl === item.voiceUrl)) return;
             queue.push({
               id: item.id,
-              homeCardId: item.homeCardId ?? prayer.id,
               voiceUrl: item.voiceUrl,
               speaker: item.isAnonymous
-                ? text.anonymousPrayer
-                : item.responder?.name || item.responder?.username || text.prayerPartner,
+                ? "Anonymous Prayer"
+                : item.responder?.name || item.responder?.username || "Prayer Partner",
               message: item.message || "",
-              requestTitle: formatTitle(prayer),
+              requestTitle: getPrayerTitle(prayer),
             });
           });
       }
 
       if (!queue.length) {
-        setReplyNotice(text.noAudioNotice);
+        setReplyNotice("目前還沒有可播放的語音禱告。");
         return;
       }
 
       setQueue(queue, 0);
       playTrack(queue[0]);
       setIsExpanded?.(true);
-      setReplyNotice(text.playingNotice);
+      setReplyNotice("正在播放這個代禱事項的語音。");
     } catch {
-      setReplyNotice(text.audioFailed);
+      setReplyNotice("語音暫時無法載入，請稍後再試。");
     }
-  }, [drawerPrayer, formatTitle, playTrack, setIsExpanded, setQueue, text]);
+  }, [drawerPrayer, playTrack, setIsExpanded, setQueue]);
 
   const submitPrayerResponse = useCallback(
-    async ({ message }) => {
-      if (!drawerPrayer || replySubmitting) return;
-      if (drawerPrayer.isPrivate) {
-        setReplyNotice(text.privateReplyNotice);
-        return;
-      }
-      if (!authUser) {
-        setReplyNotice(text.loginRequired);
+    async ({ message, audioFile }) => {
+      if (!drawerPrayer || replySubmitting || audioUploading) return;
+      if (!authUser && audioFile) {
+        setReplyNotice("登入後可以使用語音代禱；文字代禱不需登入。");
         return;
       }
 
       const formData = new FormData();
       formData.append("requestId", String(drawerPrayer.id));
       formData.append("message", message || "");
-      formData.append("isAnonymous", "false");
-      formData.append("responderId", authUser.id || "");
+      formData.append("isAnonymous", String(!authUser));
+      if (audioFile) formData.append("audio", audioFile);
 
-      setReplySubmitting(true);
+      setReplySubmitting(!audioFile);
+      setAudioUploading(Boolean(audioFile));
       setReplyNotice("");
 
       try {
         const response = await fetch("/api/responses", { method: "POST", body: formData });
         if (!response.ok) {
           const data = await response.json().catch(() => ({}));
-          throw new Error(data?.error || text.responseFailed);
+          throw new Error(data?.error || "回覆送出失敗，請稍後再試。");
         }
         const saved = await response.json();
         window.dispatchEvent(new CustomEvent(PRAYER_RESPONSE_CREATED, { detail: saved }));
         setReplyText("");
-        setReplyNotice(text.responseSent);
+      setReplyNotice(audioFile ? "語音禱告已上傳。" : "已送出你的禱告回應。");
         setFlashClusterId(modalCluster?.id || selectedCluster?.id || null);
         window.setTimeout(() => setFlashClusterId(null), 1800);
       } catch (error) {
-        setReplyNotice(error?.message || text.responseFailed);
+        setReplyNotice(error?.message || "回覆送出失敗，請稍後再試。");
       } finally {
         setReplySubmitting(false);
+        setAudioUploading(false);
       }
     },
-    [authUser, drawerPrayer, modalCluster?.id, replySubmitting, selectedCluster?.id, text]
+    [audioUploading, authUser, drawerPrayer, modalCluster?.id, replySubmitting, selectedCluster?.id]
+  );
+
+  const handleVoicePrayerComplete = useCallback(
+    async (file, transcript) => {
+      setShowVoiceOverlay(false);
+      await submitPrayerResponse({ message: transcript || "", audioFile: file });
+    },
+    [submitPrayerResponse]
   );
 
   const handleSharePrayer = useCallback(async () => {
     if (!drawerPrayer || typeof window === "undefined") return;
-    if (drawerPrayer.isPrivate) {
-      setReplyNotice(text.privateShareNotice);
-      return;
-    }
-    const url = `${window.location.origin}${localizePath(`/prayfor/${drawerPrayer.id}`, locale)}`;
+    const url = `${window.location.origin}/prayfor/${drawerPrayer.id}`;
     try {
       if (navigator.share) {
-        await navigator.share({ title: formatTitle(drawerPrayer), text: formatDescription(drawerPrayer), url });
+        await navigator.share({ title: getPrayerTitle(drawerPrayer), text: getPrayerDescription(drawerPrayer), url });
       } else if (navigator.clipboard) {
         await navigator.clipboard.writeText(url);
       }
-      setReplyNotice(text.shareReady);
+      setReplyNotice("分享連結已準備好。");
     } catch (error) {
-      if (error?.name !== "AbortError") setReplyNotice(text.shareFailed);
+      if (error?.name !== "AbortError") setReplyNotice("分享失敗，請稍後再試。");
     }
-  }, [drawerPrayer, formatDescription, formatTitle, locale, text]);
+  }, [drawerPrayer]);
 
-  const handleGlobeReady = useCallback(() => {
-    if (autoRotateStartTimerRef.current) window.clearTimeout(autoRotateStartTimerRef.current);
-    globeRef.current?.showTaiwan?.();
-    autoRotateStartTimerRef.current = window.setTimeout(() => {
-      globeRef.current?.setAutoRotate?.(true);
-    }, 2200);
-  }, []);
-  const handleAutoRotateChange = useCallback(() => {}, []);
+  const closeReportModal = useCallback(() => {
+    if (reportSubmitting) return;
+    setIsReportModalOpen(false);
+    setReportReason("");
+    setReportRemarks("");
+    setReportError("");
+    setReportFeedback("");
+  }, [reportSubmitting]);
 
-  useEffect(() => {
-    return () => {
-      if (autoRotateStartTimerRef.current) window.clearTimeout(autoRotateStartTimerRef.current);
-    };
-  }, []);
+  const openReportModal = useCallback(() => {
+    if (!drawerPrayer) return;
+    if (!authUser) {
+      setReplyNotice("請先登入，才能檢舉這則代禱。");
+      return;
+    }
+    setReportReason("");
+    setReportRemarks("");
+    setReportError("");
+    setReportFeedback("");
+    setIsReportModalOpen(true);
+  }, [authUser, drawerPrayer]);
+
+  const handleReportSubmit = useCallback(
+    async (event) => {
+      event.preventDefault();
+      if (!drawerPrayer) return;
+      if (!reportReason) {
+        setReportError("請選擇檢舉理由。");
+        return;
+      }
+
+      setReportSubmitting(true);
+      setReportError("");
+      setReportFeedback("");
+
+      try {
+        const response = await fetch("/api/prayfor/report", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            cardId: drawerPrayer.id,
+            reason: reportReason,
+            remarks: reportRemarks,
+          }),
+        });
+
+        if (!response.ok) {
+          const data = await response.json().catch(() => ({}));
+          throw new Error(data?.message || "檢舉失敗，請稍後再試。");
+        }
+
+        setReportFeedback("已收到檢舉，管理員會盡快審核。");
+        window.setTimeout(() => {
+          closeReportModal();
+        }, 1500);
+      } catch (error) {
+        setReportError(error?.message || "檢舉失敗，請稍後再試。");
+      } finally {
+        setReportSubmitting(false);
+      }
+    },
+    [closeReportModal, drawerPrayer, reportReason, reportRemarks]
+  );
 
   return (
     <section className={`gpr-page${focusListeningActive ? " is-focus-listening" : ""}`} aria-labelledby="gpr-page-title">
@@ -4939,37 +4915,37 @@ export function GlobalPrayerRoomPageExperience({ prayers = [], locale: localePro
       <div className="gpr-page__stars" aria-hidden="true" />
       <div className="gpr-page__radar" aria-hidden="true" />
       <div className="gpr-page__shell">
-        <section className="gpr-page__main" aria-label={text.pageAria}>
+        <section className="gpr-page__main" aria-label="全球禱告地球">
           <div className="gpr-page__stage">
             <div className="gpr-page__stage-glow" aria-hidden="true" />
             <header className="gpr-page__intro">
               <div>
-                <p className="gpr-page__eyebrow">{text.eyebrow}</p>
-                <h1 id="gpr-page-title">{text.title}</h1>
-                <p>{text.intro}</p>
+                <p className="gpr-page__eyebrow">全球禱告室</p>
+                <h1 id="gpr-page-title">看見世界正在被守望</h1>
+                <p>看見全球正在被守望的禱告光點，快速定位國家、聆聽語音並加入代禱。</p>
               </div>
-              <Link className="gpr-page__intro-link" href={localizePath("/customer-portal/create", locale)}>
-                {text.createPrayer}
+              <Link className="gpr-page__intro-link" href="/customer-portal/create">
+                新增代禱
               </Link>
             </header>
             {showGuide ? (
               <div className="gpr-guide" role="status">
-                <span>{text.guideDrag}</span>
-                <span>{text.guideClick}</span>
-                <span>{text.guidePlay}</span>
-                <span>{text.guideJoin}</span>
+                <span>拖曳地球</span>
+                <span>點擊光點</span>
+                <span>播放語音</span>
+                <span>加入禱告</span>
                 <button type="button" onClick={dismissGuide}>
-                  {text.guideDismiss}
+                  我知道了
                 </button>
               </div>
             ) : null}
             <div className="gpr-page__focus-chip">
-              <span>{text.currentFocus}</span>
-              <strong>{selectedCluster?.fullLabel || text.taipei}</strong>
-              {flashClusterId && flashClusterId === selectedCluster?.id ? <em>{text.justUpdated}</em> : null}
+              <span>目前焦點</span>
+              <strong>{selectedCluster?.fullLabel || "台北，台灣"}</strong>
+              {flashClusterId && flashClusterId === selectedCluster?.id ? <em>剛剛更新</em> : null}
             </div>
             <form className="gpr-page__country-search" onSubmit={handleCountrySearch}>
-              <label htmlFor="gpr-country-search">{text.searchLabel}</label>
+              <label htmlFor="gpr-country-search">搜尋地點或代禱</label>
               <div>
                 <input
                   id="gpr-country-search"
@@ -4979,10 +4955,10 @@ export function GlobalPrayerRoomPageExperience({ prayers = [], locale: localePro
                     setSearchQuery(event.target.value);
                     setCountrySearchMessage("");
                   }}
-                  placeholder={text.searchPlaceholder}
+                  placeholder="搜尋國家、城市或代禱事項"
                   autoComplete="off"
                 />
-                <button type="submit">{text.searchSubmit}</button>
+                <button type="submit">前往</button>
               </div>
               {countrySearchMessage ? <p role="status">{countrySearchMessage}</p> : null}
             </form>
@@ -4990,39 +4966,32 @@ export function GlobalPrayerRoomPageExperience({ prayers = [], locale: localePro
               ref={globeRef}
               clusters={displayClusters}
               heroMap
-              initialView={TAIWAN_VIEW}
-              enableIdleRotation
-              startAutoRotate={false}
-              maxCameraHeightOverride={NORTHERN_HEMISPHERE_MAX_HEIGHT}
+              countryLabelMode="full"
               onSelectCluster={handleSelectCluster}
               onBlankClick={closePopup}
               onHoverCluster={setHoveredCluster}
-              onAutoRotateChange={handleAutoRotateChange}
+              onAutoRotateChange={handleGlobeAutoRotateChange}
               onReady={handleGlobeReady}
-              ariaLabel={text.globeAria}
-              loadingLabel={text.globeLoading}
-              loadErrorTitle={text.globeLoadErrorTitle}
-              loadErrorFallback={text.globeLoadErrorFallback}
             />
             {hoveredCluster ? (
               <div className="gpr-page__tooltip" role="status">
                 <strong>{hoveredCluster.fullLabel}</strong>
-                <span>{formatTitle(hoveredCluster.prayers?.[0])}</span>
+                <span>{getPrayerTitle(hoveredCluster.prayers?.[0])}</span>
                 <small>
                   {formatRelativeTime(hoveredCluster.latestCreatedAt)}
-                  {Number(hoveredCluster.audioCount || 0) > 0 ? ` · ${text.audio}` : ""}
+                  {Number(hoveredCluster.audioCount || 0) > 0 ? " · 語音" : ""}
                 </small>
               </div>
             ) : null}
-            <div className="gpr-page__map-controls" aria-label={text.mapControlsLabel}>
+            <div className="gpr-page__map-controls" aria-label="地圖控制">
               <button type="button" onClick={() => globeRef.current?.showTaiwan?.()}>
-                {text.taiwan}
+                台灣
               </button>
               <button type="button" onClick={() => globeRef.current?.resetTaipei?.()}>
-                {text.taipeiCity}
+                台北
               </button>
               <button type="button" onClick={() => globeRef.current?.resetView?.()}>
-                {text.worldView}
+                全球視角
               </button>
               <button type="button" onClick={() => globeRef.current?.zoomIn?.()}>
                 +
@@ -5031,7 +5000,7 @@ export function GlobalPrayerRoomPageExperience({ prayers = [], locale: localePro
                 -
               </button>
               <button type="button" onClick={() => globeRef.current?.showAllMarkers?.()}>
-                {text.hotspotView}
+                熱點總覽
               </button>
             </div>
           </div>
@@ -5041,9 +5010,9 @@ export function GlobalPrayerRoomPageExperience({ prayers = [], locale: localePro
 
       {focusListeningActive ? (
         <div className="gpr-focus-listening" aria-live="polite">
-          <span>{text.listening}</span>
-          <strong>{currentTrack?.country || currentTrack?.requestTitle || selectedCluster?.fullLabel || text.listeningFallbackTitle}</strong>
-          <p>{currentTrack?.message || currentTrack?.requestTitle || text.listeningFallbackMessage}</p>
+          <span>正在聆聽</span>
+          <strong>{currentTrack?.country || currentTrack?.requestTitle || selectedCluster?.fullLabel || "全球禱告"}</strong>
+          <p>{currentTrack?.message || currentTrack?.requestTitle || "正在聆聽一段全球禱告語音。"}</p>
           <div className="gpr-focus-listening__wave" aria-hidden="true">
             <i /><i /><i /><i /><i />
           </div>
@@ -5055,70 +5024,62 @@ export function GlobalPrayerRoomPageExperience({ prayers = [], locale: localePro
           className="gpr-modal"
           role="dialog"
           aria-modal="true"
-          aria-label={`${modalCluster.fullLabel} ${text.modalAriaSuffix}`}
+          aria-label={`${modalCluster.fullLabel} 代禱內容`}
         >
           <button
             className="gpr-modal__backdrop"
             type="button"
             onClick={closePopup}
-            aria-label={text.close}
+            aria-label="關閉"
           />
           <article className="gpr-modal__card gpr-drawer">
             <button className="gpr-modal__close" type="button" onClick={closePopup}>
-              {text.close}
+              關閉
             </button>
             <span className="gpr-drawer__location">{modalCluster.fullLabel}</span>
-            <h2>{formatTitle(drawerPrayer)}</h2>
+            <h2>{getPrayerTitle(drawerPrayer)}</h2>
             <div className="gpr-drawer__chips">
               <span style={{ "--layer-color": getCategoryColor(drawerPrayer?.categoryKey) }}>
                 {drawerPrayer?.categoryLabel || modalCluster.categoryLabel}
               </span>
               <span>{formatRelativeTime(drawerPrayer?.createdAt || modalCluster.latestCreatedAt)}</span>
-              {drawerPrayer?.isUrgent ? <span className="is-urgent">{text.needsWatch}</span> : null}
+              {drawerPrayer?.isUrgent ? <span className="is-urgent">需要守望</span> : null}
             </div>
-            <p>{formatDescription(drawerPrayer) || text.privateDescription}</p>
+            <p>{getPrayerDescription(drawerPrayer) || "這個城市有人需要被守望。"}</p>
             {drawerPrayer?.id && !drawerPrayer?.isPrivate ? (
-              <Link className="gpr-drawer__detail-link" href={localizePath(`/prayfor/${drawerPrayer.id}`, locale)} prefetch={false}>
-                {text.detailLink}
+              <Link className="gpr-drawer__detail-link" href={`/prayfor/${drawerPrayer.id}`} prefetch={false}>
+                查看禱告詳情
               </Link>
             ) : null}
             <div className="gpr-drawer__metrics">
               <article>
                 <strong>{drawerPrayer?.prayerCount || 1}</strong>
-                <span>{text.metricPrayer}</span>
+                <span>代禱</span>
               </article>
               <article>
                 <strong>{drawerPrayer?.responseCount || 0}</strong>
-                <span>{text.metricResponse}</span>
+                <span>回應</span>
               </article>
               <article>
                 <strong>{getPrayerAudioCount(drawerPrayer)}</strong>
-                <span>{text.metricAudio}</span>
+                <span>語音</span>
               </article>
             </div>
             <div className="gpr-modal__actions">
               <button type="button" onClick={() => handlePlayAudio(drawerPrayer)}>
-                {text.playAudio}
-              </button>
-              <button type="button" onClick={() => submitPrayerResponse({ message: "我已代禱" })}>
-                {text.prayed}
-              </button>
-              <button type="button" onClick={() => setDrawerMode("prayer")}>
-                {text.respond}
+                播放語音
               </button>
               <button type="button" onClick={handleSharePrayer}>
-                {text.share}
+                分享
               </button>
-              <button type="button" onClick={() => setReplyNotice(text.reportNotice)}>
-                {text.report}
+              <button type="button" onClick={openReportModal}>
+                檢舉
               </button>
             </div>
-            <div className="gpr-response-modes" aria-label={text.responseTypeLabel}>
+            <div className="gpr-response-modes" aria-label="回覆類型">
               {[
-                ["pray", text.responseModes.pray],
-                ["prayer", text.responseModes.prayer],
-                ["encouragement", text.responseModes.encouragement],
-                ["testimony", text.responseModes.testimony],
+                ["text", "文字代禱"],
+                ["voice", "語音代禱"],
               ].map(([key, label]) => (
                 <button
                   key={key}
@@ -5126,42 +5087,302 @@ export function GlobalPrayerRoomPageExperience({ prayers = [], locale: localePro
                   className={drawerMode === key ? "is-active" : ""}
                   onClick={() => {
                     setDrawerMode(key);
-                    if (key === "pray") setReplyText(text.responseDefaults.pray);
-                    if (key === "encouragement") setReplyText(text.responseDefaults.encouragement);
-                    if (key === "testimony") setReplyText(text.responseDefaults.testimony);
+                    if (key === "voice") {
+                      if (!authUser) {
+                        setReplyNotice("登入後可以使用語音代禱；你仍可直接送出文字代禱。");
+                        return;
+                      }
+                      setShowVoiceOverlay(true);
+                    }
                   }}
                 >
                   {label}
                 </button>
               ))}
             </div>
-            <form
-              className="gpr-reply-form"
-              onSubmit={(event) => {
-                event.preventDefault();
-                submitPrayerResponse({ message: replyText });
-              }}
-            >
-              <textarea
-                value={replyText}
-                onChange={(event) => setReplyText(event.target.value)}
-                placeholder={text.replyPlaceholder}
-                rows={3}
-              />
-              <button type="submit" disabled={replySubmitting || !replyText.trim()}>
-                {replySubmitting ? text.replySubmitting : text.replySubmit}
+            {drawerMode === "text" ? (
+              <form
+                className="gpr-reply-form"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  submitPrayerResponse({ message: replyText });
+                }}
+              >
+                <textarea
+                  value={replyText}
+                  onChange={(event) => setReplyText(event.target.value)}
+                  placeholder="寫下一段簡短、真誠的文字代禱。"
+                  rows={3}
+                />
+                <button type="submit" disabled={replySubmitting || !replyText.trim()}>
+                  {replySubmitting ? "送出中..." : "送出文字代禱"}
+                </button>
+              </form>
+            ) : authUser ? (
+              <button
+                type="button"
+                className="gpr-audio-upload"
+                onClick={() => setShowVoiceOverlay(true)}
+                disabled={audioUploading}
+              >
+                {audioUploading ? "上傳中..." : "開始語音代禱"}
               </button>
-            </form>
+            ) : (
+              <p className="gpr-drawer__notice">
+                登入後可以使用語音代禱。<Link href={`/login?next=${encodeURIComponent(`/global-prayer-room`)}`}>前往登入</Link>
+              </p>
+            )}
             {replyNotice ? <p className="gpr-drawer__notice" role="status">{replyNotice}</p> : null}
             <div className="gpr-drawer__footnote">
-              <span>{text.memberFootnote}</span>
-              <span>{text.visitorFootnote}</span>
+              <span>文字代禱不需登入，會以匿名訪客送出。</span>
+              <span>登入後可使用與禱告詳情頁相同的語音錄製功能。</span>
             </div>
           </article>
         </div>
       ) : null}
 
+      {showVoiceOverlay ? (
+        <VoicePrayerOverlay
+          onComplete={handleVoicePrayerComplete}
+          onCancel={() => setShowVoiceOverlay(false)}
+        />
+      ) : null}
+
+      {isReportModalOpen ? (
+        <div className="comment-report-modal" role="dialog" aria-modal="true">
+          <div className="comment-report-modal__backdrop" onClick={closeReportModal} />
+          <div className="comment-report-modal__card">
+            <button
+              type="button"
+              className="comment-report-modal__close"
+              onClick={closeReportModal}
+              disabled={reportSubmitting}
+              aria-label="關閉檢舉視窗"
+            >
+              ×
+            </button>
+            <h4>檢舉代禱內容</h4>
+            <p className="comment-report-modal__hint">
+              請選擇檢舉理由。若願意，可補充讓管理員判斷的原因。
+            </p>
+            <div className="comment-report-modal__preview">
+              <p className="comment-report-modal__preview-label">檢舉對象</p>
+              <strong>{getPrayerTitle(drawerPrayer) || "未命名代禱"}</strong>
+            </div>
+            <form onSubmit={handleReportSubmit} className="comment-report-modal__form">
+              <fieldset className="comment-report-modal__fieldset">
+                <legend>檢舉理由</legend>
+                {REPORT_REASONS.map((reason) => (
+                  <label key={reason.value} className="comment-report-modal__reason">
+                    <input
+                      type="radio"
+                      name="gprReportReason"
+                      value={reason.value}
+                      checked={reportReason === reason.value}
+                      onChange={(event) => setReportReason(event.target.value)}
+                      disabled={reportSubmitting}
+                    />
+                    <span>{reason.label}</span>
+                  </label>
+                ))}
+              </fieldset>
+
+              <label className="comment-report-modal__remarks">
+                <span>補充說明（選填）</span>
+                <textarea
+                  value={reportRemarks}
+                  onChange={(event) => setReportRemarks(event.target.value)}
+                  rows={4}
+                  placeholder="若願意，可補充讓管理員判斷的原因。"
+                  disabled={reportSubmitting}
+                />
+              </label>
+
+              {reportError ? <p className="cp-alert cp-alert--error">{reportError}</p> : null}
+              {reportFeedback ? <p className="cp-alert cp-alert--success">{reportFeedback}</p> : null}
+
+              <div className="comment-report-modal__actions">
+                <button
+                  type="button"
+                  className="cp-button cp-button--ghost"
+                  onClick={closeReportModal}
+                  disabled={reportSubmitting}
+                >
+                  取消
+                </button>
+                <button type="submit" className="cp-button" disabled={reportSubmitting}>
+                  {reportSubmitting ? "送出中..." : "送出檢舉"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
       <style jsx>{`
+        /* Report modal styles — copied from theme-detail.css's .comment-report-modal
+           rules (that stylesheet is only loaded on /prayfor/[id], not this page), so
+           the report dialog isn't left completely unstyled here. */
+        .comment-report-modal {
+          position: fixed;
+          inset: 0;
+          z-index: 1200;
+          display: grid;
+          place-items: center;
+          padding: clamp(1rem, 3vw, 2rem);
+        }
+
+        .comment-report-modal__backdrop {
+          position: absolute;
+          inset: 0;
+          border: 0;
+          background: rgba(2, 6, 23, 0.72);
+          backdrop-filter: blur(10px);
+        }
+
+        .comment-report-modal__card {
+          position: relative;
+          z-index: 1;
+          width: min(620px, 100%);
+          max-height: min(86vh, 760px);
+          overflow-y: auto;
+          border-radius: 22px;
+          border: 1px solid rgba(148, 163, 184, 0.28);
+          background: linear-gradient(160deg, rgba(15, 23, 42, 0.98), rgba(8, 15, 30, 0.98));
+          color: #f8fafc;
+          box-shadow: 0 28px 70px -34px rgba(0, 0, 0, 0.95);
+          padding: clamp(1rem, 2.5vw, 1.4rem);
+        }
+
+        .comment-report-modal__close {
+          position: absolute;
+          top: 0.85rem;
+          right: 0.85rem;
+          width: 38px;
+          height: 38px;
+          border-radius: 999px;
+          border: 1px solid rgba(148, 163, 184, 0.28);
+          background: rgba(255, 255, 255, 0.08);
+          color: #f8fafc;
+          cursor: pointer;
+          font-size: 1.25rem;
+          line-height: 1;
+        }
+
+        .comment-report-modal__card h4 {
+          margin: 0;
+          padding-right: 2.75rem;
+          color: #ffffff;
+          font-size: 1.15rem;
+        }
+
+        .comment-report-modal__hint {
+          margin: 0.45rem 2.75rem 0 0;
+          color: rgba(226, 232, 240, 0.78);
+          line-height: 1.55;
+        }
+
+        .comment-report-modal__preview {
+          display: grid;
+          gap: 0.3rem;
+          margin-top: 1rem;
+          border: 1px solid rgba(148, 163, 184, 0.24);
+          border-radius: 16px;
+          background: rgba(15, 23, 42, 0.55);
+          padding: 0.85rem;
+        }
+
+        .comment-report-modal__preview-label {
+          margin: 0;
+          color: rgba(125, 211, 252, 0.92);
+          font-size: 0.76rem;
+          font-weight: 800;
+          letter-spacing: 0.08em;
+        }
+
+        .comment-report-modal__preview strong {
+          color: #f8fafc;
+        }
+
+        .comment-report-modal__form {
+          display: grid;
+          gap: 0.9rem;
+          margin-top: 1rem;
+        }
+
+        .comment-report-modal__fieldset {
+          display: grid;
+          gap: 0.55rem;
+          margin: 0;
+          border: 0;
+          padding: 0;
+        }
+
+        .comment-report-modal__fieldset legend,
+        .comment-report-modal__remarks span {
+          margin-bottom: 0.4rem;
+          color: rgba(226, 232, 240, 0.92);
+          font-size: 0.84rem;
+          font-weight: 800;
+        }
+
+        .comment-report-modal__reason {
+          display: flex;
+          align-items: center;
+          gap: 0.55rem;
+          min-height: 40px;
+          border: 1px solid rgba(148, 163, 184, 0.2);
+          border-radius: 12px;
+          background: rgba(255, 255, 255, 0.05);
+          padding: 0.52rem 0.65rem;
+          color: rgba(241, 245, 249, 0.9);
+        }
+
+        .comment-report-modal__reason input {
+          flex: 0 0 auto;
+          accent-color: #38bdf8;
+        }
+
+        .comment-report-modal__remarks {
+          display: grid;
+          gap: 0.35rem;
+        }
+
+        .comment-report-modal__remarks textarea {
+          min-height: 112px;
+          resize: vertical;
+          border-radius: 14px;
+          border: 1px solid rgba(148, 163, 184, 0.34);
+          background: rgba(15, 23, 42, 0.64);
+          color: #f8fafc;
+          padding: 0.72rem 0.8rem;
+          line-height: 1.6;
+        }
+
+        .comment-report-modal__actions {
+          display: flex;
+          justify-content: flex-end;
+          gap: 0.65rem;
+        }
+
+        @media (max-width: 768px) {
+          .comment-report-modal {
+            padding: 0.75rem;
+          }
+
+          .comment-report-modal__card {
+            max-height: 92vh;
+          }
+
+          .comment-report-modal__actions {
+            flex-direction: column-reverse;
+          }
+
+          .comment-report-modal__actions :global(.cp-button) {
+            width: 100%;
+          }
+        }
+
         .gpr-page {
           position: relative;
           left: 50%;
@@ -6014,7 +6235,7 @@ export function GlobalPrayerRoomPageExperience({ prayers = [], locale: localePro
           position: absolute;
           top: 0.85rem;
           right: 0.85rem;
-          min-height: 44px;
+          min-height: 36px;
           border: 1px solid rgba(255, 255, 255, 0.12);
           border-radius: 999px;
           padding: 0.35rem 0.7rem;
@@ -6052,7 +6273,7 @@ export function GlobalPrayerRoomPageExperience({ prayers = [], locale: localePro
         .gpr-modal__actions a,
         .gpr-reply-form button,
         .gpr-audio-upload {
-          min-height: 44px;
+          min-height: 40px;
           border: 1px solid rgba(125, 211, 252, 0.22);
           border-radius: 0.7rem;
           padding: 0.62rem 0.75rem;
@@ -6733,7 +6954,6 @@ export function GlobalPrayerRoomPageExperience({ prayers = [], locale: localePro
           }
 
           .gpr-page__intro-link {
-            min-height: 44px;
             width: 100%;
             text-align: center;
           }
@@ -6967,7 +7187,7 @@ export function GlobalPrayerRoomPageExperience({ prayers = [], locale: localePro
             left: 0.75rem;
             right: 0.75rem;
             top: auto;
-            bottom: 0.75rem;
+            bottom: 5.2rem;
             width: auto;
             margin: 0;
             padding: 0.78rem;
@@ -6976,14 +7196,6 @@ export function GlobalPrayerRoomPageExperience({ prayers = [], locale: localePro
 
           .gpr-page__intro h1 {
             font-size: 1.55rem;
-          }
-
-          .gpr-page__intro-link {
-            min-height: 44px;
-          }
-
-          .gpr-guide {
-            display: none;
           }
 
           .gpr-page__intro p:not(.gpr-page__eyebrow) {
@@ -7008,23 +7220,25 @@ export function GlobalPrayerRoomPageExperience({ prayers = [], locale: localePro
           .gpr-page__focus-chip {
             left: 0.75rem;
             right: 0.75rem;
-            top: 12.65rem;
-            bottom: auto;
+            bottom: 1rem;
             max-width: none;
           }
 
           .gpr-page__map-controls {
-            top: 4.8rem;
+            top: auto;
             right: 0.75rem;
-            bottom: auto;
+            bottom: 1rem;
             left: auto;
-            max-width: 152px;
+            height: auto;
+            max-width: 144px;
+            align-items: center;
           }
 
           .gpr-page__map-controls button {
             flex: 0 0 auto;
-            min-width: 44px;
-            min-height: 44px;
+            min-width: 42px;
+            height: 38px;
+            min-height: 38px;
           }
         }
       `}</style>

@@ -44,10 +44,10 @@ export default function ResetPasswordPage() {
   return (
     <>
       <SiteHeader activePath="/login" />
-      <main>
+      <main className="auth-page auth-page--compact">
         <div className="auth-wrapper">
           <div className="auth-grid">
-            <section className="auth-card">
+            <section className="auth-card auth-card--compact">
               <div>
                 <h1>重設密碼</h1>
                 <p>請輸入新密碼，並確保至少 8 碼。</p>
@@ -102,8 +102,7 @@ export default function ResetPasswordPage() {
 
                 <button
                   type="submit"
-                  className="btn btn-primary"
-                  style={{ width: "100%", justifyContent: "center" }}
+                  className="btn btn-primary auth-submit"
                   disabled={status.state === "loading"}
                 >
                   {status.state === "loading" ? "更新中…" : "更新密碼"}

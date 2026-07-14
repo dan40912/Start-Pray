@@ -184,7 +184,7 @@ function HomeEntryCards({ text = PAGE_TEXT, locale = "zh-TW" }) {
       title: text.entryPrayTitle,
       copy: text.entryPrayCopy,
       cta: text.entryPrayCta,
-      href: localizePath("/prayfor", locale),
+      href: localizePath("/prayfor/one", locale),
     },
     {
       title: text.entryLookTitle,
@@ -239,7 +239,7 @@ function HomeProofSection({ proofStats, text = PAGE_TEXT, locale = "zh-TW" }) {
             >
               {text.proofPrimary}
             </Link>
-            <Link href={localizePath("/prayfor", locale)} className="home-proof__action" prefetch={false}>
+            <Link href={localizePath("/prayfor/one", locale)} className="home-proof__action" prefetch={false}>
               {text.proofSecondary}
             </Link>
           </div>
@@ -287,7 +287,7 @@ function HomeFinalCta({ text = PAGE_TEXT, locale = "zh-TW" }) {
           >
             {text.finalCtaPrimary}
           </Link>
-          <Link href={localizePath("/prayfor", locale)} className="home-final-cta__button" prefetch={false}>
+          <Link href={localizePath("/prayfor/one", locale)} className="home-final-cta__button" prefetch={false}>
             {text.finalCtaSecondary}
           </Link>
         </div>
@@ -354,6 +354,7 @@ export default async function HomeLandingPage({ locale: localeProp = "zh-TW" } =
           prayers={globalPrayers}
           primaryHref={localizePath("/global-prayer-room", locale)}
           secondaryHref={localizePath("/customer-portal/create", locale)}
+          prayHref={localizePath("/prayfor/one", locale)}
           stats={heroStats}
           locale={locale}
         />
@@ -373,7 +374,7 @@ export default async function HomeLandingPage({ locale: localeProp = "zh-TW" } =
               primaryLabel: text.explorerPrimary,
               primaryHref: localizePath("/customer-portal/create", locale),
               secondaryLabel: text.explorerSecondary,
-              secondaryHref: localizePath("/prayfor", locale),
+              secondaryHref: localizePath("/prayfor/one", locale),
             }}
             locale={locale}
           />

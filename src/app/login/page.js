@@ -22,11 +22,11 @@ export default function LoginPage({ locale: localeProp = "zh-TW" } = {}) {
     <>
       <SiteHeader activePath={localizePath("/login", locale)} locale={locale} />
 
-      <main>
+      <main className="auth-page auth-page--login">
         <div className="auth-wrapper">
           <div className="auth-grid">
-            <section className="auth-card">
-              <div>
+            <section className="auth-card auth-card--login">
+              <div className="auth-card__intro">
                 <h1>{text.title}</h1>
                 <p>{text.copy}</p>
               </div>

@@ -92,7 +92,7 @@ export default function HomePrayerExplorer({
 }) {
   const locale = normalizeLocale(localeProp);
   const text = getDictionary(locale).explorer;
-  const { setQueue } = useAudio();
+  const { setQueue, playTrack, setIsExpanded } = useAudio();
   const resolvedCardLimit = Number.isFinite(cardLimit) && cardLimit > 0 ? Math.floor(cardLimit) : DEFAULT_LIMIT;
 
   const [categories] = useState(initialCategories);
@@ -331,6 +331,19 @@ export default function HomePrayerExplorer({
     setQueue(tracks, -1);
   }, [displayIsLoading, queueCards, queueSignature, setQueue, text]);
 
+  const handlePlayCard = useCallback(
+    (event, card) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const track = buildPrimaryTrack(card, text);
+      if (!track) return;
+      setQueue([track], 0);
+      playTrack(track);
+      setIsExpanded?.(true);
+    },
+    [playTrack, setIsExpanded, setQueue, text]
+  );
+
   const headingText = isShowingSearchResults
     ? `${text.headingSearch}: "${trimmedQuery}"`
     : activeCategory === POPULAR_SLUG
@@ -521,7 +534,8 @@ export default function HomePrayerExplorer({
 
         <div className="home-card-grid">
           {displayCards.map((card) => {
-            const responseCount = card?._count?.responses ?? card?.responsesCount ?? 0;
+            const responseCount =
+              card?.responseCount ?? card?._count?.responses ?? card?.responsesCount ?? 0;
             const detailHref = localizePath(`/prayfor/${card.id}`, locale);
             const authorName = getAuthorName(card, text);
 
@@ -542,7 +556,32 @@ export default function HomePrayerExplorer({
                   <h4 className="home-card__title">{card.title}</h4>
                   <div className="home-card__tag-row">
                     <span className="home-card__category">{card.category?.name || text.categoryFallback}</span>
+                    {card.voiceHref ? (
+                      <span className="home-card__category home-card__category--voice">
+                        {text.hasVoice}
+                      </span>
+                    ) : null}
+                    <span
+                      className={`home-card__prayer-badge${responseCount === 0 ? " is-empty" : ""}`}
+                    >
+                      {responseCount === 0
+                        ? text.noResponseYet
+                        : `${formatResponseCount(responseCount)} ${text.respondingCount}`}
+                    </span>
                   </div>
+                  {card.voiceHref ? (
+                    <div className="home-card__actions">
+                      <button
+                        type="button"
+                        className="home-card__action home-card__action--primary"
+                        onClick={(event) => handlePlayCard(event, card)}
+                        aria-label={`${text.playAudio} "${card.title}"`}
+                      >
+                        <i className="fa-solid fa-play" aria-hidden="true" />
+                        {text.playAudio}
+                      </button>
+                    </div>
+                  ) : null}
                   <div className="home-card__meta home-card__meta--bottom">
                     <span className="home-card__author" title={`${text.author} ${authorName}`}>
                       {text.author} {authorName}

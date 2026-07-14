@@ -1,0 +1,6 @@
+ALTER TABLE `user`
+  ADD COLUMN `trustScore` INTEGER NOT NULL DEFAULT 50,
+  ADD COLUMN `flaggedCount` INTEGER NOT NULL DEFAULT 0;
+
+ALTER TABLE `home_prayer_card`
+  ADD COLUMN `needsReview` BOOLEAN NOT NULL DEFAULT false;
