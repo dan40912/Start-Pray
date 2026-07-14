@@ -13,6 +13,9 @@ $env:DATABASE_URL = $DatabaseUrl
 Write-Host "[prod-migrate] generating prisma client"
 npx prisma generate
 
+Write-Host "[prod-migrate] running fail-closed preflight"
+node scripts/db/preflight-prod-release.cjs
+
 Write-Host "[prod-migrate] applying migrations"
 npx prisma migrate deploy
 

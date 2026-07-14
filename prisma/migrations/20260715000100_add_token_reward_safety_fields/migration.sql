@@ -1,0 +1,6 @@
+ALTER TABLE `token_reward_rule`
+  ADD COLUMN `rewardsEnabled` BOOLEAN NOT NULL DEFAULT true,
+  ADD COLUMN `dailyRewardCap` INTEGER NOT NULL DEFAULT 3,
+  ADD COLUMN `perCardRewardCap` INTEGER NOT NULL DEFAULT 1,
+  ADD COLUMN `minMessageLength` INTEGER NOT NULL DEFAULT 15,
+  ADD COLUMN `requireVoiceApproved` BOOLEAN NOT NULL DEFAULT true;

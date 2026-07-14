@@ -1,4 +1,4 @@
-# Prayer Coin - PROD DB Migration 完整安裝手冊
+# Start Pray - PROD DB Migration 完整安裝手冊
 
 此文件可直接提供給雲端/DBA 執行。
 
@@ -6,7 +6,8 @@
 - migration 腳本（Linux）: `scripts/db/prod-migrate.sh`
 - migration 腳本（PowerShell）: `scripts/db/prod-migrate.ps1`
 - migration bundle 產生器: `scripts/db/export-migration-bundle.cjs`
-- 全量 SQL bundle（22 筆 migration）: `prisma/migrations/PROD_MIGRATION_BUNDLE.sql`
+- schema drift fail-closed 預檢: `scripts/db/preflight-prod-release.cjs`
+- 全量 SQL bundle（30 筆 migration）: `prisma/migrations/PROD_MIGRATION_BUNDLE.sql`
 - Prisma migration 原始資料夾: `prisma/migrations/*/migration.sql`
 
 ## 1) Migration 清單（依時間順序）
@@ -32,6 +33,14 @@
 20. `20251010_add_token_reward_rule`
 21. `20251010_add_token_reward_tables`
 22. `20260327000100_add_admin_grant_transaction_type`
+23. `20260331_add_public_profile_and_overcomer_reports`
+24. `20260426_add_user_story_media`
+25. `20260428_add_prayer_location`
+26. `20260429_add_private_prayer_cards`
+27. `20260630000100_add_prd005_review_fields`
+28. `20260709000100_add_voice_moderation`
+29. `20260711000100_add_guest_response_moderation`
+30. `20260715000100_add_token_reward_safety_fields`
 
 ## 2) 推薦安裝方式（正式環境）
 > 建議使用 Prisma 官方流程：`migrate deploy`。
@@ -51,7 +60,7 @@ git fetch origin
 git checkout main
 git pull origin main
 
-npm ci
+npm install --include=dev --no-audit --fund=false
 
 # 套用 migration
 bash scripts/db/prod-migrate.sh
@@ -65,16 +74,17 @@ git fetch origin
 git checkout main
 git pull origin main
 
-npm ci
+npm install --include=dev --no-audit --fund=false
 
 ./scripts/db/prod-migrate.ps1
 ```
 
 ### 2.3 腳本會做的事
 1. `npx prisma generate`
-2. `npx prisma migrate deploy`
-3. `npx prisma migrate status`
-4. 重新產生 SQL bundle（稽核留存）
+2. 執行 `scripts/db/preflight-prod-release.cjs`；若 migration history 與欄位／索引不一致，立即停止
+3. `npx prisma migrate deploy`
+4. `npx prisma migrate status`
+5. 重新產生 SQL bundle（稽核留存）
 
 ## 3) 驗證步驟（請務必執行）
 
@@ -86,7 +96,7 @@ npx prisma migrate status
 
 ### 3.2 DB 實際驗證（MySQL）
 ```sql
--- migration 總數（應 >= 22，且包含最新）
+-- migration 總數（本版 repo 共 30 筆；PROD 實際套用後應包含最新）
 SELECT migration_name, finished_at
 FROM _prisma_migrations
 ORDER BY finished_at DESC
@@ -95,13 +105,20 @@ LIMIT 30;
 -- 最新 migration 是否存在
 SELECT migration_name
 FROM _prisma_migrations
-WHERE migration_name = '20260327000100_add_admin_grant_transaction_type';
+WHERE migration_name IN (
+  '20260630000100_add_prd005_review_fields',
+  '20260709000100_add_voice_moderation',
+  '20260711000100_add_guest_response_moderation',
+  '20260715000100_add_token_reward_safety_fields'
+);
 ```
 
 ### 3.3 功能關聯驗證（建議）
 - Admin 後台 API 可正常讀寫（users/prayfor/prayerresponse）。
-- 回應過濾（`isBlocked=false` 且 `reportCount=0`）正常。
+- 回應過濾（`isBlocked=false`、`moderationStatus=APPROVED`，且語音狀態可公開）正常。
 - 代幣交易類型含 `ADMIN_GRANT`。
+- 匿名回應不回傳本人身份或 avatar，並使用站內匿名 avatar。
+- Token reward rule 可讀取五個 safety 欄位。
 
 ## 4) 若雲端要求「只給 SQL」
 
@@ -132,13 +149,13 @@ WHERE migration_name = '20260327000100_add_admin_grant_transaction_type';
 ```bash
 export DATABASE_URL='mysql://USER:PASSWORD@HOST:3306/DBNAME'
 cd /path/to/prayer-coin
-npm ci && bash scripts/db/prod-migrate.sh
+npm install --include=dev --no-audit --fund=false && bash scripts/db/prod-migrate.sh
 ```
 
 ## 8) 一鍵最短命令（PowerShell）
 ```powershell
 $env:DATABASE_URL = 'mysql://USER:PASSWORD@HOST:3306/DBNAME'
 cd C:\path\to\prayer-coin
-npm ci
+npm install --include=dev --no-audit --fund=false
 ./scripts/db/prod-migrate.ps1
 ```

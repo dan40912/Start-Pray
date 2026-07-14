@@ -20,6 +20,9 @@ git pull --ff-only "$REMOTE" "$BRANCH"
 echo "==> Installing dependencies with npm install"
 npm install --include=dev --no-audit --fund=false
 
+echo "==> Running fail-closed database preflight"
+npm run db:preflight:prod
+
 echo "==> Applying database migrations"
 npx prisma migrate deploy
 

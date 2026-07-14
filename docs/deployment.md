@@ -6,6 +6,7 @@ This is a short deployment overview. See the root deployment runbooks for enviro
 
 ```bash
 npm install --include=dev --no-audit --fund=false
+npm run db:preflight:prod
 npx prisma migrate deploy
 npx prisma generate
 npm run build
@@ -90,8 +91,13 @@ Recommended checks:
 ```bash
 npm run lint
 npm run build
+npm run db:preflight:prod
 npx prisma migrate status
 ```
+
+The production preflight is read-only and fail-closed. It stops before
+`migrate deploy` when migration history and expected columns or indexes do not
+match. Any failure must be reviewed by the DBA; do not bypass it in production.
 
 Also verify:
 

@@ -14,6 +14,7 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:migrate:prod": "prisma migrate deploy",
+    "db:preflight:prod": "node scripts/db/preflight-prod-release.cjs",
     "db:bundle": "node scripts/db/export-migration-bundle.cjs",
     "db:studio": "prisma studio",
     "media:audit": "node scripts/audit-missing-media.js",

@@ -46,11 +46,12 @@ It runs:
 1. `git fetch origin main`
 2. `git pull --ff-only origin main`
 3. `npm install --include=dev --no-audit --fund=false`
-4. `npx prisma migrate deploy`
-5. `npx prisma generate`
-6. clean `.next`
-7. `npm run build`
-8. `pm2 restart prayer-coin --update-env` or first-time `pm2 start ecosystem.config.js`
+4. `npm run db:preflight:prod`（schema drift 時在 migration 前停止）
+5. `npx prisma migrate deploy`
+6. `npx prisma generate`
+7. clean `.next`
+8. `npm run build`
+9. `pm2 restart prayer-coin --update-env` or first-time `pm2 start ecosystem.config.js`
 
 If the server has local uncommitted edits or a non-fast-forward history, the pull
 will stop instead of overwriting production files. Fix that state before
@@ -93,6 +94,7 @@ git pull --ff-only origin main
 
 rm -rf .next
 npm install --include=dev --no-audit --fund=false
+npm run db:preflight:prod
 npx prisma migrate deploy
 npx prisma generate
 npm run build

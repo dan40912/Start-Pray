@@ -18,6 +18,7 @@ out/
 # Prisma 產生檔
 /src/generated/prisma
 logs/
+dev-server*.log
 public/uploads/
 public/voices/
 tmp/

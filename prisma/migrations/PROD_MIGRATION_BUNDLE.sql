@@ -1,4 +1,4 @@
--- PROD migration bundle generated at: 2026-03-29T17:23:32.099Z
+-- PROD migration bundle generated at: 2026-07-14T16:13:46.409Z
 -- Source: prisma/migrations/*/migration.sql
 -- NOTE: Prefer running `npx prisma migrate deploy` in production.
 -- This bundle is for DBA review / controlled SQL execution.
@@ -695,3 +695,103 @@ ALTER TABLE `token_transaction` ADD CONSTRAINT `token_transaction_relatedRespons
 -- AlterTable
 ALTER TABLE `token_transaction`
     MODIFY `type` ENUM('EARN_PRAYER', 'EARN_RESPONSE', 'ADMIN_GRANT', 'WITHDRAW', 'DONATE') NOT NULL;
+
+-- ==============================
+-- MIGRATION: 20260331_add_public_profile_and_overcomer_reports
+-- ==============================
+ALTER TABLE `user`
+  ADD COLUMN `sessionVersion` INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN `publicProfileEnabled` BOOLEAN NOT NULL DEFAULT true;
+
+CREATE TABLE `overcomer_user_report` (
+  `id` INTEGER NOT NULL AUTO_INCREMENT,
+  `targetUserId` VARCHAR(191) NOT NULL,
+  `reporterId` VARCHAR(191) NOT NULL,
+  `reason` VARCHAR(191) NOT NULL,
+  `remarks` TEXT NULL,
+  `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+  UNIQUE INDEX `overcomer_user_report_targetUserId_reporterId_key`(`targetUserId`, `reporterId`),
+  INDEX `overcomer_user_report_targetUserId_idx`(`targetUserId`),
+  INDEX `overcomer_user_report_reporterId_idx`(`reporterId`),
+  INDEX `overcomer_user_report_createdAt_idx`(`createdAt`),
+  PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+ALTER TABLE `overcomer_user_report`
+  ADD CONSTRAINT `overcomer_user_report_targetUserId_fkey`
+    FOREIGN KEY (`targetUserId`) REFERENCES `user`(`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `overcomer_user_report_reporterId_fkey`
+    FOREIGN KEY (`reporterId`) REFERENCES `user`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- ==============================
+-- MIGRATION: 20260426_add_user_story_media
+-- ==============================
+ALTER TABLE `user`
+  ADD COLUMN `storyAudioUrl` TEXT NULL,
+  ADD COLUMN `storyYoutubeUrl` TEXT NULL,
+  ADD COLUMN `storyUpdatedAt` DATETIME(3) NULL;
+
+-- ==============================
+-- MIGRATION: 20260428_add_prayer_location
+-- ==============================
+ALTER TABLE `home_prayer_card`
+  ADD COLUMN `locationCity` VARCHAR(120) NULL,
+  ADD COLUMN `locationCountry` VARCHAR(120) NULL,
+  ADD COLUMN `locationLat` DECIMAL(9,6) NULL,
+  ADD COLUMN `locationLng` DECIMAL(9,6) NULL;
+
+-- ==============================
+-- MIGRATION: 20260429_add_private_prayer_cards
+-- ==============================
+ALTER TABLE `home_prayer_card`
+  ADD COLUMN `isPrivate` BOOLEAN NOT NULL DEFAULT false;
+
+-- ==============================
+-- MIGRATION: 20260630000100_add_prd005_review_fields
+-- ==============================
+ALTER TABLE `user`
+  ADD COLUMN `trustScore` INTEGER NOT NULL DEFAULT 50,
+  ADD COLUMN `flaggedCount` INTEGER NOT NULL DEFAULT 0;
+
+ALTER TABLE `home_prayer_card`
+  ADD COLUMN `needsReview` BOOLEAN NOT NULL DEFAULT false;
+
+-- ==============================
+-- MIGRATION: 20260709000100_add_voice_moderation
+-- ==============================
+ALTER TABLE `prayerresponse`
+  ADD COLUMN `voiceModerationStatus` ENUM('PENDING', 'APPROVED', 'REJECTED', 'NOT_APPLICABLE') NOT NULL DEFAULT 'NOT_APPLICABLE',
+  ADD COLUMN `voiceModeratedAt` DATETIME(3) NULL,
+  ADD COLUMN `voiceModeratedBy` VARCHAR(191) NULL,
+  ADD COLUMN `voiceAutoFlags` TEXT NULL;
+
+UPDATE `prayerresponse`
+SET `voiceModerationStatus` = CASE
+  WHEN `voiceUrl` IS NULL OR `voiceUrl` = '' THEN 'NOT_APPLICABLE'
+  ELSE 'APPROVED'
+END;
+
+-- ==============================
+-- MIGRATION: 20260711000100_add_guest_response_moderation
+-- ==============================
+ALTER TABLE `prayerresponse`
+  ADD COLUMN `moderationStatus` ENUM('PENDING', 'APPROVED', 'REJECTED') NOT NULL DEFAULT 'APPROVED',
+  ADD COLUMN `guestSessionHash` VARCHAR(64) NULL,
+  ADD COLUMN `ipHash` VARCHAR(64) NULL;
+
+CREATE INDEX `prayerresponse_guestSessionHash_createdAt_idx`
+  ON `prayerresponse`(`guestSessionHash`, `createdAt`);
+
+CREATE INDEX `prayerresponse_ipHash_createdAt_idx`
+  ON `prayerresponse`(`ipHash`, `createdAt`);
+
+-- ==============================
+-- MIGRATION: 20260715000100_add_token_reward_safety_fields
+-- ==============================
+ALTER TABLE `token_reward_rule`
+  ADD COLUMN `rewardsEnabled` BOOLEAN NOT NULL DEFAULT true,
+  ADD COLUMN `dailyRewardCap` INTEGER NOT NULL DEFAULT 3,
+  ADD COLUMN `perCardRewardCap` INTEGER NOT NULL DEFAULT 1,
+  ADD COLUMN `minMessageLength` INTEGER NOT NULL DEFAULT 15,
+  ADD COLUMN `requireVoiceApproved` BOOLEAN NOT NULL DEFAULT true;
