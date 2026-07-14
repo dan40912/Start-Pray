@@ -36,7 +36,9 @@ function normalizeResponseTrack(item, index, prayerTitle, fallbackCoverImage = "
       ? FALLBACK_SPEAKER
       : item.responder?.name?.trim() || item.responder?.username?.trim() || FALLBACK_SPEAKER,
     message: item.message?.trim() || "",
-    avatarUrl: item.responder?.avatarUrl?.trim() || "",
+    avatarUrl: isAnonymous
+      ? item.anonymousAvatarUrl?.trim() || ""
+      : item.responder?.avatarUrl?.trim() || "",
     requestTitle: prayerTitle || item.card?.title || FALLBACK_TITLE,
     coverImage: item.card?.image?.trim?.() || fallbackCoverImage || "",
   };

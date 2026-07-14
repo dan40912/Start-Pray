@@ -24,6 +24,7 @@ function getDisplayName(response, text) {
   return response.responder?.name || response.responder?.username || text.unnamed;
 }
 function getAvatarUrl(response) {
+  if (response.isAnonymous) return response.anonymousAvatarUrl || null;
   return response.responder?.avatarUrl || null;
 }
 function getAvatarFallback(name) {

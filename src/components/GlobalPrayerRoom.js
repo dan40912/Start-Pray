@@ -4763,6 +4763,9 @@ export function GlobalPrayerRoomPageExperience({ prayers = [] }) {
                 ? "Anonymous Prayer"
                 : item.responder?.name || item.responder?.username || "Prayer Partner",
               message: item.message || "",
+              avatarUrl: item.isAnonymous
+                ? item.anonymousAvatarUrl || ""
+                : item.responder?.avatarUrl || "",
               requestTitle: getPrayerTitle(prayer),
             });
           });

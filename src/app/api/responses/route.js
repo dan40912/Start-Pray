@@ -12,6 +12,7 @@ import { computeRewardEligibleAt, readTokenRewardRule } from "@/lib/tokenRewards
 import { evaluateVoiceUpload, serializeVoiceFlags } from "@/lib/voiceModeration";
 import { assertStorageWritable } from "@/lib/storage";
 import { readSessionUser } from "@/lib/server-session";
+import { toPublicPrayerResponse } from "@/lib/anonymous-prayer-avatar";
 import {
   GUEST_RESPONSE_COOKIE,
   createGuestId,
@@ -299,10 +300,7 @@ export async function POST(req) {
       },
     });
 
-    const publicResponse = { ...response };
-    delete publicResponse.guestSessionHash;
-    delete publicResponse.ipHash;
-    delete publicResponse.moderationStatus;
+    const publicResponse = toPublicPrayerResponse(response);
     const payload = { ...publicResponse, pendingReview: moderationStatus === "PENDING" };
     const result = NextResponse.json(payload, { status: 201 });
     if (!session) result.cookies.set(GUEST_RESPONSE_COOKIE, guestId, guestCookieOptions());

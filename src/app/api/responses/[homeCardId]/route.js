@@ -1,6 +1,7 @@
 ﻿import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { resolveServerAudioUrl } from "@/lib/server-audio";
+import { toPublicPrayerResponse } from "@/lib/anonymous-prayer-avatar";
 
 const SAFE_RESPONSE_SELECT = {
   id: true,
@@ -60,7 +61,7 @@ export async function GET(_req, { params }) {
 
     return NextResponse.json(
       responses.map((response) => {
-        const { voiceModerationStatus, ...rest } = response;
+        const { voiceModerationStatus, ...rest } = toPublicPrayerResponse(response);
         return {
           ...rest,
           voiceUrl: response.voiceUrl ? resolveServerAudioUrl(response.voiceUrl) : null,
