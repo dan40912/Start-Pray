@@ -16,13 +16,23 @@ import {
   stripLocalePrefix,
 } from "@/lib/i18n";
 
+// --- Phase 1 temporary navigation switches (docs/obsidian/11-Decision-Log.md DEC-001/DEC-003) ---
+// These only hide entry points from the header/footer for the anonymous-first MVP.
+// They do NOT remove the underlying routes, auth system, or API — /login, /signup,
+// /customer-portal and /global-prayer-room all still work when visited directly.
+// Flip a flag back to `true` to restore that entry point.
+// Once anonymization is complete and the account/globe features are actually
+// removed (Phase 5), delete the flag, the dead branches it guards, and this comment.
+const SHOW_ACCOUNT_NAV_ENTRIES = false;
+const SHOW_GLOBAL_ROOM_NAV_ENTRY = false;
+
 const PRIMARY_NAV = [
-  { href: "/prayfor", label: "禱告牆" },
-  { href: "/global-prayer-room", label: "全球禱告室" },
-  { href: "/overcomer", label: "得勝者" },
-  { href: "/about", label: "平台介紹" },
-  { href: "/howto", label: "使用方式" },
-  { href: "/customer-portal", label: "會員中心", requiresAuth: true },
+  { href: "/prayfor", key: "prayerWall" },
+  { href: "/global-prayer-room", key: "globalRoom", hidden: !SHOW_GLOBAL_ROOM_NAV_ENTRY },
+  { href: "/overcomer", key: "overcomer" },
+  { href: "/about", key: "about" },
+  { href: "/howto", key: "howto" },
+  { href: "/customer-portal", key: "portal", requiresAuth: true, hidden: !SHOW_ACCOUNT_NAV_ENTRIES },
 ];
 
 const FOOTER_COLUMNS = [
@@ -147,14 +157,11 @@ export function SiteHeader({ activePath, hideAuthActions = false, locale: locale
   const siteText = dictionary.site;
   const isAuthenticated = Boolean(authUser);
   const navItems = useMemo(
-    () => [
-      { ...PRIMARY_NAV[0], label: siteText.nav.prayerWall },
-      { ...PRIMARY_NAV[1], label: siteText.nav.globalRoom },
-      { ...PRIMARY_NAV[2], label: siteText.nav.overcomer },
-      { ...PRIMARY_NAV[3], label: siteText.nav.about },
-      { ...PRIMARY_NAV[4], label: siteText.nav.howto },
-      { ...PRIMARY_NAV[5], label: siteText.nav.portal },
-    ],
+    () =>
+      PRIMARY_NAV.filter((item) => !item.hidden).map((item) => ({
+        ...item,
+        label: siteText.nav[item.key],
+      })),
     [siteText],
   );
   const languageHref = localizePath(stripLocalePrefix(pathname || current || "/"), nextLocale);
@@ -249,7 +256,7 @@ export function SiteHeader({ activePath, hideAuthActions = false, locale: locale
                     {siteText.nav.logout}
                   </button>
                 </>
-              ) : (
+              ) : SHOW_ACCOUNT_NAV_ENTRIES ? (
                 <>
                   <Link
                     href={localizePath("/login", locale)}
@@ -268,7 +275,7 @@ export function SiteHeader({ activePath, hideAuthActions = false, locale: locale
                     {siteText.nav.signup}
                   </Link>
                 </>
-              )}
+              ) : null}
             </div>
           ) : null}
         </nav>
@@ -287,11 +294,11 @@ export function SiteFooter({ locale: localeProp }) {
       title: "Start Pray",
       links: [
         { href: "/prayfor", label: siteText.nav.prayerWall },
-        { href: "/global-prayer-room", label: siteText.nav.globalRoom },
+        ...(SHOW_GLOBAL_ROOM_NAV_ENTRY ? [{ href: "/global-prayer-room", label: siteText.nav.globalRoom }] : []),
         { href: "/overcomer", label: siteText.nav.overcomer },
         { href: "/about", label: siteText.nav.about },
         { href: "/howto", label: siteText.nav.howto },
-        { href: "/customer-portal", label: siteText.nav.portal },
+        ...(SHOW_ACCOUNT_NAV_ENTRIES ? [{ href: "/customer-portal", label: siteText.nav.portal }] : []),
       ],
     },
     {
@@ -303,8 +310,12 @@ export function SiteFooter({ locale: localeProp }) {
     {
       title: siteText.footer.accountHelp,
       links: [
-        { href: "/login", label: siteText.nav.login },
-        { href: "/signup", label: siteText.nav.signup },
+        ...(SHOW_ACCOUNT_NAV_ENTRIES
+          ? [
+              { href: "/login", label: siteText.nav.login },
+              { href: "/signup", label: siteText.nav.signup },
+            ]
+          : []),
         { href: "mailto:startpraynow@gmail.com", label: siteText.footer.contact },
       ],
     },
@@ -352,22 +363,24 @@ export function SiteFooter({ locale: localeProp }) {
             </div>
           </div>
           <div className="footer-grid">
-            {footerColumns.map((column) => (
-              <div key={column.title} className="footer-column">
-                <span className="footer-title">{column.title}</span>
-                {column.links.map((link) =>
-                  link.href.startsWith("mailto:") ? (
-                    <a key={link.label} href={link.href}>
-                      {link.label}
-                    </a>
-                  ) : (
-                    <Link key={link.label} href={localizePath(link.href, locale)} prefetch={false}>
-                      {link.label}
-                    </Link>
-                  )
-                )}
-              </div>
-            ))}
+            {footerColumns
+              .filter((column) => column.links.length > 0)
+              .map((column) => (
+                <div key={column.title} className="footer-column">
+                  <span className="footer-title">{column.title}</span>
+                  {column.links.map((link) =>
+                    link.href.startsWith("mailto:") ? (
+                      <a key={link.label} href={link.href}>
+                        {link.label}
+                      </a>
+                    ) : (
+                      <Link key={link.label} href={localizePath(link.href, locale)} prefetch={false}>
+                        {link.label}
+                      </Link>
+                    )
+                  )}
+                </div>
+              ))}
           </div>
         </div>
         <div className="footer-bottom">
