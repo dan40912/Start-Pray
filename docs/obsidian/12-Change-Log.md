@@ -38,4 +38,21 @@ tags: [start-pray, changelog]
 - 順便發現一個與本次改動無關的既有小問題，已記錄到 [[14-Open-Questions]]：`HomeGlobeHero.js` 的 hero 文案 `TEXT` 是寫死的中文物件，並未走 i18n 字典，`/en` 頁面上「分享代禱需要」等 hero CTA 文字目前仍顯示中文
 - 尚未執行：首頁核心區塊重建、Cesium 移除、commit（未依使用者要求建立）
 
+## 2026-08-04 — Commit 1 與 Commit 2 正式建立
+- 建立分支 `poc/minimal-prayer-redesign`（原改動皆在 `main` 工作目錄中未提交，依使用者要求切分支後才 commit，保留原有未提交修改）
+- Commit `6b8cc84` `refactor: simplify account and global navigation`：`src/components/site-chrome.js` + 5 份 obsidian 文件
+- Commit `04538e7` `refactor: replace globe hero with minimal prayer entry`：新增 `src/components/HomePrayerHero.js`，修改 `src/components/HomeLandingPage.js`、`src/lib/i18n/locales/{zh-TW,en}.js`；`HomeGlobeHero.js` 的暫時性修改已用 `git restore` 還原，未進入任何 Commit
+- Phase 1 階段性驗收（[[16-Final-Acceptance-Report]]）結論：**Phase 1 通過，可進入錄音功能開發**
+- `.claude/launch.json`、`output/spreadsheet/startpray-progress-tracker.xlsx`（既有 post-commit hook 自動產生）皆未進入任何 Commit
+
+## 2026-08-04 — Commit 3（進行中）：首頁錄音前端流程
+- 新增 `src/components/prayer-recorder/`（`recorder-utils.js`、`usePrayerRecorder.js`、`PrayerRecorder.js`）
+- 修改 `src/components/HomePrayerHero.js`（CTA 改為切換至 `PrayerRecorder`）、`src/lib/i18n/locales/{zh-TW,en}.js`（新增 `home.recorder.*`）
+- 新增 `tests/recorder-utils.test.mjs`，`package.json` 新增 `test:unit` script（`node --test tests/`，7/7 通過）
+- 盤點確認 `VoicePrayerOverlay.js` 的錄音引擎與 Auth/上傳完全解耦，新 hook 重用其權限/MIME/停止逾時/清理技巧，但不搬移字幕/語音辨識
+- Browser tested（真實瀏覽器行為）：權限拒絕、不支援瀏覽器兩條路徑；桌面 1280×800、手機 375×812；中英文案
+- Real microphone Not Tested（自動化環境無法授權真實麥克風）
+- 明確不處理：匿名投稿 API、Schema、Storage、字幕
+- 詳見 [[21-Recorder-State-Machine]]、[[15-Acceptance-Criteria]]
+
 後續每個 Implementation Plan Phase 執行後，應在此新增一筆紀錄（日期、Phase、實際修改檔案、commit hash）。

@@ -2,33 +2,30 @@
 
 import { useState } from "react";
 
+import PrayerRecorder from "@/components/prayer-recorder/PrayerRecorder";
+
 export default function HomePrayerHero({ text }) {
   const copy = text.prayerHero;
-  const [showPrototypeNotice, setShowPrototypeNotice] = useState(false);
+  const [recorderActive, setRecorderActive] = useState(false);
 
   return (
     <section className="prayer-hero" aria-labelledby="prayer-hero-title">
       <div className="prayer-hero__inner">
-        <span className="prayer-hero__eyebrow">{copy.eyebrow}</span>
-        <h1 id="prayer-hero-title">{copy.headline}</h1>
-        <p className="prayer-hero__subhead">{copy.subheadline}</p>
+        {recorderActive ? (
+          <PrayerRecorder text={text.recorder} onExit={() => setRecorderActive(false)} />
+        ) : (
+          <>
+            <span className="prayer-hero__eyebrow">{copy.eyebrow}</span>
+            <h1 id="prayer-hero-title">{copy.headline}</h1>
+            <p className="prayer-hero__subhead">{copy.subheadline}</p>
 
-        <button
-          type="button"
-          className="prayer-hero__cta"
-          onClick={() => setShowPrototypeNotice(true)}
-          aria-describedby={showPrototypeNotice ? "prayer-hero-prototype-notice" : undefined}
-        >
-          {copy.primaryCta}
-        </button>
+            <button type="button" className="prayer-hero__cta" onClick={() => setRecorderActive(true)}>
+              {copy.primaryCta}
+            </button>
 
-        <p className="prayer-hero__anonymous-note">{copy.anonymousNote}</p>
-
-        {showPrototypeNotice ? (
-          <p id="prayer-hero-prototype-notice" role="status" className="prayer-hero__prototype-notice">
-            {copy.prototypeNotice}
-          </p>
-        ) : null}
+            <p className="prayer-hero__anonymous-note">{copy.anonymousNote}</p>
+          </>
+        )}
       </div>
 
       <style jsx>{`
@@ -94,15 +91,6 @@ export default function HomePrayerHero({ text }) {
           margin: 0;
           font-size: 0.85rem;
           color: var(--text-muted);
-        }
-
-        .prayer-hero__prototype-notice {
-          margin: 0;
-          padding: 0.5rem 0.9rem;
-          border-radius: 0.6rem;
-          background: var(--accent-soft);
-          color: var(--text-secondary);
-          font-size: 0.85rem;
         }
 
         @media (max-width: 480px) {

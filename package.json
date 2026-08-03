@@ -27,6 +27,7 @@
     "qa": "node scripts/qa-flow.mjs",
     "qa:full": "node scripts/qa-flow.mjs full",
     "i18n:check": "node scripts/check-i18n.cjs",
+    "test:unit": "node --test tests/",
     "progress:sync": "python scripts/update_progress_tracker.py --event manual",
     "progress:commit": "python scripts/update_progress_tracker.py --event commit",
     "progress:push": "python scripts/update_progress_tracker.py --event push",
