@@ -38,6 +38,14 @@ const zhTW = {
     },
   },
   home: {
+    prayerHero: {
+      eyebrow: "Start Pray",
+      headline: "留下一段禱告，讓陌生人為你禱告",
+      subheadline: "不需要登入。用你的聲音記下此刻，會有人聆聽並為你禱告。",
+      primaryCta: "開始錄下你的禱告",
+      anonymousNote: "匿名送出，你可以在送出前重新錄製。",
+      prototypeNotice: "（原型階段）完整錄音功能即將推出，敬請期待。",
+    },
     globeHero: {
       eyebrow: "全球禱告室",
       kicker: "一起禱告，一起祝福",

@@ -37,6 +37,15 @@ const en = {
     },
   },
   home: {
+    prayerHero: {
+      eyebrow: "Start Pray",
+      headline: "Leave a prayer, and let a stranger pray for you",
+      subheadline:
+        "No account needed. Record what is on your heart, and someone will listen and pray for you.",
+      primaryCta: "Record your prayer",
+      anonymousNote: "Submit anonymously. You can listen and record again before sending.",
+      prototypeNotice: "(Prototype) Full recording is coming soon.",
+    },
     globeHero: {
       eyebrow: "Global Prayer Room",
       kicker: "Pray and bless together",

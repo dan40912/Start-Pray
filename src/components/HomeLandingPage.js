@@ -1,7 +1,7 @@
 import Link from "next/link";
 
-import HomeGlobeHero from "@/components/HomeGlobeHero";
 import HomePrayerExplorer from "@/components/HomePrayerExplorer";
+import HomePrayerHero from "@/components/HomePrayerHero";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { toGlobalPrayerPayload } from "@/lib/globalPrayerPayload";
 import { readActiveCategories } from "@/lib/homeCategories";
@@ -350,14 +350,7 @@ export default async function HomeLandingPage({ locale: localeProp = "zh-TW" } =
 
       <main className="home-page">
         <HomeStructuredData stats={heroStats} globalPrayerCount={globalPrayers.length} text={text} locale={locale} />
-        <HomeGlobeHero
-          prayers={globalPrayers}
-          primaryHref={localizePath("/global-prayer-room", locale)}
-          secondaryHref={localizePath("/customer-portal/create", locale)}
-          prayHref={localizePath("/prayfor/one", locale)}
-          stats={heroStats}
-          locale={locale}
-        />
+        <HomePrayerHero text={text} />
 
         <HomeEntryCards text={text} locale={locale} />
 
