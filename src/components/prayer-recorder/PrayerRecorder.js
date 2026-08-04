@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import Link from "next/link";
 
 import { usePrayerRecorder } from "./usePrayerRecorder";
@@ -16,7 +16,7 @@ function mapSubmitErrorKey(status, code) {
   return "rejected";
 }
 
-export default function PrayerRecorder({ text, prayerId, onExit }) {
+const PrayerRecorder = forwardRef(function PrayerRecorder({ text, prayerId, onExit, onStateChange }, ref) {
   const recorder = usePrayerRecorder();
   const {
     phase,
@@ -55,6 +55,23 @@ export default function PrayerRecorder({ text, prayerId, onExit }) {
       return () => window.clearTimeout(timeoutId);
     }
   }, [transientMessage, setTransientMessage]);
+
+  // Lets a parent (HomePrayerHero) know whether it's safe to switch to a
+  // different Prayer or open companion playback right now — e.g. mid-recording
+  // or mid-upload should block navigation (see docs/obsidian/10-Implementation-Plan.md
+  // Commit B, section on state protection).
+  useEffect(() => {
+    onStateChange?.({ phase, submitState, confirmingRerecord });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, submitState, confirmingRerecord]);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      discard: () => cancel(),
+    }),
+    [cancel]
+  );
 
   const handleExit = () => {
     cancel();
@@ -430,4 +447,6 @@ export default function PrayerRecorder({ text, prayerId, onExit }) {
       `}</style>
     </div>
   );
-}
+});
+
+export default PrayerRecorder;

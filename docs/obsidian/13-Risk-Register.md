@@ -23,3 +23,6 @@ tags: [start-pray, risk]
 | 本機開發資料庫殘留測試資料 | Phase 3A 驗證時用合成音訊對真實開發 DB 送出 2 筆測試 `PrayerResponse`（卡片 id=5、id=39 各一筆） | 開發資料庫資料不乾淨，非 Production | 目前系統沒有刪除 `PrayerResponse` 的 API（見 [[20-Anonymous-Submission-Design]]），需要你透過 `npx prisma studio` 或後台手動清除，或等 Phase 3B 管理 Token/刪除 API 完成後處理 |
 | 匿名語音沒有獨立於文字回應的 rate limit | Phase 3A 沿用既有文字回應的頻率限制（10 分鐘 5 則、同卡片 2 分鐘冷卻），未新增語音專屬的、以檔案大小/次數為準的限制 | 語音檔案比文字佔用更多 Storage，理論上可能被用來更快耗用磁碟空間 | 待 Phase 3B 或後續安全補強階段（[[19-Security-Review]]，尚未建立）一併處理，屬已知限制，非本次引入的新洞 |
 | 匿名投稿目前無管理/刪除能力 | Phase 3A 只做送出，未做管理 Token（Phase 3B） | 使用者無法自行刪除已送出的語音，只能靠檢舉或聯絡管理員 | 設計已完成（[[20-Anonymous-Submission-Design]] 方案 C），待你核准後實作 Phase 3B |
+| 陪伴模式三點選單/檢舉僅登入者可見 | Commit B 的 Report API 沿用既有 `requireSessionUser()`，匿名首頁訪客看不到檢舉入口（避免顯示一定會 401 的按鈕） | 匿名訪客上傳的內容若有問題，一般訪客無法自行檢舉 | 已記錄於 [[25-Companion-Mode-Reuse-Audit]]，需要你確認是否要設計匿名檢舉方案（例如比照 guest 語音送出，用 `ipHash`/`guestSessionHash` 識別） |
+| 陪伴模式真實音訊播放未經測試 | 既有種子資料的 demo 音檔與 Phase 3A 測試用的合成假位元組皆無法在此自動化瀏覽器環境中真正解碼播放 | 無法確認真實使用者在正常網路環境下的實際播放體驗；已確認的是「播放失敗時的自動跳過與提示」路徑本身正確運作 | 需要人工在真實瀏覽器、真實音檔上補測一次，見 [[24-Manual-QA]] |
+| Recording/Countdown/Uploading 狀態下的切換保護未經自動化測試 | 需要真實麥克風才能進入這些狀態，此環境的麥克風存取被封鎖 | 無法用自動化方式確認「正在錄音時滑動會被正確擋下」等保護邏輯在真實裝置上是否如預期運作（程式邏輯已審查，邏輯本身直觀） | 需要人工在真機測試，見 [[24-Manual-QA]] |

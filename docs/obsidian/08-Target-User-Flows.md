@@ -4,7 +4,7 @@ tags: [start-pray, flows, target]
 
 # 目標使用者流程（提案，部分已實作）
 
-參見 [[07-Target-MVP]]、[[09-Change-Impact-Analysis]]、[[21-Recorder-State-Machine]]。以下原為**設計提案**；流程 1-5 已於 Commit 2、3（2026-08-04）在首頁實作為前端狀態機（`src/components/prayer-recorder/`），**尚未接上匿名投稿 API**，流程 6 起仍是提案，未實作。
+參見 [[07-Target-MVP]]、[[09-Change-Impact-Analysis]]、[[21-Recorder-State-Machine]]、[[25-Companion-Mode-Reuse-Audit]]。以下原為**設計提案**；流程 1-5 已於 Commit 2、3（2026-08-04）在首頁實作為前端狀態機（`src/components/prayer-recorder/`）；流程 6（匿名送出）已於 Phase 3A（2026-08-04）接上真實 API；流程 8（瀏覽並播放禱告）已於 Commit A/B（2026-08-04）以「Prayer 左右滑動＋全螢幕陪伴模式」的形式實作；流程 9、10 仍是提案，未實作。
 
 ## 1. 陌生人第一次進站 — ✅ 已實作（Commit 2）
 ```mermaid
@@ -47,7 +47,7 @@ flowchart TD
     C -->|不滿意| E[重新錄製] --> A
 ```
 
-## 6. 匿名送出 — ❌ 尚未實作（本次「下一步：匿名送出」按鈕僅顯示 Prototype 提示文字，見 [[21-Recorder-State-Machine]]）
+## 6. 匿名送出 — ✅ 已實作（Phase 3A，2026-08-04，Real API tested，見 [[15-Acceptance-Criteria]]）
 ```mermaid
 flowchart TD
     A[點擊送出] --> B[前端呼叫送出 API，不需登入]
@@ -55,6 +55,7 @@ flowchart TD
     C --> D[寫入資料庫，responderId/ownerId 為 null]
     D --> E[顯示「投稿完成」畫面]
 ```
+送出後建立的是 `PrayerResponse`（回應目前顯示的既有 Prayer），而非新建 `HomePrayerCard`，語意見 [[20-Anonymous-Submission-Design]]。
 
 ## 7. 上傳失敗與重試
 ```mermaid
@@ -66,13 +67,25 @@ flowchart TD
     B -->|是| E[進入投稿完成畫面]
 ```
 
-## 8. 瀏覽並播放禱告
+## 6b. 首頁左右瀏覽 Prayer — ✅ 已實作（Commit B，2026-08-04，Real Browser tested，見 [[15-Acceptance-Criteria]]）
+```mermaid
+flowchart TD
+    A[首頁顯示一則 Prayer] --> B{手勢或按鍵}
+    B -->|左右滑動/方向鍵| C[呼叫 /api/home-cards/id/adjacent 取得前後張]
+    C --> D[切換顯示下一/上一則 Prayer]
+    A -->|錄音中/倒數中/送出中| E[切換被擋下，顯示提示]
+    A -->|預覽未送出| F[二次確認是否放棄錄音] --> D
+```
+不允許在切換時建立新 Prayer，僅在既有清單中前後移動；輸入框聚焦或已進入陪伴模式時，鍵盤方向鍵不觸發切換。
+
+## 8. 瀏覽並播放禱告 — ✅ 部分已實作（Commit B，首頁全螢幕陪伴模式；`/prayfor` 禱告牆列表播放維持既有實作，不在本次改動範圍）
 ```mermaid
 flowchart TD
     A[首頁或禱告牆] --> B[列表顯示他人的禱告]
     B --> C[點擊播放]
     C --> D[音檔串流播放，無需登入]
 ```
+首頁陪伴模式的實作方式：點擊「聆聽其他人的禱告」進入全螢幕，重用既有 `AudioContext`/`GlobalPlayer` 播放引擎組裝清單、Loop、Stop、Exit、X（本地移除）；播放清單僅來自目前顯示中 Prayer 的可播放 `PrayerResponse`。詳見 [[25-Companion-Mode-Reuse-Audit]]「實際實作結果」。Real Audio Playback 本身因環境限制 Not Tested，見 [[24-Manual-QA]]。
 
 ## 9. 點擊「我為你禱告」
 ```mermaid

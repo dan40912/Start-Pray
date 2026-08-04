@@ -131,10 +131,39 @@ tags: [start-pray, implementation-plan]
 - 已知偏離指令原文的地方：**未加入「左右滑動，看看更多需要禱告的事情」提示文字**，因為滑動功能尚未實作（下一個 Commit 才做），顯示這句提示但功能不存在會誤導使用者；待滑動功能完成後再一併補上
 - 完成狀態：**完成**
 
-### Commit B：`feat: add prayer browsing and companion playback` —— 未開始
+### Commit B：`feat: add prayer browsing and companion playback` —— 完成（2026-08-04）
 - 範圍：左右滑動切換 Prayer、切換狀態保護（錄音中禁止切換等）、組裝全螢幕陪伴模式（播放清單 UI + Loop + Stop + Exit + 每筆 X + 三點選單/檢舉）
-- 依賴：[[25-Companion-Mode-Reuse-Audit]] 已確認可重用 `AudioContext.js`/`GlobalPlayer.js` 的邏輯，但全螢幕 UI 組裝是新工作，非零成本重用
-- 已知風險：既有檢舉 API 要求登入，若要對匿名訪客開放檢舉，需要額外的匿名化設計（超出目前分析範圍，需另外確認）
+- 策略執行結果：**重用 `AudioContext.js`（`useAudio()`）的播放引擎，零新增 Queue state**；新增的程式碼只有 UI 組裝層（`CompanionOverlay.js`）與資料 adapter（`/api/home-cards/[id]/adjacent`），沒有複製 `GlobalPlayer.js`、沒有第二套 AudioContext、沒有第二套 Report API、沒有動 hidden 欄位
+- 關鍵發現與修正：`GlobalPlayerGate.js` 原本會在非白名單路由（含首頁）自動 `pause()` 任何播放中的音訊——若不修正，首頁一呼叫 `setQueue()` 就會立刻被暫停。已將 `/`、`/en` 加入白名單（一行條件式增加，未動其他路由邏輯）
+- 已新增檔案：
+  - `src/app/api/home-cards/[id]/adjacent/route.js`：薄 adapter，直接呼叫既有 `readAdjacentHomeCards()`，只回傳公開安全欄位（id/title/description/voiceHref）
+  - `src/components/home-companion/swipe-utils.js`：純函式（`resolveSwipeDirection`/`resolveArrowKeyDirection`），已單元測試
+  - `src/components/home-companion/CompanionOverlay.js`：全螢幕陪伴 UI，消費 `useAudio()` 的 `setQueue`/`playByIndex`/`isLoop`/`setIsLoop`/`togglePlay`/`pause`/`removeTrack`/`playerPhase`，新增 Report 選單（`useAuthSession()` 登入才顯示，見下方已知限制）
+  - `tests/swipe-utils.test.mjs`
+- 已修改檔案：
+  - `src/components/GlobalPlayerGate.js`：`supportedByRoute` 加入首頁
+  - `src/components/prayer-recorder/PrayerRecorder.js`：改為 `forwardRef`，新增 `onStateChange` callback（回報 `{phase, submitState, confirmingRerecord}`）與 `useImperativeHandle` 暴露 `discard()`
+  - `src/components/HomePrayerHero.js`：改為完整的瀏覽/切換/狀態保護 orchestrator
+  - `src/lib/i18n/locales/{zh-TW,en}.js`：新增 `home.companion.*`、`home.prayerHero.swipeHint`
+- 驗收條件：見下方測試結果
+- 測試方式：
+  - `npm run lint`、`npm run build`、`npm run test:unit`（13/13）、`npm run i18n:check`（505 keys）皆通過
+  - **Real API tested（非 Mock，對本機開發 DB）**：
+    - `/api/home-cards/5/adjacent` 回傳真實 prev（id=4）/next（id=6）資料，且只含公開欄位
+    - `/api/responses/5` 回傳真實 `voiceUrl` 資料，`responder: null`（匿名）
+  - **Browser tested（真實瀏覽器，非 Mock）**：
+    - 鍵盤 ArrowLeft/ArrowRight 導覽：連續切換 6 張真實卡片，「聆聽大家的禱告」入口依真實可播放回應數量正確顯示/隱藏
+    - 手機觸控 swipe（`TouchEvent`，非模擬 click）：左滑正確觸發下一則，與鍵盤結果一致，無橫向捲動
+    - 陪伴模式開啟：真實填入 9 筆該卡片的真實回應資料（`6/9` 起始索引，反映既有 `AudioContext` 自動跳過失敗曲目邏輯正常運作）；Exit 正確關閉並回到首頁
+    - 狀態保護：錄音處於 `permission-denied`（真實瀏覽器阻擋麥克風觸發）時允許切換 Prayer，切換後正確關閉錄音元件、綁定新 prayerId
+    - 回歸：`/global-prayer-room`（Cesium 正常載入）、`/prayfor/[id]`（無 console 錯誤）皆不受 `GlobalPlayerGate.js` 改動影響
+  - **Real Audio Playback Not Tested**：此環境的無痕/自動化瀏覽器對兩種音源都無法真正播放成功——(a) 既有 demo 種子資料的 `/voices/demo/*.wav` 先前已確認會 `net::ERR_ABORTED`；(b) 我在 Phase 3A 用合成假位元組上傳的測試檔案本身不是有效音訊格式，無法被解碼。這是既有資料與測試環境的限制，不是本次程式邏輯的問題（`AudioContext` 的自動跳過失敗曲目與 `playbackNotice` 提示皆正確觸發，證明失敗處理路徑本身是健康的）
+  - **Not Tested（需要人工/真實環境）**：Recording/Countdown/Uploading 三種阻擋切換狀態（需要真實麥克風才能進入這些狀態）、Preview 放棄確認對話框、X 移除與 Loop 切換的實際點擊（邏輯為既有 `removeTrack`/`setIsLoop`，未變更，風險低但未逐一點擊驗證）、Focus trap/Tab 循環、快速連續切換的 stale-response 防護壓力測試、Report 流程（需要登入帳號，本次無測試帳密）
+- 已知限制與偏離指令原文之處：
+  - 三點選單／檢舉功能**只對已登入使用者顯示**——因為 `POST /api/prayer-response/report` 要求 `requireSessionUser()`，對匿名首頁訪客顯示一個一定會 401 的按鈕是誤導性 UI，故不顯示，而非「假裝可以檢舉」。這與 [[25-Companion-Mode-Reuse-Audit]] 原先標記的已知缺口一致，需要你之後決定是否要設計匿名檢舉方案
+  - 檢舉原因固定使用 `"other"`，未實作完整的原因選單 UI（`REPORT_REASONS` 有 7 種原因），為求 MVP 精簡；如需完整原因選單，可在後續 Commit 補上
+  - 「聆聽大家的禱告」入口的可播放判定只檢查 `voiceUrl` 是否存在（沿用 `/api/responses/[homeCardId]` 既有的 `isBlocked`/`moderationStatus`/`voiceModerationStatus` 過濾），未額外檢查音檔是否真的可解碼——這與既有系統的判定標準一致，非新缺口
+- 完成狀態：**完成**（前端邏輯完整；音訊實際播放與部分互動細節因環境限制標記 Not Tested，見上）
 
 ### Commit C：`feat: complete anonymous prayer interaction flow` —— 未開始
 - 範圍：「我已為你禱告」（prayed reaction）、首頁下方非必要區塊收斂、Accessibility、安全補強、測試、最終驗收報告

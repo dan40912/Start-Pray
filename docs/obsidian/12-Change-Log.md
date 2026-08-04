@@ -75,4 +75,12 @@ tags: [start-pray, changelog]
 - Real API tested：首頁綁定的真實 `prayerId` 與送出後 API 回傳的 `homeCardId` 完全一致
 - 詳見 [[10-Implementation-Plan]]「最終首頁改造」章節
 
+## 2026-08-04 — Commit：feat: add prayer browsing and companion playback（Commit B，待建立）
+- 新增左右滑動/鍵盤切換 Prayer、全螢幕陪伴模式（重用 `AudioContext`/`useAudio()`，零新增播放狀態）
+- 修正 `GlobalPlayerGate.js`：首頁原本不在白名單，會導致陪伴模式一開始播放就被自動暫停
+- 新增 `src/app/api/home-cards/[id]/adjacent/route.js`（薄 adapter，重用 `readAdjacentHomeCards`）、`src/components/home-companion/`（`CompanionOverlay.js`、`swipe-utils.js`）
+- Real API/Browser tested：鍵盤與觸控 swipe 切換 6 張真實卡片、陪伴模式載入真實 9 筆回應資料、`/global-prayer-room`與`/prayfor/[id]` 回歸正常
+- 已知限制：Real Audio Playback Not Tested（既有種子資料與測試環境限制）；三點選單/檢舉僅登入者可見（既有 API 要求登入）；Recording/Countdown/Uploading 阻擋狀態需真實麥克風才能測試
+- 詳見 [[10-Implementation-Plan]] Commit B、[[25-Companion-Mode-Reuse-Audit]]
+
 後續每個 Implementation Plan Phase 執行後，應在此新增一筆紀錄（日期、Phase、實際修改檔案、commit hash）。

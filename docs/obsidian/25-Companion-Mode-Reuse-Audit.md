@@ -41,6 +41,25 @@ tags: [start-pray, audit, companion-mode]
 
 **這與原指令的假設不符**（原指令說「優先重用既有 prayed count／reaction 功能，若既有功能已存在則直接接首頁，不新建第二套 Model 或 API」）——因為**根本沒有既有功能可以重用**。Commit 3 若要做「我已為你禱告」，**必須新增一個資料模型或欄位**，這是一個新的 Schema 決策點，需要你確認方向（比照 [[23-Database-Migration]] 的模式：新增 nullable/additive 欄位或新表，不動舊資料）。
 
+## 實際實作結果（Commit B，2026-08-04，程式已寫並經 Real API/Browser 測試，見 [[10-Implementation-Plan]]、[[24-Manual-QA]]）
+
+本節記錄上方盤點表的每一項，在 Commit B 實際落地後「照原盤點執行」與「與原盤點有落差」之處：
+
+| 能力 | 盤點時的判斷 | 實際實作 | 落差 |
+|---|---|---|---|
+| Playlist / Queue 狀態引擎 | 直接重用 `AudioContext.js` | 確認直接重用，`CompanionOverlay.js` 只呼叫 `useAudio()` 取得既有 state/actions（`setQueue`/`playByIndex`/`togglePlay`/`pause`/`setIsLoop`/`removeTrack`），**零新增播放狀態** | 無落差 |
+| 全螢幕 Overlay | 需要擴充既有 `GlobalPlayer.js` companion overlay 顯示清單 | **未修改 `GlobalPlayer.js`**，改為新建 `src/components/home-companion/CompanionOverlay.js` 作為獨立的「Homepage Companion Adapter」元件，消費同一個 `AudioContext`，UI 為首頁量身打造（非直接改造既有 overlay） | 與盤點原提案不同：選擇「新建 Adapter 元件、共用底層狀態」而非「改造既有 UI 元件」，理由是既有 `GlobalPlayer.js` 的 companion overlay 綁定 `/prayfor/[id]` 路由語意，直接改造風險較高；新建 Adapter 屬於使用者明確允許的重用策略之一（"建立 Homepage Companion Adapter"），未違反「禁止複製整份 GlobalPlayer / 建立第二套 Queue state」原則 |
+| Loop | 需要把 mini-player 佇列面板的按鈕搬進全螢幕 | `CompanionOverlay.js` 新增 Loop 按鈕，直接呼叫既有 `setIsLoop`/讀取既有 `isLoop`，`aria-pressed` 屬性反映狀態 | 無邏輯落差，UI 位置符合原盤點結論 |
+| Stop | 缺少，需要新增 | 新增 Stop 按鈕，呼叫既有 `pause()`，不清空 queue、不關閉全螢幕 | 符合盤點的建議設計 |
+| Exit | 直接重用既有關閉按鈕邏輯 | `handleExit` 呼叫 `pause()` + `setQueue([])` + `onExit?.()`，回到首頁瀏覽中的同一張 Prayer | 無落差 |
+| 每筆 X（本地移除） | 需要把 mini-player 佇列面板的 X 搬進全螢幕清單項目 | `CompanionOverlay.js` 清單項目上加 X 按鈕，直接呼叫既有 `removeTrack(trackId)`，未修改 `AudioContext.js` 的實作 | 無落差，Real Browser tested：點擊後曲目從清單消失，重新整理後又出現（因為只是前端 state） |
+| 三點選單／檢舉 | Adapter 後重用，登入限制維持不變 | 三點選單僅在 `authUser` 存在時渲染；確認流程呼叫既有 `POST /api/prayer-response/report`，成功後呼叫 `removeTrack` | 符合盤點：**未新建匿名檢舉方案**（盤點已標記為「本次範圍外，除非另外確認」，使用者最新指令也未要求做匿名檢舉），Not Tested（無測試登入帳號） |
+| Hidden 邏輯／Public filter | 直接重用既有公開查詢過濾條件 | 新增的 `/api/home-cards/[id]/adjacent` 與既有 `/api/responses/[id]` 皆沿用既有 `isBlocked`/`moderationStatus` 過濾，未新增第二套過濾邏輯 | 無落差 |
+| Accessibility（Focus trap／鍵盤） | 缺少，需要新增 | `CompanionOverlay.js` 新增以 `querySelectorAll(FOCUSABLE_SELECTOR)` 為基礎的 focus trap、`Escape` 鍵呼叫 `handleExit` | Implemented，未經自動化測試（見 [[24-Manual-QA]]），需人工補測 |
+
+## 「我已為你禱告」（Prayed reaction）— 維持不存在，Commit B 明確不處理
+上方盤點結論不變：**沒有找到任何現成的「已禱告」計數/反應機制**。使用者在 Commit B 指令中已明確排除本項（"目前先不要實作：「我已為你禱告」／Prayed reaction Schema／Migration／Management Token"），因此 Commit B **未新增**任何 Schema 或欄位。此缺口仍待未來一輪明確的 Schema 決策（比照 [[23-Database-Migration]] 的 additive 模式）。
+
 ## 對 Commit 1-3 規劃的實際影響
 | 原假設 | 讀碼後的實際情況 | 影響 |
 |---|---|---|

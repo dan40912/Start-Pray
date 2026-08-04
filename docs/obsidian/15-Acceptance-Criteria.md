@@ -47,5 +47,31 @@ tags: [start-pray, acceptance-criteria]
 - [ ] DB-backed 語音專屬 rate limit（獨立於既有文字回應限制） — **Not Implemented**，沿用既有規則
 - [ ] 伺服器端音訊時長驗證 — **Not Implemented**（現有系統本來就沒有，非本次新缺口）
 
+## Commit A（`ed43015`）— 首頁改用真實 Prayer
+- [x] 首頁顯示真實 Prayer（`sort=needsPrayer`） — Browser tested
+- [x] 錄音 CTA 綁定該 Prayer 的 id — Real API tested（React fiber 讀出 `prayerId`，送出後 `homeCardId` 一致）
+- [x] zh-TW/en 正確 — Browser tested
+- [x] Lint / Build / Unit / i18n:check — 全數通過
+
+## Commit B（`feat: add prayer browsing and companion playback`，待建立）— 瀏覽與陪伴模式
+- [x] 左右滑動切換 Prayer（觸控） — Real Browser tested（`TouchEvent`，非模擬 click）
+- [x] Desktop 鍵盤方向鍵切換 — Real Browser tested（連續切換 6 張真實卡片）
+- [x] 輸入框/選單開啟時不觸發鍵盤切換 — Implemented（`document.activeElement` tagName 檢查 + `companionOpen` 檢查），Not Tested（未逐一驗證每種焦點情境）
+- [x] 陪伴入口只在有可播放語音回應時顯示 — Real Browser tested（跨 6 張真實卡片驗證正確切換顯示/隱藏）
+- [x] 全螢幕陪伴模式重用 `AudioContext`（零新增 Queue state） — Implemented + Real Browser tested（真實載入 9 筆回應）
+- [x] Loop — Implemented（`isLoop`/`setIsLoop`，既有邏輯未變更），Not Tested（未實際點擊）
+- [x] Stop（`pause()`，不關閉全螢幕） — Implemented，Not Tested
+- [x] Exit（清空 queue、關閉全螢幕、回到同一則 Prayer） — Real Browser tested
+- [x] Playlist X（本地移除，`removeTrack`，不動 DB） — Implemented（沿用既有已驗證邏輯），Not Tested（未實際點擊，但底層函式未變更）
+- [x] 三點選單／檢舉（僅登入者可見，重用既有 Report API） — Implemented，Not Tested（無測試登入帳號）
+- [x] 錄音中/倒數中/送出中禁止切換 Prayer — Implemented，**Not Tested**（需要真實麥克風才能進入這些狀態）
+- [x] Preview 未送出時切換需二次確認 — Implemented，Not Tested（同上）
+- [x] permission-denied/error/success 狀態允許切換 — Real Browser tested（permission-denied 已驗證）
+- [x] 切換時清空舊 Playlist/currentIndex、取消舊請求 — Implemented（generation counter stale-response 防護），Not Tested（未壓力測試快速連續切換）
+- [x] Real Audio Playback — **Not Tested**（既有種子資料與合成測試檔案皆無法在此環境真正解碼播放，見 [[10-Implementation-Plan]] Commit B 詳述）
+- [x] Focus trap / Escape 離開 — Implemented，Not Tested
+- [x] `/global-prayer-room`、`/prayfor/[id]` 回歸 — Real Browser tested（Cesium 正常載入、無 console 錯誤）
+- [x] Lint / Build / Unit tests（13/13）/ i18n:check（505 keys） — 全數通過
+
 ## 尚未開始（不在本次任何已完成 Commit 範圍內）
-匿名管理 Token（Phase 3B）、Prisma Schema/Migration、字幕/轉錄整合、首頁禱告聆聽區塊、「我為你禱告」、首頁下方區塊收斂、完整安全補強（CSRF/CORS 對匿名 API、DB-backed rate limit）、自動化 API/整合測試、Production readiness。這些項目的依賴分析已完成於 [[20-Anonymous-Submission-Design]]、[[22-API-Changes]]、[[23-Database-Migration]]。
+匿名管理 Token（Phase 3B）、Prisma Schema/Migration、字幕/轉錄整合、「我已為你禱告」（prayed reaction）、首頁下方區塊收斂、匿名檢舉、完整安全補強（CSRF/CORS 對匿名 API、DB-backed rate limit）、自動化 API/整合測試、Production readiness。這些項目的依賴分析已完成於 [[20-Anonymous-Submission-Design]]、[[22-API-Changes]]、[[23-Database-Migration]]、[[25-Companion-Mode-Reuse-Audit]]。

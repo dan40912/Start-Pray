@@ -6,7 +6,9 @@ tags: [start-pray, flows, current]
 
 僅描述程式碼中**實際存在**的流程，依據 [[03-Current-Feature-Inventory]]、[[06-Authentication-Dependencies]]。標註「待確認」處代表尚未在程式碼中找到明確證據。
 
-> **2026-08-04 更新**：以下「新使用者進站」與「錄音」兩個流程圖是 2026-08-03 的歷史快照，描述**改造前**的首頁（含地球 hero、`VoicePrayerOverlay` 僅存在於 `/prayfor/[id]` 回應流程）。首頁改造後（Commit 2、3）的實際新流程見 [[08-Target-User-Flows]]、[[21-Recorder-State-Machine]]。此處保留原圖僅供對照「改造前 vs 改造後」，且原圖內「three.js 地球 Hero」的描述本身也已被 [[02-Current-Architecture]] 更正為 Cesium（並非 three.js）。
+> **2026-08-04 更新**：以下「新使用者進站」與「錄音」兩個流程圖是 2026-08-03 的歷史快照，描述**改造前**的首頁（含地球 hero、`VoicePrayerOverlay` 僅存在於 `/prayfor/[id]` 回應流程）。首頁改造後（Commit 2、3、A、B）的實際新流程見 [[08-Target-User-Flows]]、[[21-Recorder-State-Machine]]、[[25-Companion-Mode-Reuse-Audit]]。此處保留原圖僅供對照「改造前 vs 改造後」，且原圖內「three.js 地球 Hero」的描述本身也已被 [[02-Current-Architecture]] 更正為 Cesium（並非 three.js）。
+>
+> **另一項已過時之處**：下方「錄音」流程圖中的 `VOICE_LOGIN_REQUIRED` 卡點已於 Phase 3A（2026-08-04）移除，語音回應現已支援匿名送出，詳見 [[20-Anonymous-Submission-Design]]、[[15-Acceptance-Criteria]]；此圖仍保留原樣作為「改動前」歷史對照，不代表目前行為。
 
 ## 新使用者進站（2026-08-03 歷史快照，首頁已改版，見上方說明）
 ```mermaid
