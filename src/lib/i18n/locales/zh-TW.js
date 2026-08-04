@@ -40,11 +40,14 @@ const zhTW = {
   home: {
     prayerHero: {
       eyebrow: "Start Pray",
-      headline: "留下一段禱告，讓陌生人為你禱告",
-      subheadline: "不需要登入。用你的聲音記下此刻，會有人聆聽並為你禱告。",
-      primaryCta: "開始錄下你的禱告",
+      headline: "一起為這件事禱告",
+      subheadline: "聆聽一段真實的需要，留下你的禱告，或告訴對方你已經為他禱告。",
+      primaryCta: "為這件事禱告",
       anonymousNote: "匿名送出，你可以在送出前重新錄製。",
       prototypeNotice: "（原型階段）完整錄音功能即將推出，敬請期待。",
+      cardLabel: "目前這件需要代禱的事",
+      emptyTitle: "目前還沒有可顯示的禱告需要。",
+      emptyBody: "請稍後再回來看看，或直接寫下一份代禱。",
     },
     recorder: {
       permissionTitle: "我們需要使用你的麥克風來錄下這段禱告。",

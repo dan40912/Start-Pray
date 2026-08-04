@@ -106,3 +106,36 @@ tags: [start-pray, implementation-plan]
 - 每個 Phase 完成後才能進入下一個 Phase
 - 每個 Phase 對應獨立 commit（或多個小 commit），不得混合不同目的
 - Phase 3、5 屬高風險，執行前需再次確認 [[13-Risk-Register]]
+
+---
+
+## 最終首頁改造（2026-08-04，取代先前「首頁錄音建立新 Prayer」的方向）
+
+**產品語意確認**：`Prayer` = `HomePrayerCard`（一件需要被禱告的事），`PrayerResponse` = 對它的文字/語音回應。首頁核心用途改為「顯示一件 Prayer，讓訪客聆聽、錄音回應，或表示已為它禱告」，**不再**是「訪客錄下自己的新需要」。
+
+### Commit A：`refactor: present prayer needs as the homepage focus` —— 完成（2026-08-04）
+- 目標：首頁載入並顯示一件真實 Prayer，錄音 CTA 綁定該 Prayer 的 id
+- 前置分析：[[25-Companion-Mode-Reuse-Audit]]（發現：陪伴模式的播放引擎/Loop/X 移除邏輯已存在於 `AudioContext.js`/`GlobalPlayer.js`，但只出現在收合式佇列面板，全螢幕 overlay 需要 UI 組裝；「我已為你禱告」的 prayed reaction **完全不存在**，需要新 Schema）
+- 已修改檔案：
+  - `src/components/HomeLandingPage.js`：新增 `readHomeCards({sort:"needsPrayer", limit:1})` 取得一件「最需要陪伴」的 Prayer，傳給 `HomePrayerHero`
+  - `src/components/HomePrayerHero.js`：改為顯示真實 Prayer 卡片（標題/內容純文字化/若 `voiceHref` 是真實可播放路徑則顯示原生 `<audio>`），CTA 文案改為「為這件事禱告」，Empty 狀態文案
+  - `src/components/prayer-recorder/PrayerRecorder.js`：新增 `prayerId` prop，送出時直接使用它作為 `requestId`（移除原本 `GET /api/home-cards?mode=one` 隨機取卡的邏輯，改為呼叫端明確指定）
+  - `src/lib/i18n/locales/{zh-TW,en}.js`：更新 hero 文案，新增 `cardLabel`/`emptyTitle`/`emptyBody`
+  - 新增 `docs/obsidian/25-Companion-Mode-Reuse-Audit.md`
+- 驗收條件：首頁顯示真實 Prayer；CTA 綁定該 Prayer id；不需要登入；zh-TW/en 正常；Desktop/Mobile 不破版
+- 測試方式：
+  - `npm run lint`、`npm run build`、`npm run test:unit`、`npm run i18n:check` 皆通過
+  - **Real API tested（非 Mock）**：瀏覽器內直接讀取 React fiber 確認 `PrayerRecorder` 收到的 `prayerId` 為真實資料庫 id（`6`），再對該 id 送出合成語音，回傳 `homeCardId: 6`，與首頁綁定的 id 完全一致
+  - Browser tested：桌面/手機版面、`/en` 英文文案、CTA 高度 49.78px、無橫向捲動
+- 明確不處理（依指令範圍）：左右滑動、全螢幕陪伴模式組裝、「我已為你禱告」——皆為後續 Commit 範圍
+- 已知偏離指令原文的地方：**未加入「左右滑動，看看更多需要禱告的事情」提示文字**，因為滑動功能尚未實作（下一個 Commit 才做），顯示這句提示但功能不存在會誤導使用者；待滑動功能完成後再一併補上
+- 完成狀態：**完成**
+
+### Commit B：`feat: add prayer browsing and companion playback` —— 未開始
+- 範圍：左右滑動切換 Prayer、切換狀態保護（錄音中禁止切換等）、組裝全螢幕陪伴模式（播放清單 UI + Loop + Stop + Exit + 每筆 X + 三點選單/檢舉）
+- 依賴：[[25-Companion-Mode-Reuse-Audit]] 已確認可重用 `AudioContext.js`/`GlobalPlayer.js` 的邏輯，但全螢幕 UI 組裝是新工作，非零成本重用
+- 已知風險：既有檢舉 API 要求登入，若要對匿名訪客開放檢舉，需要額外的匿名化設計（超出目前分析範圍，需另外確認）
+
+### Commit C：`feat: complete anonymous prayer interaction flow` —— 未開始
+- 範圍：「我已為你禱告」（prayed reaction）、首頁下方非必要區塊收斂、Accessibility、安全補強、測試、最終驗收報告
+- 依賴：「我已為你禱告」**需要新的 Schema**（[[25-Companion-Mode-Reuse-Audit]] 確認現有系統完全沒有等價機制），屬於新的 migration 決策點，需要你確認方向後才能實作（比照 [[23-Database-Migration]] 的模式：新增獨立表或計數欄位，additive-only）

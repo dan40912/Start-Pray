@@ -68,4 +68,11 @@ tags: [start-pray, changelog]
 - 已知殘留：本機 DB 留有 2 筆測試資料未清理（無刪除 API）；管理 Token（Phase 3B）尚未實作
 - 詳見 [[10-Implementation-Plan]] Phase 3A/3B、[[15-Acceptance-Criteria]]
 
+## 2026-08-04 — Commit：refactor: present prayer needs as the homepage focus（Commit A，待建立）
+- 產品方向修正：首頁從「訪客錄下自己的新需要」改為「顯示一件既有 Prayer，訪客為它禱告」（`PrayerResponse` 語意，不建立新 `HomePrayerCard`）
+- 新增 [[25-Companion-Mode-Reuse-Audit]]：盤點既有陪伴模式（`AudioContext.js`/`GlobalPlayer.js`）與「我已為你禱告」機制，發現後者完全不存在，需要新 Schema
+- 修改 `HomeLandingPage.js`、`HomePrayerHero.js`、`prayer-recorder/PrayerRecorder.js`、i18n 兩檔
+- Real API tested：首頁綁定的真實 `prayerId` 與送出後 API 回傳的 `homeCardId` 完全一致
+- 詳見 [[10-Implementation-Plan]]「最終首頁改造」章節
+
 後續每個 Implementation Plan Phase 執行後，應在此新增一筆紀錄（日期、Phase、實際修改檔案、commit hash）。

@@ -39,12 +39,14 @@ const en = {
   home: {
     prayerHero: {
       eyebrow: "Start Pray",
-      headline: "Leave a prayer, and let a stranger pray for you",
-      subheadline:
-        "No account needed. Record what is on your heart, and someone will listen and pray for you.",
-      primaryCta: "Record your prayer",
+      headline: "Pray for this",
+      subheadline: "Listen to a real need, leave a prayer, or let them know you have prayed.",
+      primaryCta: "Pray for this",
       anonymousNote: "Submit anonymously. You can listen and record again before sending.",
       prototypeNotice: "(Prototype) Full recording is coming soon.",
+      cardLabel: "The need being prayed for right now",
+      emptyTitle: "There is no prayer need to show right now.",
+      emptyBody: "Please check back soon, or write down a prayer need yourself.",
     },
     recorder: {
       permissionTitle: "We need access to your microphone to record this prayer.",

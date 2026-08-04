@@ -299,7 +299,7 @@ function HomeFinalCta({ text = PAGE_TEXT, locale = "zh-TW" }) {
 export default async function HomeLandingPage({ locale: localeProp = "zh-TW" } = {}) {
   const locale = normalizeLocale(localeProp);
   const text = getDictionary(locale).home;
-  const [categories, topCards, stats, globalPrayerCards] = await Promise.all([
+  const [categories, topCards, stats, globalPrayerCards, featuredPrayerCards] = await Promise.all([
     readActiveCategories(),
     readHomeCards({ sort: "responses", limit: 12 }),
     readHomeStats(),
@@ -336,6 +336,7 @@ export default async function HomeLandingPage({ locale: localeProp = "zh-TW" } =
         _count: { select: { responses: true } },
       },
     }),
+    readHomeCards({ sort: "needsPrayer", limit: 1 }),
   ]);
 
   const globalPrayers = globalPrayerCards.map((card) => toGlobalPrayerPayload(card, locale));
@@ -343,6 +344,7 @@ export default async function HomeLandingPage({ locale: localeProp = "zh-TW" } =
   const proofStats = buildProofStats(stats, globalPrayers, categories, text);
   const clientCategories = toClientValue(categories);
   const clientTopCards = toClientValue(topCards);
+  const featuredPrayer = toClientValue(featuredPrayerCards[0] || null);
 
   return (
     <>
@@ -350,7 +352,7 @@ export default async function HomeLandingPage({ locale: localeProp = "zh-TW" } =
 
       <main className="home-page">
         <HomeStructuredData stats={heroStats} globalPrayerCount={globalPrayers.length} text={text} locale={locale} />
-        <HomePrayerHero text={text} />
+        <HomePrayerHero text={text} prayer={featuredPrayer} />
 
         <HomeEntryCards text={text} locale={locale} />
 

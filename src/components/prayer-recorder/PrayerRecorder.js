@@ -16,7 +16,7 @@ function mapSubmitErrorKey(status, code) {
   return "rejected";
 }
 
-export default function PrayerRecorder({ text, onExit }) {
+export default function PrayerRecorder({ text, prayerId, onExit }) {
   const recorder = usePrayerRecorder();
   const {
     phase,
@@ -74,24 +74,16 @@ export default function PrayerRecorder({ text, onExit }) {
   const handleSubmit = async () => {
     if (submitState === "uploading") return;
     const blob = getBlob();
-    if (!blob) {
+    if (!blob || !prayerId) {
       setSubmitErrorKey("rejected");
       setSubmitState("failed");
       return;
     }
     setSubmitState("uploading");
     try {
-      const cardResponse = await fetch("/api/home-cards?mode=one");
-      const card = cardResponse.ok ? await cardResponse.json() : null;
-      if (!card?.id) {
-        setSubmitErrorKey("rejected");
-        setSubmitState("failed");
-        return;
-      }
-
       const extension = blob.type?.includes("mp4") ? "m4a" : "webm";
       const formData = new FormData();
-      formData.set("requestId", String(card.id));
+      formData.set("requestId", String(prayerId));
       formData.set("isAnonymous", "true");
       formData.set("website", "");
       formData.set("audio", blob, `prayer-${Date.now()}.${extension}`);
