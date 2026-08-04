@@ -73,5 +73,28 @@ tags: [start-pray, acceptance-criteria]
 - [x] `/global-prayer-room`、`/prayfor/[id]` 回歸 — Real Browser tested（Cesium 正常載入、無 console 錯誤）
 - [x] Lint / Build / Unit tests（13/13）/ i18n:check（505 keys） — 全數通過
 
+## Commit C1（`refactor: unify anonymous prayer interactions across prayer pages`，待建立）— 匿名檢舉與共用 Prayer 元件
+- [x] 未登入訪客可見三點選單（首頁與 `/prayfor/[id]` 皆然） — Real Browser tested
+- [x] 未登入訪客可檢舉，Server 端以 Guest session 決定身分 — Real API tested
+- [x] Client 傳入的 `reporterId`/`userId`/`hidden`/`admin` 等偽造欄位被忽略 — Real API tested
+- [x] 檢舉成功後沿用既有 `moderationStatus`/`isBlocked` 欄位隱藏，未新增 Schema — Implemented + Real API tested（DB 值變化確認）
+- [x] 重複檢舉冪等（不重複遞增 `reportCount`） — Real API tested
+- [x] Guest／IP 兩維度 DB-backed rate limit（10 分鐘 5 次/10 次） — Real API tested（429 正確觸發）
+- [x] Invalid/missing responseId、不存在的 response、不合法 reason 回傳對應錯誤碼 — Real API tested
+- [x] 公開查詢（`/api/responses/[id]`）立即排除已檢舉項目 — Real API tested
+- [x] 陪伴入口「可播放數量」在檢舉成功、離開陪伴模式後正確歸零/更新 — Real Browser tested（含一次真實 Bug 修正：初版遺漏這個刷新，見 [[26-Anonymous-Reporting-Design]]）
+- [x] X（本地移除）與 Report（後端隱藏）行為分離，X 不呼叫任何 API、不動 DB — Real Browser tested（Network 面板確認零請求）
+- [x] Admin 查詢不受影響，仍可看見已隱藏項目（未逐一測試每個 Admin 頁面按鈕，僅確認查詢層級未新增排除條件） — Implemented，Not Tested
+- [x] `/prayfor/[id]` 新增匿名錄音入口，綁定 URL 對應的 `prayerId` — Real Browser tested（permission-denied 真實路徑，與首頁同一元件）
+- [x] `/prayfor/[id]` 匿名陪伴入口（可播放時顯示，重用 `CompanionOverlay`） — Real Browser tested
+- [x] Mobile（375/390/412）錄音入口在第一屏、無橫向捲動 — Real Browser tested
+- [x] Desktop（1280/1440）錄音入口在首屏內 — Real Browser tested（1280 寬度下貼近視窗底部但仍可見）
+- [x] 既有 `Comments.js`/`VoicePrayerOverlay.js`（登入會員語音/文字/檢舉流程）未被修改 — Implemented（使用者決策：匿名優先/可加性策略），Real Browser tested 確認共存不衝突
+- [x] `usePrayerInteraction` Hook 由首頁與詳情頁共用 — Implemented，Browser tested（兩頁 Recorder/Companion 行為一致）
+- [x] `/global-prayer-room`、`/login`、`/signup`、`/customer-portal`、`/admin` 回歸 — Real Browser tested，Console/Server log 無新增錯誤
+- [x] Lint / Build / Unit tests（21/21）/ i18n:check（505 keys） — 全數通過
+- [ ] Real microphone 錄音全流程 — **Not Tested**（環境限制，同既有限制）
+- [ ] 已登入會員的檢舉/三點選單迴歸測試 — **Not Tested**（無測試登入帳號）
+
 ## 尚未開始（不在本次任何已完成 Commit 範圍內）
-匿名管理 Token（Phase 3B）、Prisma Schema/Migration、字幕/轉錄整合、「我已為你禱告」（prayed reaction）、首頁下方區塊收斂、匿名檢舉、完整安全補強（CSRF/CORS 對匿名 API、DB-backed rate limit）、自動化 API/整合測試、Production readiness。這些項目的依賴分析已完成於 [[20-Anonymous-Submission-Design]]、[[22-API-Changes]]、[[23-Database-Migration]]、[[25-Companion-Mode-Reuse-Audit]]。
+匿名管理 Token（Phase 3B）、Prisma Schema/Migration、字幕/轉錄整合、「我已為你禱告」（prayed reaction）、首頁下方區塊收斂、完整安全補強（CSRF/CORS 對匿名 API、分散式 rate limit）、自動化 API/整合測試框架、Production readiness、`GlobalPlayer.js` 內建陪伴 UI 與 `CompanionOverlay.js` 的完整統一。這些項目的依賴分析已完成於 [[20-Anonymous-Submission-Design]]、[[22-API-Changes]]、[[23-Database-Migration]]、[[25-Companion-Mode-Reuse-Audit]]、[[26-Anonymous-Reporting-Design]]、[[27-Shared-Prayer-Interaction-Audit]]、[[19-Security-Review]]。

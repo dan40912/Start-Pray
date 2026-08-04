@@ -83,4 +83,14 @@ tags: [start-pray, changelog]
 - 已知限制：Real Audio Playback Not Tested（既有種子資料與測試環境限制）；三點選單/檢舉僅登入者可見（既有 API 要求登入）；Recording/Countdown/Uploading 阻擋狀態需真實麥克風才能測試
 - 詳見 [[10-Implementation-Plan]] Commit B、[[25-Companion-Mode-Reuse-Audit]]
 
+## 2026-08-05 — Commit：refactor: unify anonymous prayer interactions across prayer pages（Commit C1，待建立）
+- 匿名檢舉：`POST /api/prayer-response/report` 新增 guest 分支（不寫 `PrayerResponseReport`，改沿用 `PrayerResponse.moderationStatus`/`reportCount` 冪等隱藏 + `AdminLog` 稽核 + DB-backed rate limit），登入分支邏輯完全不變；`CompanionOverlay.js` 三點選單對所有訪客開放
+- 共用元件：新增 `src/components/prayer-interaction/usePrayerInteraction.js`（Recorder/Companion/可播放清單狀態），`HomePrayerHero.js` 與新的 `src/components/prayer-detail/DetailPrayerInteractionPanel.js` 共用同一顆 Hook
+- `/prayfor/[id]` 新增匿名錄音/陪伴入口（`DetailPrayerInteractionPanel`，插入於 hero card 之後），重用與首頁完全相同的 `PrayerRecorder`/`CompanionOverlay`；未修改既有 `Comments.js`/`VoicePrayerOverlay.js`（服務登入會員，決策見 [[27-Shared-Prayer-Interaction-Audit]]）
+- 修正實作中發現的真實 Bug：guest 檢舉的 IP 頻率限制第一版用了 Postgres/Mongo 的 Prisma JSON path 陣列語法，在 MySQL provider 下觸發 500；已修正為 MySQL 需要的字串型 path，Real API tested 通過
+- 新增 `docs/obsidian/19-Security-Review.md`、`26-Anonymous-Reporting-Design.md`、`27-Shared-Prayer-Interaction-Audit.md`
+- Real API/Browser tested：匿名檢舉全流程（成功/冪等重複/偽造欄位/rate limit/hidden 後公開查詢排除/陪伴入口消失）、`/prayfor/[id]` 匿名錄音入口（permission-denied 真實路徑）、Mobile 375/390/412 與 Desktop 1280/1440 無橫向捲動、X 與 Report 行為分離、`/global-prayer-room`/`/login`/`/signup`/`/customer-portal`/`/admin` 回歸正常
+- 已知限制：Real microphone 錄音全流程 Not Tested（環境限制）；匿名檢舉無法逐筆追蹤同一訪客的重複檢舉（設計取捨，見 [[26-Anonymous-Reporting-Design]]）；已流出的音檔直接網址在檢舉後仍可存取（既有風險，非本次引入）
+- 詳見 [[10-Implementation-Plan]] Commit C1、[[27-Shared-Prayer-Interaction-Audit]]、[[26-Anonymous-Reporting-Design]]、[[19-Security-Review]]
+
 後續每個 Implementation Plan Phase 執行後，應在此新增一筆紀錄（日期、Phase、實際修改檔案、commit hash）。

@@ -42,8 +42,6 @@ const zhTW = {
       eyebrow: "Start Pray",
       headline: "一起為這件事禱告",
       subheadline: "聆聽一段真實的需要，留下你的禱告，或告訴對方你已經為他禱告。",
-      primaryCta: "為這件事禱告",
-      anonymousNote: "匿名送出，你可以在送出前重新錄製。",
       prototypeNotice: "（原型階段）完整錄音功能即將推出，敬請期待。",
       cardLabel: "目前這件需要代禱的事",
       emptyTitle: "目前還沒有可顯示的禱告需要。",
@@ -82,6 +80,8 @@ const zhTW = {
       discardConfirmNo: "留在這裡",
     },
     recorder: {
+      entryCta: "為這件事禱告",
+      anonymousNote: "匿名送出，你可以在送出前重新錄製。",
       permissionTitle: "我們需要使用你的麥克風來錄下這段禱告。",
       permissionBody: "錄音只會在你確認送出後上傳。",
       allowMic: "允許使用麥克風",

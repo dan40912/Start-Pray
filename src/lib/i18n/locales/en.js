@@ -41,8 +41,6 @@ const en = {
       eyebrow: "Start Pray",
       headline: "Pray for this",
       subheadline: "Listen to a real need, leave a prayer, or let them know you have prayed.",
-      primaryCta: "Pray for this",
-      anonymousNote: "Submit anonymously. You can listen and record again before sending.",
       prototypeNotice: "(Prototype) Full recording is coming soon.",
       cardLabel: "The need being prayed for right now",
       emptyTitle: "There is no prayer need to show right now.",
@@ -81,6 +79,8 @@ const en = {
       discardConfirmNo: "Stay here",
     },
     recorder: {
+      entryCta: "Pray for this",
+      anonymousNote: "Submit anonymously. You can listen and record again before sending.",
       permissionTitle: "We need access to your microphone to record this prayer.",
       permissionBody: "Your recording is only uploaded after you confirm and send it.",
       allowMic: "Allow microphone",

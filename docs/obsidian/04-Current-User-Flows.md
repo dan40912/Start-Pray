@@ -97,6 +97,7 @@ flowchart TD
     D -->|否| F[免登入即可送出，guestSessionHash/ipHash 記錄]
     F --> G[待確認：是否有獨立「我為你禱告」一鍵按鈕，或僅等於送出回應]
 ```
+> **2026-08-05 更新（Commit C1）**：上圖「D -->|是| E[需要登入]」這條分支現在**只描述 `Comments.js` 既有的登入者語音composer**（未變更）。頁面上另外新增了一個獨立、不需要登入即可使用的匿名錄音入口（`DetailPrayerInteractionPanel`，重用首頁同一顆 `PrayerRecorder`），兩者並存，見 [[08-Target-User-Flows]] 流程 8c、[[27-Shared-Prayer-Interaction-Audit]]。「檢舉」也已開放給未登入訪客使用（陪伴模式三點選單），見流程 8b、[[26-Anonymous-Reporting-Design]]。
 
 ## 管理內容
 ```mermaid

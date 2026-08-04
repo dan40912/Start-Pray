@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import PrayerRecorder from "@/components/prayer-recorder/PrayerRecorder";
 import CompanionOverlay from "@/components/home-companion/CompanionOverlay";
 import { resolveArrowKeyDirection, resolveSwipeDirection } from "@/components/home-companion/swipe-utils";
+import { usePrayerInteraction } from "@/components/prayer-interaction/usePrayerInteraction";
 
 // HomePrayerCard.voiceHref sometimes points at a legacy HTML page
 // (e.g. "/legacy/prayfor/details.html?prayer=pc-509#voice") rather than a
@@ -39,15 +40,25 @@ export default function HomePrayerHero({ text, prayer }) {
 
   const [currentPrayer, setCurrentPrayer] = useState(prayer || null);
   const [adjacent, setAdjacent] = useState({ prev: null, next: null });
-  const [playableResponses, setPlayableResponses] = useState([]);
-  const [recorderActive, setRecorderActive] = useState(false);
-  const [recorderState, setRecorderState] = useState(null);
-  const [companionOpen, setCompanionOpen] = useState(false);
   const [switchConfirm, setSwitchConfirm] = useState(null); // { direction } | null
   const [blockedMessage, setBlockedMessage] = useState("");
 
-  const recorderRef = useRef(null);
-  const requestGenerationRef = useRef(0);
+  const {
+    recorderRef,
+    recorderActive,
+    recorderState,
+    setRecorderState,
+    openRecorder,
+    closeRecorder,
+    discardRecorder,
+    companionOpen,
+    openCompanion,
+    closeCompanion,
+    playableResponses,
+    hasCompanionEntry,
+  } = usePrayerInteraction(currentPrayer?.id);
+
+  const adjacentGenerationRef = useRef(0);
   const heroRef = useRef(null);
   const touchStartRef = useRef(null);
 
@@ -59,31 +70,19 @@ export default function HomePrayerHero({ text, prayer }) {
   useEffect(() => {
     if (!currentPrayer?.id) {
       setAdjacent({ prev: null, next: null });
-      setPlayableResponses([]);
       return;
     }
-    const generation = ++requestGenerationRef.current;
+    const generation = ++adjacentGenerationRef.current;
 
     fetch(`/api/home-cards/${currentPrayer.id}/adjacent`)
       .then((res) => (res.ok ? res.json() : { prev: null, next: null }))
       .then((data) => {
-        if (generation !== requestGenerationRef.current) return;
+        if (generation !== adjacentGenerationRef.current) return;
         setAdjacent(data || { prev: null, next: null });
       })
       .catch(() => {
-        if (generation !== requestGenerationRef.current) return;
+        if (generation !== adjacentGenerationRef.current) return;
         setAdjacent({ prev: null, next: null });
-      });
-
-    fetch(`/api/responses/${currentPrayer.id}`)
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data) => {
-        if (generation !== requestGenerationRef.current) return;
-        setPlayableResponses(Array.isArray(data) ? data.filter((item) => item.voiceUrl) : []);
-      })
-      .catch(() => {
-        if (generation !== requestGenerationRef.current) return;
-        setPlayableResponses([]);
       });
   }, [currentPrayer?.id]);
 
@@ -119,9 +118,7 @@ export default function HomePrayerHero({ text, prayer }) {
   const performSwitch = (direction) => {
     const target = direction === "next" ? adjacent.next : adjacent.prev;
     if (!target) return;
-    recorderRef.current?.discard?.();
-    setRecorderActive(false);
-    setRecorderState(null);
+    discardRecorder();
     setSwitchConfirm(null);
     setCurrentPrayer(target);
   };
@@ -171,7 +168,6 @@ export default function HomePrayerHero({ text, prayer }) {
 
   const description = toPlainText(currentPrayer?.description);
   const playableVoiceHref = isPlayableVoiceHref(currentPrayer?.voiceHref) ? currentPrayer.voiceHref : null;
-  const hasCompanionEntry = playableResponses.length > 0;
 
   return (
     <section
@@ -188,10 +184,7 @@ export default function HomePrayerHero({ text, prayer }) {
             text={text.recorder}
             prayerId={currentPrayer?.id}
             onStateChange={setRecorderState}
-            onExit={() => {
-              setRecorderActive(false);
-              setRecorderState(null);
-            }}
+            onExit={closeRecorder}
           />
         ) : currentPrayer ? (
           <>
@@ -209,21 +202,21 @@ export default function HomePrayerHero({ text, prayer }) {
             </article>
 
             <div className="prayer-hero__actions">
-              <button type="button" className="prayer-hero__cta" onClick={() => setRecorderActive(true)}>
-                {copy.primaryCta}
+              <button type="button" className="prayer-hero__cta" onClick={openRecorder}>
+                {text.recorder.entryCta}
               </button>
               {hasCompanionEntry ? (
                 <button
                   type="button"
                   className="prayer-hero__companion-cta"
-                  onClick={() => setCompanionOpen(true)}
+                  onClick={openCompanion}
                 >
                   {companionText.listenEntry}
                 </button>
               ) : null}
             </div>
 
-            <p className="prayer-hero__anonymous-note">{copy.anonymousNote}</p>
+            <p className="prayer-hero__anonymous-note">{text.recorder.anonymousNote}</p>
 
             {adjacent.prev || adjacent.next ? (
               <p className="prayer-hero__swipe-hint">{copy.swipeHint}</p>
@@ -263,7 +256,7 @@ export default function HomePrayerHero({ text, prayer }) {
         <CompanionOverlay
           responses={playableResponses}
           text={companionText}
-          onExit={() => setCompanionOpen(false)}
+          onExit={closeCompanion}
         />
       ) : null}
 

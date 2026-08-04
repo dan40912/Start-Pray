@@ -4,7 +4,7 @@ tags: [start-pray, flows, target]
 
 # 目標使用者流程（提案，部分已實作）
 
-參見 [[07-Target-MVP]]、[[09-Change-Impact-Analysis]]、[[21-Recorder-State-Machine]]、[[25-Companion-Mode-Reuse-Audit]]。以下原為**設計提案**；流程 1-5 已於 Commit 2、3（2026-08-04）在首頁實作為前端狀態機（`src/components/prayer-recorder/`）；流程 6（匿名送出）已於 Phase 3A（2026-08-04）接上真實 API；流程 8（瀏覽並播放禱告）已於 Commit A/B（2026-08-04）以「Prayer 左右滑動＋全螢幕陪伴模式」的形式實作；流程 9、10 仍是提案，未實作。
+參見 [[07-Target-MVP]]、[[09-Change-Impact-Analysis]]、[[21-Recorder-State-Machine]]、[[25-Companion-Mode-Reuse-Audit]]、[[26-Anonymous-Reporting-Design]]、[[27-Shared-Prayer-Interaction-Audit]]。以下原為**設計提案**；流程 1-5 已於 Commit 2、3（2026-08-04）在首頁實作為前端狀態機（`src/components/prayer-recorder/`）；流程 6（匿名送出）已於 Phase 3A（2026-08-04）接上真實 API；流程 6b、8（瀏覽並播放禱告）已於 Commit A/B（2026-08-04）實作；流程 8b（匿名檢舉）、8c（`/prayfor/[id]` 匿名錄音）已於 Commit C1（2026-08-05）實作；流程 9、10 仍是提案，未實作。
 
 ## 1. 陌生人第一次進站 — ✅ 已實作（Commit 2）
 ```mermaid
@@ -86,6 +86,29 @@ flowchart TD
     C --> D[音檔串流播放，無需登入]
 ```
 首頁陪伴模式的實作方式：點擊「聆聽其他人的禱告」進入全螢幕，重用既有 `AudioContext`/`GlobalPlayer` 播放引擎組裝清單、Loop、Stop、Exit、X（本地移除）；播放清單僅來自目前顯示中 Prayer 的可播放 `PrayerResponse`。詳見 [[25-Companion-Mode-Reuse-Audit]]「實際實作結果」。Real Audio Playback 本身因環境限制 Not Tested，見 [[24-Manual-QA]]。
+
+## 8b. 匿名檢舉不當回應 — ✅ 已實作（Commit C1，2026-08-05，Real API/Browser tested，見 [[26-Anonymous-Reporting-Design]]）
+```mermaid
+flowchart TD
+    A[陪伴模式中播放某則回應] --> B[點擊三點選單]
+    B --> C[點擊「檢舉」，二次確認]
+    C --> D[Server 以 Guest session 或登入 session 決定身分]
+    D --> E[PrayerResponse.moderationStatus 轉為 PENDING]
+    E --> F[立即從播放清單移除，公開查詢不再回傳]
+    F --> G{重新整理或重新進入陪伴模式}
+    G --> H[已檢舉內容不再出現]
+```
+未登入與已登入訪客走同一支 `POST /api/prayer-response/report`；匿名檢舉不建立可逐筆稽核的 `PrayerResponseReport` 列（該表要求登入身分），改以 Response 自身狀態做冪等判斷 + `AdminLog` 粗粒度稽核 + DB-backed rate limit 防濫用，設計取捨詳見 [[26-Anonymous-Reporting-Design]]。此流程與「8. 瀏覽並播放禱告」共用同一個 `CompanionOverlay.js`，首頁與 `/prayfor/[id]` 皆適用（見 [[27-Shared-Prayer-Interaction-Audit]]）。
+
+## 8c. `/prayfor/[id]` 匿名錄音 — ✅ 已實作（Commit C1，2026-08-05，Real Browser tested：permission-denied 真實路徑，Real microphone Not Tested）
+```mermaid
+flowchart TD
+    A[開啟 /prayfor/id，不登入] --> B[看到「為這件事禱告」入口，位於 Prayer 內容正下方]
+    B --> C[點擊後開啟與首頁相同的 PrayerRecorder]
+    C --> D[允許→倒數→錄音→預覽→匿名送出]
+    D --> E[POST /api/responses，prayerId 綁定 URL 對應的卡片]
+```
+與首頁共用同一個 `PrayerRecorder` 元件與 Submit API，透過新抽出的 `usePrayerInteraction` Hook 共用狀態；頁面既有的 `Comments.js`（服務登入會員的文字/語音回應與檢舉）維持不動，兩條路徑並存但受眾不同，決策見 [[27-Shared-Prayer-Interaction-Audit]]。
 
 ## 9. 點擊「我為你禱告」
 ```mermaid

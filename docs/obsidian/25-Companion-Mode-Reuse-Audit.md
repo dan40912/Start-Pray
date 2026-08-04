@@ -67,3 +67,6 @@ tags: [start-pray, audit, companion-mode]
 | Commit 2「重用既有陪伴模式」 | 播放引擎（`AudioContext`）與 X/Loop 邏輯確實存在，但全螢幕 UI 需要組裝，不是純粹掛接 | Commit 2 工作量比預期大，屬於中風險的 UI 整合工作，非零成本重用 |
 | Commit 3「優先重用既有 prayed count」 | **不存在**，需要新 Schema | Commit 3 需要一次新的、範圍明確的 migration 決策，建議先確認你要新增獨立的 `PrayedReaction` 表（含 `prayerId`/`anonymousSessionHash` 唯一鍵，比照 [[23-Database-Migration]] 已分析過的 guest 識別模式）還是在 `HomePrayerCard` 上加一個計數快取欄位 |
 | Commit 2 的匿名檢舉 | 檢舉 API 目前**要求登入**（`requireSessionUser`） | 若首頁陪伴模式要對匿名訪客開放檢舉功能，這是額外的匿名化工作，不在原本三個 Commit 明確列出的範圍內，需要你確認是否要一併處理，或本輪先跳過（三點選單可以先只保留給已登入使用者，其餘人不顯示該選項） |
+
+## 2026-08-05 更新：Commit C1 已補上匿名檢舉
+本文件上方多處標記的「檢舉要求登入」缺口，已於 Commit C1 補上：`POST /api/prayer-response/report` 新增 guest 分支，`CompanionOverlay.js` 的三點選單移除 `authUser` 門檻，對所有訪客開放。設計細節（為什麼不寫入 `PrayerResponseReport`、冪等策略、rate limit）見 [[26-Anonymous-Reporting-Design]]；`CompanionOverlay.js` 現在同時被首頁與 `/prayfor/[id]` 共用，比對表見 [[27-Shared-Prayer-Interaction-Audit]]。Real API/Browser tested，非 Mock。

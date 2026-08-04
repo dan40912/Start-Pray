@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useAudio } from "@/context/AudioContext";
-import { useAuthSession } from "@/hooks/useAuthSession";
+import { PRAYER_RESPONSE_CREATED } from "@/lib/events";
 
 const FOCUSABLE_SELECTOR =
   'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -39,9 +39,9 @@ export default function CompanionOverlay({ responses, text, onExit }) {
     removeTrack,
   } = useAudio();
 
-  const authUser = useAuthSession();
   const overlayRef = useRef(null);
   const previouslyFocusedRef = useRef(null);
+  const menuTriggerRefs = useRef({});
   const [openMenuTrackId, setOpenMenuTrackId] = useState(null);
   const [reportState, setReportState] = useState({}); // trackId -> "confirming" | "sending" | "sent" | "failed"
   const [reportSuccessMessage, setReportSuccessMessage] = useState("");
@@ -75,9 +75,23 @@ export default function CompanionOverlay({ responses, text, onExit }) {
     onExit?.();
   };
 
+  // Closes the per-item "..." menu and returns focus to its trigger button,
+  // rather than leaving focus stranded on a now-hidden menu item.
+  const closeItemMenu = (trackId) => {
+    setOpenMenuTrackId(null);
+    const trigger = menuTriggerRefs.current[trackId];
+    trigger?.focus?.();
+  };
+
   useEffect(() => {
     const handleKeyDown = (event) => {
       if (event.key === "Escape") {
+        if (openMenuTrackId) {
+          event.preventDefault();
+          event.stopPropagation();
+          closeItemMenu(openMenuTrackId);
+          return;
+        }
         event.preventDefault();
         handleExit();
         return;
@@ -100,7 +114,26 @@ export default function CompanionOverlay({ responses, text, onExit }) {
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [openMenuTrackId]);
+
+  // Click-outside-closes-menu: only wired up while a menu is actually open.
+  useEffect(() => {
+    if (!openMenuTrackId) return undefined;
+    const handlePointerDown = (event) => {
+      const container = overlayRef.current;
+      if (!container) return;
+      const menuEl = container.querySelector(`[data-companion-menu="${openMenuTrackId}"]`);
+      if (menuEl && !menuEl.contains(event.target)) {
+        setOpenMenuTrackId(null);
+      }
+    };
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("touchstart", handlePointerDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("touchstart", handlePointerDown);
+    };
+  }, [openMenuTrackId]);
 
   const activeIndex = useMemo(() => {
     if (!currentTrack) return -1;
@@ -113,12 +146,16 @@ export default function CompanionOverlay({ responses, text, onExit }) {
 
   const handleReportCancel = (trackId) => {
     setReportState((prev) => ({ ...prev, [trackId]: undefined }));
-    setOpenMenuTrackId(null);
+    closeItemMenu(trackId);
   };
 
-  const handleReportConfirm = async (trackId, index) => {
+  const handleReportConfirm = async (trackId) => {
     setReportState((prev) => ({ ...prev, [trackId]: "sending" }));
     try {
+      // Server decides the reporter's identity (session or guest cookie) —
+      // no reporterId/userId is ever sent from the client. Works the same
+      // for logged-in members and anonymous visitors on both the homepage
+      // and /prayfor/[id] (see docs/obsidian/26-Anonymous-Reporting-Design.md).
       const response = await fetch("/api/prayer-response/report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -126,9 +163,22 @@ export default function CompanionOverlay({ responses, text, onExit }) {
       });
       if (!response.ok) throw new Error("report failed");
       setReportState((prev) => ({ ...prev, [trackId]: "sent" }));
+      // Backend has already hidden the response (moderationStatus/isBlocked).
+      // removeTrack is the same local-removal used by X — reused here only to
+      // stop playback/adjust the index immediately; the backend hide is what
+      // makes it not reappear next time the playlist is fetched.
       removeTrack(trackId);
       setOpenMenuTrackId(null);
       setReportSuccessMessage(text.reportSuccess);
+      // Same "responses changed, please refetch" signal PrayerRecorder fires on a
+      // new submission — reused here so the companion-entry count on the page
+      // underneath (and DetailAudioQueueBootstrap's bottom-player queue on
+      // /prayfor/[id]) drop this response too, not just the open overlay's local
+      // playlist. Without this, the entry button/bottom queue would still count a
+      // response the backend just hid.
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent(PRAYER_RESPONSE_CREATED));
+      }
     } catch {
       setReportState((prev) => ({ ...prev, [trackId]: "failed" }));
     }
@@ -232,48 +282,51 @@ export default function CompanionOverlay({ responses, text, onExit }) {
                       ×
                     </button>
 
-                    {authUser ? (
-                      <div className="companion__menu">
-                        <button
-                          type="button"
-                          className="companion__item-menu-trigger"
-                          aria-label={text.moreOptions}
-                          aria-haspopup="true"
-                          aria-expanded={openMenuTrackId === track.id}
-                          onClick={() => setOpenMenuTrackId(openMenuTrackId === track.id ? null : track.id)}
-                        >
-                          ⋯
-                        </button>
-                        {openMenuTrackId === track.id ? (
-                          <div className="companion__menu-panel" role="menu">
-                            {state === "confirming" ? (
-                              <>
-                                <p>{text.reportConfirm}</p>
-                                <button type="button" onClick={() => handleReportConfirm(track.id, index)}>
-                                  {text.reportConfirmYes}
-                                </button>
-                                <button type="button" onClick={() => handleReportCancel(track.id)}>
-                                  {text.reportConfirmNo}
-                                </button>
-                              </>
-                            ) : state === "sending" ? (
-                              <p>{text.reportSending}</p>
-                            ) : state === "failed" ? (
-                              <>
-                                <p>{text.reportFailed}</p>
-                                <button type="button" onClick={() => handleReportClick(track.id)}>
-                                  {text.retry}
-                                </button>
-                              </>
-                            ) : (
-                              <button type="button" role="menuitem" onClick={() => handleReportClick(track.id)}>
-                                {text.report}
+                    <div className="companion__menu" data-companion-menu={track.id}>
+                      <button
+                        type="button"
+                        ref={(el) => {
+                          menuTriggerRefs.current[track.id] = el;
+                        }}
+                        className="companion__item-menu-trigger"
+                        aria-label={text.moreOptions}
+                        aria-haspopup="menu"
+                        aria-expanded={openMenuTrackId === track.id}
+                        onClick={() => setOpenMenuTrackId(openMenuTrackId === track.id ? null : track.id)}
+                      >
+                        ⋯
+                      </button>
+                      {openMenuTrackId === track.id ? (
+                        <div className="companion__menu-panel" role="menu">
+                          {state === "confirming" ? (
+                            <>
+                              <p>{text.reportConfirm}</p>
+                              <button type="button" role="menuitem" onClick={() => handleReportConfirm(track.id)}>
+                                {text.reportConfirmYes}
                               </button>
-                            )}
-                          </div>
-                        ) : null}
-                      </div>
-                    ) : null}
+                              <button type="button" role="menuitem" onClick={() => handleReportCancel(track.id)}>
+                                {text.reportConfirmNo}
+                              </button>
+                            </>
+                          ) : state === "sending" ? (
+                            <p role="status" aria-live="polite">
+                              {text.reportSending}
+                            </p>
+                          ) : state === "failed" ? (
+                            <>
+                              <p role="alert">{text.reportFailed}</p>
+                              <button type="button" role="menuitem" onClick={() => handleReportClick(track.id)}>
+                                {text.retry}
+                              </button>
+                            </>
+                          ) : (
+                            <button type="button" role="menuitem" onClick={() => handleReportClick(track.id)}>
+                              {text.report}
+                            </button>
+                          )}
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
                 </li>
               );

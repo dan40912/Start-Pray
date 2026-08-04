@@ -165,6 +165,39 @@ tags: [start-pray, implementation-plan]
   - 「聆聽大家的禱告」入口的可播放判定只檢查 `voiceUrl` 是否存在（沿用 `/api/responses/[homeCardId]` 既有的 `isBlocked`/`moderationStatus`/`voiceModerationStatus` 過濾），未額外檢查音檔是否真的可解碼——這與既有系統的判定標準一致，非新缺口
 - 完成狀態：**完成**（前端邏輯完整；音訊實際播放與部分互動細節因環境限制標記 Not Tested，見上）
 
-### Commit C：`feat: complete anonymous prayer interaction flow` —— 未開始
-- 範圍：「我已為你禱告」（prayed reaction）、首頁下方非必要區塊收斂、Accessibility、安全補強、測試、最終驗收報告
+### Commit C1：`refactor: unify anonymous prayer interactions across prayer pages` —— 完成（2026-08-05）
+- 範圍變更說明：原規劃的「Commit C」（見下方保留紀錄）涵蓋「我已為你禱告」／首頁區塊收斂／安全補強／最終驗收；使用者後續改以更精確的指令重新定義本輪範圍為「匿名檢舉 + 首頁與 `/prayfor/[id]` 共用元件」，並明確排除「我已為你禱告」/Prayed reaction Schema/Migration/Management Token/字幕/Production。故本輪命名為 **Commit C1**，原「Commit C」的 prayed reaction 範圍順延為未來一輪（見文末保留段落）。
+- 前置分析：[[26-Anonymous-Reporting-Design]]（匿名檢舉 13 問答，確認 `PrayerResponseReport.reporterId` 是必填 User FK、無法直接給匿名訪客使用，選擇不新增 migration）、[[27-Shared-Prayer-Interaction-Audit]]（首頁 vs `/prayfor/[id]` 完整盤點表）
+- **架構決策（AskUserQuestion）**：在「完全統一 Recorder/Companion」「匿名優先、可加性（低風險）」「只統一 Recorder」三個選項中，使用者選擇**「匿名優先、可加性」**——新增共用的匿名錄音/陪伴入口，但完全不修改 `/prayfor/[id]` 既有的 `Comments.js`（800 行，服務登入會員的文字/語音回應與檢舉）與 `GlobalPlayer.js` 內建的全螢幕陪伴 UI
+- 已新增檔案：
+  - `src/components/prayer-interaction/usePrayerInteraction.js`：共用 Hook（Recorder 開關狀態、Companion 開關狀態、可播放回應清單），首頁與詳情頁共用
+  - `src/components/prayer-detail/DetailPrayerInteractionPanel.js`：`/prayfor/[id]` 專用的頁面級 orchestrator，組合 `usePrayerInteraction` + 既有的 `PrayerRecorder` + `CompanionOverlay`
+  - `src/lib/prayer-response-report.js`：Report API 的純函式（`isResponseAlreadyHidden`/`isGuestRateLimited`/`buildGuestReportActorId`），供 `tests/prayer-response-report.test.mjs` 單元測試
+  - `docs/obsidian/19-Security-Review.md`、`26-Anonymous-Reporting-Design.md`、`27-Shared-Prayer-Interaction-Audit.md`
+- 已修改檔案：
+  - `src/app/api/prayer-response/report/route.js`：新增 `handleGuestReport`（不寫 `PrayerResponseReport`，改更新 `PrayerResponse.moderationStatus`/`reportCount` + `AdminLog` 稽核 + DB-backed rate limit），`handleAuthenticatedReport` 為原邏輯原封不動搬移
+  - `src/components/home-companion/CompanionOverlay.js`：三點選單移除 `authUser` 門檻（所有訪客可見）；新增點擊外部關閉選單、per-item Escape 關閉選單並將焦點還給觸發按鈕、`aria-haspopup="menu"`；檢舉成功後 dispatch `PRAYER_RESPONSE_CREATED`（見下方關鍵發現）
+  - `src/components/HomePrayerHero.js`：改用 `usePrayerInteraction`，移除重複的 recorder/companion/responses state（swipe/adjacent 邏輯保留在此頁面，詳情頁不需要）
+  - `src/components/prayer-recorder/PrayerRecorder.js`：送出成功時 dispatch `PRAYER_RESPONSE_CREATED`（既有事件，先前從未在送出成功時真正觸發過）
+  - `src/app/prayfor/[id]/page.js`：插入 `<DetailPrayerInteractionPanel>` 於 hero card 之後、既有「下一步」引導卡之前
+  - `src/lib/i18n/locales/{zh-TW,en}.js`：`recorder.entryCta`/`recorder.anonymousNote` 從 `prayerHero.*` 移入 `recorder.*`（兩頁共用同一份文案，不重複定義）
+  - `tests/prayer-response-report.test.mjs`（新增，8 個測試）
+- 關鍵發現與修正（開發過程中，非事後補記）：
+  1. **真實 Bug**：guest 檢舉的 IP 頻率限制第一版用 Prisma 陣列型 JSON path（`path: ["ipHash"]`，Postgres/Mongo 語法），MySQL provider 下觸發 `PrismaClientValidationError` → 500。已修正為 MySQL 需要的字串型 path（`path: "$.ipHash"`），Real API tested 通過。能抓到此問題是因為堅持用本機真實 DB 測試而非 Mock。
+  2. **真實缺口**：檢舉成功後，陪伴模式內的播放清單雖然立即移除該筆，但頁面上「聆聽大家的禱告」入口的可見性（`usePrayerInteraction` 的 `playableResponses`）是獨立的 state，不會自動同步——Real Browser tested 發現入口按鈕在檢舉後、離開陪伴模式時仍然顯示。修正方式：重用既有 `PRAYER_RESPONSE_CREATED` 事件（`PrayerRecorder` 送出成功時也重用同一個事件），讓 `CompanionOverlay` 檢舉成功時一併 dispatch，`usePrayerInteraction` 監聽並重新抓取清單。修正後 Real Browser tested 確認入口正確消失。
+- 測試方式：
+  - `npm run lint`、`npm run build`、`npm run test:unit`（21/21）、`npm run i18n:check`（505 keys）皆通過
+  - **Real API tested（對本機開發 DB，非 Mock）**：匿名檢舉成功（`moderationStatus` APPROVED→PENDING、`reportCount` +1、`isBlocked` 維持 false）、冪等重複檢舉（不再遞增）、偽造 `reporterId`/`userId`/`hidden`/`admin` 欄位被忽略、缺少/不存在/不合法 `responseId`/`reason` 回傳對應錯誤碼、連續 6 次請求觸發 `429 RATE_LIMITED`、檢舉後公開查詢立即排除但直接音檔網址仍可存取（見 [[19-Security-Review]]）
+  - **Real Browser tested**：陪伴模式三點選單未登入可見可操作、確認對話框/Loading/成功/失敗狀態、X 與 Report 行為分離（Network 面板確認 X 零請求）、陪伴入口在可播放數量歸零後正確消失、`/prayfor/5` 匿名錄音入口開啟 `PrayerRecorder`（permission-denied 真實路徑）、Mobile 375/390/412 與 Desktop 1280/1440 無橫向捲動且入口在首屏內、首頁既有 swipe/recorder 行為未退化、`/global-prayer-room`（Cesium 正常）/`/login`/`/signup`/`/customer-portal`/`/admin` 皆 200 且 Console/Server log 無新增錯誤
+  - **DEV TEST DATA**：測試用真實資料列 `PrayerResponse.id=cmsdx6kap0000exqkokopc86x`（`homeCardId=5`），測試前記錄狀態（`APPROVED`/`reportCount=0`），測試後已用 Prisma 手動復原為相同狀態
+  - **Not Tested**：Real microphone 錄音全流程（環境限制，同既有限制）；已登入會員使用 `Comments.js`/`CompanionOverlay` 三點選單的迴歸測試（無測試帳密）
+- 已知限制與偏離指令原文之處：
+  - 未完全統一 `/prayfor/[id]` 的錄音/陪伴體驗——`Comments.js`（登入會員專用）與 `GlobalPlayer.js` 內建的全螢幕陪伴 UI 完全未修改，與本輪新增的匿名入口/`CompanionOverlay.js` 並存。這是 AskUserQuestion 的**使用者明確選擇**，非執行疏漏，見上方「架構決策」
+  - 匿名檢舉不寫入 `PrayerResponseReport`，無法逐筆追蹤「這個訪客檢舉了什麼」，只有 `AdminLog` 粗粒度記錄，見 [[26-Anonymous-Reporting-Design]]「已知限制」
+  - 檢舉原因仍固定為 `"other"`（沿用 Commit B 既有的已知偏離，未在本輪擴充成完整原因選單）
+- 完成狀態：**完成**（前端/後端邏輯完整並 Real API/Browser tested；Real microphone 與已登入會員迴歸因環境限制 Not Tested，見上）
+
+### 保留：原「Commit C」規劃（`feat: complete anonymous prayer interaction flow`）—— 未開始，範圍已由 Commit C1 取代/順延
+- 原範圍：「我已為你禱告」（prayed reaction）、首頁下方非必要區塊收斂、Accessibility、安全補強、測試、最終驗收報告
 - 依賴：「我已為你禱告」**需要新的 Schema**（[[25-Companion-Mode-Reuse-Audit]] 確認現有系統完全沒有等價機制），屬於新的 migration 決策點，需要你確認方向後才能實作（比照 [[23-Database-Migration]] 的模式：新增獨立表或計數欄位，additive-only）
+- 本輪 Commit C1 已完成其中的「安全補強」（匿名檢舉，[[19-Security-Review]]）與部分「測試」；「我已為你禱告」與「首頁下方區塊收斂」仍待你確認方向後另立一輪執行，明確不在 Commit C1 範圍內

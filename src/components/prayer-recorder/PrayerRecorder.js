@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import { usePrayerRecorder } from "./usePrayerRecorder";
 import { formatDuration } from "./recorder-utils";
+import { PRAYER_RESPONSE_CREATED } from "@/lib/events";
 
 // Maps a POST /api/responses failure to one of the i18n error keys below.
 // The API (src/app/api/responses/route.js) doesn't return a `code` for every
@@ -107,7 +108,11 @@ const PrayerRecorder = forwardRef(function PrayerRecorder({ text, prayerId, onEx
 
       const response = await fetch("/api/responses", { method: "POST", body: formData });
       if (response.ok) {
+        const saved = await response.json().catch(() => null);
         setSubmitState("success");
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent(PRAYER_RESPONSE_CREATED, { detail: saved }));
+        }
         return;
       }
       const body = await response.json().catch(() => null);
