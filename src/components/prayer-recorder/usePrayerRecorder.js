@@ -297,6 +297,7 @@ export function usePrayerRecorder() {
     maxDurationSeconds: MAX_DURATION_SECONDS,
     minDurationSeconds: MIN_DURATION_SECONDS,
     showPermissionExplanation: () => setPhase("permission-explanation"),
+    getBlob: () => blobRef.current,
     requestPermission,
     finishRecording,
     requestRerecord,

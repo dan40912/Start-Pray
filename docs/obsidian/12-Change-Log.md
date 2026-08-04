@@ -55,4 +55,17 @@ tags: [start-pray, changelog]
 - 明確不處理：匿名投稿 API、Schema、Storage、字幕
 - 詳見 [[21-Recorder-State-Machine]]、[[15-Acceptance-Criteria]]
 
+## 2026-08-04 — Commit：docs: document current architecture and redesign progress（`4eaea7e`）
+- 整理 9 份先前一直未提交的 obsidian 文件（00/01/02/04/05/07/11/13/16），修正過時內容（首頁地球描述、DEC 狀態、[[07-Target-MVP]] 支援度表）
+
+## 2026-08-04 — Commit：docs: design anonymous prayer submission architecture（`78103e0`）
+- 新增 [[20-Anonymous-Submission-Design]]、[[22-API-Changes]]、[[23-Database-Migration]]
+- 重大發現：匿名文字投稿與匿名建卡**已經在運作**（非提案），唯一硬性卡點只有語音的 `VOICE_LOGIN_REQUIRED`；核心匿名語音送出**不需要 Schema migration**
+
+## 2026-08-04 — Commit：feat: support anonymous prayer submission（Phase 3A，待建立 Commit）
+- 修改 `src/app/api/responses/route.js`（移除語音登入卡點、修正 guest 崩潰 bug）、`src/components/prayer-recorder/usePrayerRecorder.js`（暴露 `getBlob`）、`src/components/prayer-recorder/PrayerRecorder.js`（真正呼叫送出 API）、`src/lib/i18n/locales/{zh-TW,en}.js`
+- Real API tested：真實呼叫本機開發 DB，成功寫入 2 筆測試 `PrayerResponse` 並可讀回音訊檔；驗證 guest 崩潰 bug 已修正
+- 已知殘留：本機 DB 留有 2 筆測試資料未清理（無刪除 API）；管理 Token（Phase 3B）尚未實作
+- 詳見 [[10-Implementation-Plan]] Phase 3A/3B、[[15-Acceptance-Criteria]]
+
 後續每個 Implementation Plan Phase 執行後，應在此新增一筆紀錄（日期、Phase、實際修改檔案、commit hash）。

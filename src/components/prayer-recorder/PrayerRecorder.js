@@ -1,9 +1,20 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 
 import { usePrayerRecorder } from "./usePrayerRecorder";
 import { formatDuration } from "./recorder-utils";
+
+// Maps a POST /api/responses failure to one of the i18n error keys below.
+// The API (src/app/api/responses/route.js) doesn't return a `code` for every
+// failure path (e.g. file-too-large and bad-MIME both just return HTTP 422
+// with no code), so this intentionally buckets by HTTP status first.
+function mapSubmitErrorKey(status, code) {
+  if (status === 429 || code === "RATE_LIMITED") return "rateLimited";
+  if (status >= 500 || code === "SERVER_ERROR" || code === "VOICE_UNAVAILABLE") return "server";
+  return "rejected";
+}
 
 export default function PrayerRecorder({ text, onExit }) {
   const recorder = usePrayerRecorder();
@@ -19,6 +30,7 @@ export default function PrayerRecorder({ text, onExit }) {
     setTransientMessage,
     confirmingRerecord,
     maxDurationSeconds,
+    getBlob,
     requestPermission,
     finishRecording,
     requestRerecord,
@@ -29,7 +41,8 @@ export default function PrayerRecorder({ text, onExit }) {
   } = recorder;
 
   const audioRef = useRef(null);
-  const [showPrototypeNotice, setShowPrototypeNotice] = useState(false);
+  const [submitState, setSubmitState] = useState("idle"); // idle | uploading | success | failed
+  const [submitErrorKey, setSubmitErrorKey] = useState("");
 
   useEffect(() => {
     requestPermission();
@@ -58,9 +71,51 @@ export default function PrayerRecorder({ text, onExit }) {
     }
   };
 
-  const handlePrototypeSubmit = () => {
-    setShowPrototypeNotice(true);
+  const handleSubmit = async () => {
+    if (submitState === "uploading") return;
+    const blob = getBlob();
+    if (!blob) {
+      setSubmitErrorKey("rejected");
+      setSubmitState("failed");
+      return;
+    }
+    setSubmitState("uploading");
+    try {
+      const cardResponse = await fetch("/api/home-cards?mode=one");
+      const card = cardResponse.ok ? await cardResponse.json() : null;
+      if (!card?.id) {
+        setSubmitErrorKey("rejected");
+        setSubmitState("failed");
+        return;
+      }
+
+      const extension = blob.type?.includes("mp4") ? "m4a" : "webm";
+      const formData = new FormData();
+      formData.set("requestId", String(card.id));
+      formData.set("isAnonymous", "true");
+      formData.set("website", "");
+      formData.set("audio", blob, `prayer-${Date.now()}.${extension}`);
+
+      const response = await fetch("/api/responses", { method: "POST", body: formData });
+      if (response.ok) {
+        setSubmitState("success");
+        return;
+      }
+      const body = await response.json().catch(() => null);
+      setSubmitErrorKey(mapSubmitErrorKey(response.status, body?.code));
+      setSubmitState("failed");
+    } catch {
+      setSubmitErrorKey("network");
+      setSubmitState("failed");
+    }
   };
+
+  const submitErrorText = {
+    rateLimited: text.submitErrorRateLimited,
+    rejected: text.submitErrorRejected,
+    server: text.submitErrorServer,
+    network: text.submitErrorNetwork,
+  }[submitErrorKey] || text.submitErrorServer;
 
   return (
     <div className="prayer-recorder" role="group" aria-label={text.previewLabel}>
@@ -158,44 +213,78 @@ export default function PrayerRecorder({ text, onExit }) {
             onEnded={() => setIsPlaying(false)}
             onError={() => setTransientMessage("playback")}
           />
-          <button type="button" className="prayer-recorder__btn prayer-recorder__btn--ghost" onClick={togglePlayback}>
-            {isPlaying ? text.pause : text.play}
-          </button>
-          {transientMessage === "playback" ? (
-            <p className="prayer-recorder__notice" role="status">
-              {text.playbackError}
-            </p>
-          ) : null}
 
-          {confirmingRerecord ? (
-            <div className="prayer-recorder__confirm" role="alertdialog" aria-label={text.rerecordConfirmTitle}>
-              <p>{text.rerecordConfirmTitle}</p>
-              <p>{text.rerecordConfirmBody}</p>
+          {submitState === "idle" && (
+            <>
+              <button type="button" className="prayer-recorder__btn prayer-recorder__btn--ghost" onClick={togglePlayback}>
+                {isPlaying ? text.pause : text.play}
+              </button>
+              {transientMessage === "playback" ? (
+                <p className="prayer-recorder__notice" role="status">
+                  {text.playbackError}
+                </p>
+              ) : null}
+
+              {confirmingRerecord ? (
+                <div className="prayer-recorder__confirm" role="alertdialog" aria-label={text.rerecordConfirmTitle}>
+                  <p>{text.rerecordConfirmTitle}</p>
+                  <p>{text.rerecordConfirmBody}</p>
+                  <div className="prayer-recorder__actions">
+                    <button type="button" className="prayer-recorder__btn prayer-recorder__btn--primary" onClick={confirmRerecord}>
+                      {text.rerecordConfirmYes}
+                    </button>
+                    <button type="button" className="prayer-recorder__btn prayer-recorder__btn--ghost" onClick={cancelRerecordConfirm}>
+                      {text.rerecordConfirmNo}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="prayer-recorder__actions">
+                  <button type="button" className="prayer-recorder__btn prayer-recorder__btn--ghost" onClick={requestRerecord}>
+                    {text.rerecord}
+                  </button>
+                  <button type="button" className="prayer-recorder__btn prayer-recorder__btn--primary" onClick={handleSubmit}>
+                    {text.nextStepAnonymous}
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+
+          {submitState === "uploading" && (
+            <p className="prayer-recorder__notice" role="status" aria-live="polite">
+              {text.uploading}
+            </p>
+          )}
+
+          {submitState === "success" && (
+            <div className="prayer-recorder__step">
+              <h2>{text.successTitle}</h2>
+              <p>{text.successBody}</p>
               <div className="prayer-recorder__actions">
-                <button type="button" className="prayer-recorder__btn prayer-recorder__btn--primary" onClick={confirmRerecord}>
-                  {text.rerecordConfirmYes}
-                </button>
-                <button type="button" className="prayer-recorder__btn prayer-recorder__btn--ghost" onClick={cancelRerecordConfirm}>
-                  {text.rerecordConfirmNo}
+                <Link href="/prayfor/one" className="prayer-recorder__btn prayer-recorder__btn--primary">
+                  {text.listenAnother}
+                </Link>
+                <button type="button" className="prayer-recorder__btn prayer-recorder__btn--ghost" onClick={handleExit}>
+                  {text.backToHome}
                 </button>
               </div>
             </div>
-          ) : (
-            <div className="prayer-recorder__actions">
-              <button type="button" className="prayer-recorder__btn prayer-recorder__btn--ghost" onClick={requestRerecord}>
-                {text.rerecord}
-              </button>
-              <button type="button" className="prayer-recorder__btn prayer-recorder__btn--primary" onClick={handlePrototypeSubmit}>
-                {text.nextStepAnonymous}
-              </button>
-            </div>
           )}
 
-          {showPrototypeNotice ? (
-            <p className="prayer-recorder__notice" role="status">
-              {text.prototypeSubmitNotice}
-            </p>
-          ) : null}
+          {submitState === "failed" && (
+            <div className="prayer-recorder__step">
+              <p role="alert">{submitErrorText}</p>
+              <div className="prayer-recorder__actions">
+                <button type="button" className="prayer-recorder__btn prayer-recorder__btn--primary" onClick={handleSubmit}>
+                  {text.retrySubmit}
+                </button>
+                <button type="button" className="prayer-recorder__btn prayer-recorder__btn--ghost" onClick={handleExit}>
+                  {text.back}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

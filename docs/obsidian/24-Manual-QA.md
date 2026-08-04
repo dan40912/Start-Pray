@@ -1,10 +1,10 @@
 ---
-tags: [start-pray, qa, phase-1, phase-2]
+tags: [start-pray, qa, phase-1, phase-2, phase-3a]
 ---
 
 # 手動 QA 步驟
 
-參見 [[16-Final-Acceptance-Report]]、[[21-Recorder-State-Machine]]、[[15-Acceptance-Criteria]]。以下步驟可用於人工複驗 Commit 1-3。
+參見 [[16-Final-Acceptance-Report]]、[[21-Recorder-State-Machine]]、[[15-Acceptance-Criteria]]。以下步驟可用於人工複驗 Commit 1-3 與 Phase 3A（匿名投稿核心）。
 
 ## 環境啟動
 ```bash
@@ -50,9 +50,34 @@ http://localhost:3000/global-prayer-room
 3. 允許權限後，確認 3-2-1 倒數，接著進入錄音中畫面（計時、剩餘秒數、「停止錄音」按鈕）
 4. 說幾句話後點擊「停止錄音」，確認進入預覽畫面，可播放/暫停
 5. 點擊「重新錄製」，確認出現「確定要重新錄製嗎？」確認對話框；確認後應重新走一次權限/倒數/錄音
-6. 點擊「下一步：匿名送出」，確認顯示「錄音已準備完成，匿名送出功能將在下一階段接入。」提示（**不應**出現任何投稿成功或送出中的訊息，因為後端尚未接入）
+6. 點擊「匿名送出」，確認先顯示「正在留下你的禱告…」，成功後顯示「你的禱告已經留下。會有人聆聽，並為你禱告。」，並提供「聆聽一則其他人的禱告」（會連到 `/prayfor/one`）與「回到首頁」
 7. 拒絕麥克風權限（瀏覽器設定或系統層級拒絕），確認顯示「無法使用麥克風」，並可點擊「再試一次」或「返回」
 8. 若瀏覽器不支援錄音（可用瀏覽器開發者工具刪除 `window.MediaRecorder` 測試），確認顯示「這個瀏覽器目前不支援錄音」
+
+## 匿名投稿驗證（Phase 3A，可用瀏覽器 DevTools Console 直接測試 API，不需要真實麥克風）
+1. 開啟瀏覽器 DevTools Console，於 `http://localhost:3000/` 執行：
+   ```js
+   const cardRes = await fetch('/api/home-cards?mode=one');
+   const card = await cardRes.json();
+   console.log(card.id);
+   ```
+2. 確認回傳一個真實卡片 `id`
+3. 用該 `id` 送出一筆合成語音：
+   ```js
+   const bytes = new Uint8Array(2000).fill(1);
+   const blob = new Blob([bytes], { type: 'audio/webm' });
+   const fd = new FormData();
+   fd.set('requestId', String(card.id));
+   fd.set('isAnonymous', 'true');
+   fd.set('website', '');
+   fd.set('audio', blob, 'test.webm');
+   const res = await fetch('/api/responses', { method: 'POST', body: fd });
+   console.log(res.status, await res.json());
+   ```
+4. 確認回傳 `201`，且 `responder` 為 `null`、`isAnonymous` 為 `true`、`voiceUrl` 有值
+5. 用回傳的 `voiceUrl` 直接開啟網址，確認音檔可讀回
+6. 立即對同一 `requestId` 再送一次，確認回傳 `429 RATE_LIMITED`（同卡片 2 分鐘冷卻），而非 500 錯誤
+7. **測試後請注意**：這會在你所連線的資料庫留下真實測試資料列與檔案，僅在確認連線的是本機/測試 DB（非 Production）時執行
 
 ## 品質檢查
 ```bash

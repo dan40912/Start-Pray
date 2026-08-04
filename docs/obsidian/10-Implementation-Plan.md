@@ -60,18 +60,29 @@ tags: [start-pray, implementation-plan]
 - 回滾方式：`git revert` 對應 commit，或刪除 `src/components/prayer-recorder/` 並將 `HomePrayerHero.js` 的 CTA 改回單純顯示 Prototype 文字（Commit 2 當時的行為）
 - 風險：Cleanup（timer/stream/Object URL）邏輯未能實測（無法模擬完整錄音後卸載元件），僅程式碼比對確認與 `VoicePrayerOverlay.js` 一致
 - 完成狀態：**完成**（前端錄音狀態機；不含匿名投稿 API/字幕，明確排除於本階段）
-- 回滾方式：單一 commit revert
-- 風險：不同瀏覽器對 `MediaRecorder`/`getUserMedia` 支援度不同，需要相容性測試
-- 完成狀態：**未開始**
 
-## Phase 3：匿名投稿 —— 待執行（需先有 DEC-007 決策）
-- 目標：語音回應可在不登入狀態下送出
-- 修改檔案（預期）：`src/app/api/responses/route.js`（移除/調整 `VOICE_LOGIN_REQUIRED` 檢查，改用 `guestSessionHash`/`ipHash`）、新增 rate limit 邏輯、`src/lib/storage/localDriver.js` 或相關檔案補檔案大小/時長限制
-- 驗收條件：匿名使用者可送出語音回應並成功落入 `PrayerResponse`（`responderId = null`）；rate limit 生效（同一裝置短時間重複送出會被擋）
-- 測試方式：手動以無痕視窗模擬匿名使用者測試；檢查資料庫寫入結果
-- 回滾方式：feature 層級可用環境變數或條件判斷快速關閉，程式碼本身走單一 commit revert
-- 風險：**這是本次改造中風險最高的一步**，濫用/垃圾內容風險需在上線前確認 rate limit 與內容審核已到位
-- 完成狀態：**未開始**
+## Phase 3A：匿名投稿（核心送出，無需 Migration）—— 完成（2026-08-04）
+- 目標：語音回應可在不登入狀態下送出，走既有 `PrayerResponse` 表（依 [[20-Anonymous-Submission-Design]] 方案 1，使用者已確認採用此方向，不需要 Prisma migration）
+- 已修改檔案：
+  - `src/app/api/responses/route.js`：移除 94-103 行的 `VOICE_LOGIN_REQUIRED` 硬性檢查；修正 246-252 行的 bug（`recentVoiceCount` 查詢原本無條件讀取 `session.userId`，guest 情境下會直接拋出例外，改用既有的 `identityWhere` 模式）
+  - `src/components/prayer-recorder/usePrayerRecorder.js`：新增 `getBlob()` 存取器，暴露錄音完成後的 Blob 供上傳使用
+  - `src/components/prayer-recorder/PrayerRecorder.js`：「下一步：匿名送出」改為真正呼叫 `GET /api/home-cards?mode=one`（取得一張既有公開卡片）+ `POST /api/responses`（帶上錄音 Blob），新增 `uploading`/`success`/`failed` 三種送出狀態畫面
+  - `src/lib/i18n/locales/zh-TW.js`、`en.js`：新增送出中/成功/失敗相關文案
+- 驗收條件：匿名使用者可送出語音回應並成功落入 `PrayerResponse`（`responderId = null`）；重複送出會被既有 rate limit 擋下且不崩潰
+- 測試方式：
+  - `npm run lint`、`npm run build`、`npm run test:unit`、`npm run i18n:check` 皆通過
+  - **Real API tested（非 Mock）**：在真實瀏覽器對本機開發資料庫（`localhost:3306/prayercoin_dev`）直接呼叫 `GET /api/home-cards?mode=one` 取得真實卡片（id=5），再 `POST /api/responses` 送出合成音訊 Blob，回傳 `201`，`voiceUrl` 指向的檔案可透過 `/voices/[...path]` 實際讀回（bytes 數一致）；針對同一 guest 對不同卡片送出第二筆語音，驗證修正後的 `recentVoiceCount` 查詢不再崩潰（回傳 `201`，非 500）
+  - 前端 UI 層級的「preview → 點擊送出 → uploading → success/failed」畫面切換邏輯經程式碼審查確認正確，但**未能透過自動化瀏覽器完整走一次**（麥克風存取在此環境被封鎖，無法到達 preview 階段），標記 `Real microphone UI flow Not Tested`
+- 回滾方式：`git revert` 對應 commit（純 API + 前端邏輯改動，無 schema 變更，回滾零風險）
+- 風險：
+  - 本次在本機開發資料庫留下 2 筆測試用 `PrayerResponse` 與對應音訊檔（`id=5`、`id=39` 卡片各一筆），因為**目前系統沒有任何刪除 `PrayerResponse` 的 API**（見 [[20-Anonymous-Submission-Design]] 依賴矩陣），無法自動清理，需要你視情況透過 `prisma studio` 或後台手動清除
+  - 尚未實作：Management Token（匿名刪除自己投稿的能力）、DB-backed 的 guest 語音專屬 rate limit（沿用既有文字回應的 rate limit，未新增獨立限制）、伺服器端音訊時長驗證（沿用現況「前端自律，後端不驗證」）
+- 完成狀態：**完成**（核心匿名語音送出可用；管理 Token/刪除能力為 Phase 3B，尚未開始）
+
+## Phase 3B：匿名管理 Token（刪除能力）—— 未開始
+- 目標：匿名使用者可用一次性 Token 刪除自己剛送出的語音回應
+- 依賴：需要 Schema migration（`PrayerResponse.managementTokenHash`，見 [[23-Database-Migration]] 方案 A）與新的 `DELETE` API
+- 狀態：**設計已完成**（[[20-Anonymous-Submission-Design]]、[[22-API-Changes]]、[[23-Database-Migration]]），尚未實作、尚未建立 migration
 
 ## Phase 4：公開播放與禱告回應 —— 待執行
 - 目標：完善「我為你禱告」互動與匿名內容管理雛形
