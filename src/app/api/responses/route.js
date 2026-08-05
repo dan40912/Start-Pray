@@ -20,6 +20,7 @@ import {
   hashDailyIp,
   hashGuestId,
 } from "@/lib/guest-response";
+import { isTrustedOrigin } from "@/lib/origin-guard";
 
 const MAX_AUDIO_BYTES = 12 * 1024 * 1024;
 const MAX_MESSAGE_LENGTH = 2000;
@@ -66,6 +67,13 @@ function isAllowedAudioFile(file) {
 
 export async function POST(req) {
   try {
+    if (!isTrustedOrigin(req)) {
+      return NextResponse.json(
+        { code: "INVALID_ORIGIN", error: "這個請求的來源不受信任，請重新整理頁面後再試一次。" },
+        { status: 403 }
+      );
+    }
+
     const session = readSessionUser();
     if (session) await ensureActiveCustomer(session);
 

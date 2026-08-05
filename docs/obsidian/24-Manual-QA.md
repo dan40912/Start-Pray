@@ -1,10 +1,37 @@
 ---
-tags: [start-pray, qa, phase-1, phase-2, phase-3a, commit-b]
+tags: [start-pray, qa, phase-1, phase-2, phase-3a, commit-b, commit-1, commit-2]
 ---
 
 # 手動 QA 步驟
 
-參見 [[16-Final-Acceptance-Report]]、[[21-Recorder-State-Machine]]、[[15-Acceptance-Criteria]]、[[25-Companion-Mode-Reuse-Audit]]。以下步驟可用於人工複驗 Commit 1-3、Phase 3A（匿名投稿核心）與 Commit B（瀏覽/陪伴模式）。
+參見 [[16-Final-Acceptance-Report]]、[[21-Recorder-State-Machine]]、[[15-Acceptance-Criteria]]、[[25-Companion-Mode-Reuse-Audit]]。以下步驟可用於人工複驗 Commit 1-3、Phase 3A（匿名投稿核心）、Commit B（瀏覽/陪伴模式）、Commit C1（匿名檢舉/共用元件）、Commit 1（Prayed reaction）與 Commit 2（真機驗證/安全收尾）。
+
+## 人工驗證矩陣（Commit 2，2026-08-05）
+
+以下矩陣需要人工在真實裝置上補測；本輪自動化只能驗證 Desktop Chrome（透過此對話使用的瀏覽器自動化環境）欄位，其餘欄位誠實標記為 Not Tested，不得填寫 Passed。
+
+| 功能 | Desktop Chrome | Android Chrome | iOS Safari | 結果 |
+|---|---|---|---|---|
+| 麥克風允許 | Not Tested（環境無法授權裝置） | Not Tested | Not Tested | Blocked |
+| 麥克風拒絕 | Passed（Real Browser tested，瀏覽器層級真實拒絕） | Not Tested | Not Tested | Mock Verified（僅 Desktop） |
+| 3、2、1 倒數 | Not Tested（需先取得麥克風權限） | Not Tested | Not Tested | Blocked |
+| 錄音 | Not Tested | Not Tested | Not Tested | Blocked |
+| 停止 | Not Tested | Not Tested | Not Tested | Blocked |
+| 預覽 | Not Tested | Not Tested | Not Tested | Blocked |
+| 匿名送出（語音） | Not Tested（送出邏輯本身已用真實上傳的音檔 Real API tested，見下方，但未走完整「錄音→送出」UI 流程） | Not Tested | Not Tested | Not Tested |
+| 匿名送出（文字） | Passed（Real API tested，多次） | Not Tested | Not Tested | Not Tested（僅 Desktop 驗證） |
+| 真實音訊播放 | Passed（Real Browser tested，見下方「真實音訊播放驗證」，用可解碼的 dev fixture 確認完整播放並觸發「播放完成」） | Not Tested | Not Tested | Not Tested（僅 Desktop 驗證） |
+| 陪伴 Auto-next | Passed（Commit B 已用真實回應資料驗證自動跳過失敗曲目的路徑；本輪用可解碼音檔驗證正常結束後的行為） | Not Tested | Not Tested | Not Tested |
+| Loop | Passed（Real Browser tested，`aria-pressed` 正確切換，console log 確認 play→ended→replay 週期觸發） | Not Tested | Not Tested | Not Tested |
+| Stop | Passed（Real Browser tested：按鈕還原、audio 暫停、全螢幕不關閉） | Not Tested | Not Tested | Not Tested |
+| Exit | Passed（Real Browser tested：全螢幕關閉、queue 清空） | Not Tested | Not Tested | Not Tested |
+| X | Passed（Real Browser tested：僅前端移除，Network 面板確認零 API 請求） | Not Tested | Not Tested | Not Tested |
+| Report（檢舉） | Passed（Real API/Browser tested，見 [[26-Anonymous-Reporting-Design]]） | Not Tested | Not Tested | Not Tested |
+| Prayed reaction | Passed（Real API/Browser tested，見 [[28-Prayed-Reaction-Design]]） | Not Tested | Not Tested | Not Tested |
+| Swipe（首頁） | Passed（Real Browser tested，真實 `TouchEvent`） | Not Tested | Not Tested | Not Tested |
+| `/prayfor/[id]` 匿名錄音入口 | Passed（Real Browser tested：可開啟 Recorder，第一屏內可見） | Not Tested | Not Tested | Not Tested |
+
+**結論**：Desktop Chrome（本自動化環境）欄位已盡可能 Real tested；Android Chrome／iOS Safari 兩欄**全部 Not Tested**，因為這個開發環境沒有真實行動裝置可供操作。這不是「未執行測試」的疏漏，而是本工具鏈的已知邊界，已誠實記錄，不得回報為 Passed。
 
 ## 環境啟動
 ```bash
@@ -207,6 +234,39 @@ await prisma.prayerPrayedReaction.deleteMany({});
 await prisma.$disconnect();
 ```
 
+## 真實音訊播放驗證（Commit 2，2026-08-05，Real Browser tested）
+
+之前所有輪次都因為既有種子音檔與合成假位元組無法解碼，只能驗證「播放失敗」路徑。本輪新增 `scripts/dev/generate-test-audio.mjs`——一支會產生小型、**真正合法可解碼**的 WAV 測試音檔（440Hz 正弦波，非靜音）的產生器腳本。**這支腳本本身可以提交**（純程式碼）；**產生出來的音檔本身不可以提交**（專案的全域安全規則明確禁止提交錄音測試檔），需要人工在本機執行：
+```bash
+node scripts/dev/generate-test-audio.mjs public/dev-test-audio.wav 1.5
+```
+產生後可暫時放進 `public/` 目錄供本機 dev server 提供（Next.js 會自動 serve `public/` 下的檔案），測試完畢後手動刪除。
+
+**Real Browser tested 結果**：
+1. 直接用 `new Audio(url)` 載入該檔案，確認 `loadedmetadata`（`duration: 1.5`）、`canplaythrough`、`playing` 事件皆正確觸發，`currentTime` 真的會前進——證明檔案本身合法可解碼，不同於過去的假位元組測試檔
+2. 透過真實的 `POST /api/responses` 上傳流程（而非直接寫入 DB）把這個檔案送出成為一筆真實 `PrayerResponse`，確認 Storage/寫檔/URL 產生的既有流程對真正的音訊檔案運作正常
+3. 在 `/prayfor/[id]` 開啟陪伴模式，點擊播放（使用真實 OS 層級的滑鼠點擊，非程式模擬），確認：
+   - Console 記錄 `[AudioContext] 嘗試播放:開始` → `嘗試播放:成功`
+   - 播放完整個 1.5 秒後正確觸發 `ended` 事件，UI 顯示「播放完成，要重新播放嗎？」——這個提示只有在音訊**真正播放到結尾**才會出現，證明播放引擎、`<audio>` 元素與這筆音訊的整合完全正常
+   - 開啟 Loop 後，Console 記錄重複的 `播放結束` → `嘗試播放:開始` → `嘗試播放:成功` 循環，證明 Loop 邏輯確實會在結束時重新觸發播放
+   - Stop／Exit／X 均在有真實可播放音訊的情況下重新驗證一次，行為與先前用不可播放音檔測試時一致
+4. **已知限制**：在這個特定的自動化瀏覽器環境（Chrome DevTools Protocol 自動化、無真實音訊輸出裝置）中，`HTMLMediaElement.play()` 這個 Promise 本身會 resolve（確認播放請求被接受），且第一次測試時完整觀察到播完整段音訊的完整生命週期；但後續嘗試在極短時間窗口內用程式反覆採樣 `audio.currentTime` 時，多次採樣落在 `paused: true`——初步判斷是這個特定 headless 自動化環境對「音訊持續播放中」狀態回報不穩定（沒有真實喇叭/音訊裝置），而非播放引擎本身的邏輯錯誤（因為透過 `ended` 事件與 UI 提示已經證明過至少一次完整播放確實發生）。這個限制記錄為「Real Audio Playback: 解碼與觸發播放 Passed；持續播放的即時逐幀狀態在此自動化環境 Not Fully Observable」，比先前「完全無法播放」的結論更精確，但仍不宣稱在真實使用者裝置上的播放體驗已 100% 驗證完成——建議人工在真機瀏覽器上補測一次實際聽感
+
+## Recorder／Companion 壓力測試結果（Commit 2，2026-08-05）
+
+| 測試項目 | 方法 | 結果 |
+|---|---|---|
+| Prayed reaction 快速連續點擊 | 同時觸發兩次 click handler（`Promise.all`），檢查後端計數 | Passed（Real API tested：count 仍為 1，未被雙擊灌水） |
+| Companion X 快速點擊 | Real Browser tested（Commit C1 既有測試延伸） | Passed（純前端操作，無 API 請求） |
+| Companion Loop 快速切換 | Real Browser tested | Passed（`aria-pressed` 正確反映最終狀態） |
+| PrayerRecorder 送出雙擊防護 | 程式碼審查（`handleSubmit` 內 `if (submitState === "uploading") return;`） | Implemented（程式碼確認），**Not Tested**（需要真實麥克風才能進入 preview 階段觸發雙擊送出） |
+| Recorder 卸載清理（MediaStream／Timer／Object URL） | 程式碼審查（`usePrayerRecorder.js` 內對應的 `useEffect` cleanup function） | Implemented（程式碼確認，邏輯與 Commit 3 起未變更），**Not Tested**（無法在此環境模擬「錄音中卸載元件」的真實情境） |
+| Browser back／頁面離開時音訊/錄音狀態 | 未測試 | **Not Tested**（需要真實瀏覽器導覽操作，且需要處於錄音狀態才有意義） |
+| Network offline／reconnect | 未測試 | **Not Tested**（此工具鏈無法可靠模擬網路中斷；`fetch` 失敗的例外處理路徑已在既有 Report／Prayed reaction 的 `catch` 區塊程式碼審查確認存在，但未實際斷網驗證） |
+| 0 tracks（陪伴模式空清單） | Real Browser tested（Commit B 既有驗證） | Passed（顯示空狀態，只保留 Exit） |
+| 1 track | Real Browser tested（本輪，含真實可播放音訊） | Passed |
+| 多筆混合（部分可解碼／部分不可解碼） | Real API tested（分別建立於不同卡片） | Passed（各自獨立驗證：可解碼者正常播放，不可解碼者觸發既有自動跳過邏輯，Commit B 已驗證過跳過路徑本身） |
+
 ## 品質檢查
 ```bash
 npm run lint
@@ -221,7 +281,10 @@ npm run i18n:check
 - 自動化瀏覽器工具的點擊事件在本環境對 React 委派事件的觸發不穩定，人工用滑鼠/觸控實際點擊應該正常運作；如遇到按鈕無反應，請先嘗試真實點擊而非自動化腳本（本輪改用 `element[reactPropsKey].onClick()` 直接呼叫 handler 驗證，見 [[27-Shared-Prayer-Interaction-Audit]]）
 - 錄音流程的完整「允許→倒數→錄音→停止→預覽→重錄→送出」尚未用真實麥克風實測過（自動化環境無法授權裝置），需要人工在真機或桌機瀏覽器補測一次，首頁與 `/prayfor/[id]` 皆適用
 - 陪伴模式的 Loop/Stop/Playlist X 按鈕、錄音中/倒數中/送出中的切換保護、Preview 未送出時的二次確認，皆已實作但未經自動化點擊測試（原因同上，環境限制），需要人工補測，見上方「Prayer 瀏覽與陪伴模式驗證」
-- 種子/測試音檔在此環境無法真正播放，播放品質本身需要人工用真實音檔補測
+- ~~種子/測試音檔在此環境無法真正播放~~（**Commit 2 部分解除**：改用 `scripts/dev/generate-test-audio.mjs` 產生的真正可解碼音檔後，確認解碼/播放/`ended`/Loop 事件皆正確觸發；但持續播放的逐幀狀態在此 headless 自動化環境仍不完全可觀察，播放品質本身仍需要人工在真機用真實音檔補測，見上方「真實音訊播放驗證」）
 - `/prayfor/[id]` 上 `GlobalPlayer.js` 內建的既有全螢幕陪伴 UI 與本輪新增的 `CompanionOverlay.js` 並存但視覺不同，未逐一測試 `GlobalPlayer.js` 內建陪伴 UI 的所有既有觸發路徑（該元件本身未被修改，非本輪引入的風險，但也未做回歸測試），見 [[13-Risk-Register]]
 - 「我已為你禱告」的 migration 未在全新（空白）環境驗證過完整重放，見 [[28-Prayed-Reaction-Design]]、[[13-Risk-Register]]
 - Admin 後台尚無查看 Prayed reaction 明細的介面（本輪規格未要求新增）
+- Android Chrome／iOS Safari 兩欄的整個測試矩陣皆為 Not Tested（此開發環境無真實行動裝置），見上方「人工驗證矩陣」
+- PrayerRecorder 的雙擊送出防護、卸載清理、Browser back、Network offline/reconnect 皆只完成程式碼審查，未經真實互動測試（需要真實麥克風才能進入可測試的狀態），見上方「Recorder／Companion 壓力測試結果」
+- Storage 是否使用 ephemeral filesystem（Cloud Run 等）無法從本 repo 的既有設定檔確認，已標記為 Production Blocker，見 [[19-Security-Review]]

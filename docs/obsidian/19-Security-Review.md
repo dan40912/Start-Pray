@@ -73,3 +73,57 @@ tags: [start-pray, security, commit-c1, commit-1]
 | 項目 | 說明 |
 |---|---|
 | Admin 無法查看 Reaction 明細 | 規格文件本輪未要求新增 Admin UI；資料僅能透過 Prisma Studio 或直接查詢檢視，見 [[28-Prayed-Reaction-Design]] 問題 10 |
+
+## CSRF／Origin／CORS（Commit 2，2026-08-05）
+
+盤點了全部三支匿名可寫入 API（`POST /api/responses`、`POST /api/prayer-response/report`、`POST /api/home-cards/[id]/prayed`），修改前皆**沒有**任何 Origin/Referer 驗證，只靠 cookie-based session/guest 身分。
+
+### 已實作並 Real tested
+新增 `src/lib/origin-guard.js`（`isTrustedOrigin(request)`，刻意不 import `next/server`，因為 `next/server` 在純 `node --test` 環境下無法解析，會導致單元測試整份失敗——已在開發過程中實際踩到並修正這個問題），套用到三支 API 的 `POST` handler 最前面（`GET` 端點不需要，因為讀取操作沒有 CSRF 風險）。
+
+判斷邏輯：
+- 沒有 `Origin` header → 拒絕（403 `INVALID_ORIGIN`）。已用真實 fetch() 呼叫這個 App 自己的一支測試端點確認：本 App 對同源 POST **一定會**送出 `Origin`（Real tested，非假設）
+- 有 `Origin` 且已設定 `ALLOWED_ORIGINS` 環境變數（Production 用，逗號分隔，程式碼內**不寫死任何網域**）→ 檢查是否在允許清單內
+- 未設定 `ALLOWED_ORIGINS`（本機開發預設）→ 檢查 `Origin` 的 host 是否等於請求的 `Host` header（即「是否真的同源」）
+
+**Real tested（非 Mock，對正在執行的本機 dev server 發送真實 HTTP 請求，非瀏覽器內建工具阻擋能偽造 Origin 的限制，改用 Node 直接發送）**：
+- 偽造 `Origin: https://evil.example` 打三支 API，皆正確回傳 `403 INVALID_ORIGIN`
+- 完全不帶 `Origin` header 打 `/api/home-cards/[id]/prayed`，同樣正確回傳 `403`
+- 從真實瀏覽器頁面（同源）呼叫三支 API，皆正常運作（`200`/`201`/`404`-業務邏輯層級，未被 Origin 檢查誤擋）——確認沒有破壞任何既有功能
+- 5 個單元測試（`tests/origin-guard.test.mjs`）涵蓋：同源允許、無 Origin 拒絕、跨源拒絕、Origin 格式錯誤拒絕、`ALLOWED_ORIGINS` 白名單模式
+
+### 已知限制
+- 這是**額外的縱深防禦層**，不是唯一防線；即使 Origin 檢查被繞過，既有的身分驗證（session/guest）、rate limit、資料庫唯一約束仍然有效
+- `ALLOWED_ORIGINS` 尚未在任何 `.env.example`/部署文件中記錄——Production 部署前需要設定這個環境變數，否則會退回「Origin host 必須等於 Host header」這個較嚴格的預設值，可能在有 CDN/反向代理改寫 Host 的情況下誤擋合法請求，需要在真正部署前用實際 Production 網域驗證一次
+
+## Storage 與直接 URL（Commit 2，2026-08-05）
+
+檢查 `/voices/[...path]`、`/uploads/[...path]`、`src/lib/storage/`（driver 抽象層，`localDriver.js`/`objectDriver.js`）。
+
+| 問題 | 答案 |
+|---|---|
+| URL 是否永久公開？ | 是。預設 `MEDIA_STORAGE_DRIVER=local`，檔案直接寫入 `public/voices`、`public/uploads`，由 Next.js 當作一般靜態檔案提供，**沒有任何存取驗證**（既有風險，[[13-Risk-Register]] 已記錄，非本次引入） |
+| Hidden 後已知 URL 是否仍可用？ | 是。Commit C1 的匿名檢舉、Commit 1 的既有 hidden 機制都只影響**查詢層**（`moderationStatus`/`isBlocked` 過濾），完全不影響檔案本身是否存在，Real API tested 已確認（見 [[26-Anonymous-Reporting-Design]]） |
+| Deleted 後是否仍可用？ | 系統目前**沒有**刪除 `PrayerResponse`/音檔的既有 API（見 [[20-Anonymous-Submission-Design]]），此問題目前不適用；但值得注意的是，本次 Commit 2 測試時手動用 Prisma 刪除測試 `PrayerResponse` 資料列後，實際上傳的檔案**仍留在磁碟上**（孤兒檔案，非本次引入的既有行為，測試後已手動清除） |
+| Cloud Run 是否使用 ephemeral filesystem？ | **無法從這個 repo 確認**。`docker-compose.yml` 只有本機開發用設定（bind mount 整個 repo，非 Production 專用的 volume 掛載策略），沒有找到 Production 部署設定檔（Cloud Run YAML、Kubernetes manifest 等）明確說明 `public/voices`/`public/uploads` 是否掛載到持久化磁碟。`src/lib/storage/objectDriver.js` 存在但註解明確寫「骨架，尚未串接雲端 SDK」 |
+| Production Storage 是否持久化？ | 同上，**無法確認**，标记为 Production Blocker |
+| 是否需要 signed URL？ | 若要真正解決「hidden 後已知 URL 仍可用」的殘留風險，需要 signed URL 或私有 bucket + 短效存取權杖；目前的 `local`/`object` driver 皆未實作此能力 |
+
+**本次未進行任何破壞性改動**（未切換 storage driver、未修改既有檔案路由的存取邏輯）。標記為：
+
+> **Production Blocker**：部署前需要確認（1）Production 實際使用的 filesystem 是否持久化，如果是 ephemeral（例如 Cloud Run 預設），現有 `local` driver 會導致每次重新部署音檔全部遺失；（2）是否要完成 `objectDriver.js` 的雲端 SDK 串接並切換 `MEDIA_STORAGE_DRIVER=object`；（3）是否需要 signed URL 機制解決「已檢舉/隱藏內容的直接網址仍可用」的問題。這三項都不在本次 Commit 2 範圍內實作，因為都涉及 Production 環境本身的架構決策，不是本機開發可以獨立驗證或安全變更的項目。
+
+## 集中式 Rate Limit 現況盤點（Commit 2，2026-08-05）
+
+| 使用位置 | 實作方式 | DB-backed／In-memory |
+|---|---|---|
+| `src/lib/rateLimit.js`（`checkRateLimit`，`createCard`/`createResponse`） | 查詢既有資料表（`homePrayerCard`/`prayerResponse`）計數 | **DB-backed** |
+| `POST /api/responses`（文字/語音回應頻率限制） | 直接查詢 `prayerResponse` 表（`identityWhere` + 時間窗口） | **DB-backed** |
+| `POST /api/prayer-response/report`（Commit C1，匿名檢舉） | 查詢 `AdminLog` 表（`actorId`／`metadata.ipHash` JSON path + 時間窗口） | **DB-backed** |
+| `POST /api/home-cards/[id]/prayed`（Commit 1，Prayed reaction） | 查詢 `prayerPrayedReaction` 表本身 | **DB-backed** |
+
+**結論**：本專案目前**所有**匿名寫入 API 的 rate limit 皆為 DB-backed（查詢 MySQL 既有/新增資料表），**沒有**使用記憶體內計數器（例如 Node process 內的 `Map`/`WeakMap`），因此不存在「多 instance 各自維護獨立計數、導致實際限制形同虛設」的 in-memory 風險——DB 是所有 instance 共用的單一事實來源，這個結論適用於 Cloud Run 多 instance 部署。
+
+**已知限制**（非本次新引入，已分別記錄於各自的設計文件）：
+- 部分查詢缺少專用複合索引（`AdminLog`、`prayer_prayed_reaction` 的 guest 維度查詢），Production 規模下可能變慢，但**正確性不受影響**，只是效能考量
+- 沒有 cleanup／expiry 機制主動刪除過期的計數用資料列（例如 `AdminLog`、`PrayerPrayedReaction` 不會自動清除超過時間窗口的舊資料）——這些資料本身也是既有的稽核/功能資料，不是純粹的計數暫存，所以「不主動清除」是合理的既有設計，而非疏漏

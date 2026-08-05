@@ -113,5 +113,20 @@ tags: [start-pray, acceptance-criteria]
 - [ ] Admin 查看 Reaction 明細介面 — **Not Implemented**（規格未要求本輪新增）
 - [ ] Real microphone／已登入會員迴歸 — **Not Tested**（環境限制）
 
+## Commit 2（`fix: harden prayer interaction flows`，待建立）— 真機驗證、壓力測試、安全收尾
+- [x] CSRF/Origin 檢查套用到三支匿名 POST API — Real tested（偽造/缺少 Origin 皆 403，同源不受影響）
+- [x] Origin guard 單元測試（5 項） — 全數通過
+- [x] 真實可解碼音訊 fixture 產生器 — Implemented + Real Browser tested（完整播放到 ended、Loop 循環皆確認）
+- [x] Prayed reaction 雙擊防護 — Real API tested（並發呼叫 count 未被灌水）
+- [x] Companion X/Loop 壓力操作 — Real Browser tested
+- [x] Storage 現況盤點（永久公開 URL、hidden 後仍可存取、ephemeral filesystem 未知） — Implemented（文件記錄，無破壞性改動），Production Blocker 已標記
+- [x] 集中式 Rate limit 盤點（全數 DB-backed，無 in-memory 風險） — Implemented（文件記錄）
+- [x] Accessibility 回歸（focus 移動、Escape 關閉） — Real Browser tested
+- [x] 頁面回歸（`/`、`/en`、`/global-prayer-room`、`/login`、`/signup`、`/customer-portal`、`/admin`） — Real Browser tested，Console/Server log 無新增錯誤
+- [x] Lint / Build / Unit tests（39/39）/ i18n:check — 全數通過
+- [ ] PrayerRecorder 雙擊送出防護、卸載清理 — Implemented（程式碼審查），**Not Tested**（需要真實麥克風才能進入可測試狀態）
+- [ ] Browser back／Network offline-reconnect 情境 — **Not Tested**（此工具鏈無法可靠模擬）
+- [ ] Android Chrome／iOS Safari 完整測試矩陣 — **Not Tested**（無真實裝置），見 [[24-Manual-QA]]「人工驗證矩陣」
+
 ## 尚未開始（不在本次任何已完成 Commit 範圍內）
-匿名管理 Token（Phase 3B）、字幕/轉錄整合、首頁下方區塊收斂、完整安全補強（CSRF/CORS 對匿名 API、分散式 rate limit）、自動化 API/整合測試框架、Production readiness、`GlobalPlayer.js` 內建陪伴 UI 與 `CompanionOverlay.js` 的完整統一、Admin Prayed reaction 明細介面。這些項目的依賴分析已完成於 [[20-Anonymous-Submission-Design]]、[[22-API-Changes]]、[[23-Database-Migration]]、[[25-Companion-Mode-Reuse-Audit]]、[[26-Anonymous-Reporting-Design]]、[[27-Shared-Prayer-Interaction-Audit]]、[[28-Prayed-Reaction-Design]]、[[19-Security-Review]]。
+匿名管理 Token（Phase 3B）、字幕/轉錄整合、首頁下方區塊收斂、分散式 rate limit（若 Production 規模需要）、Object Storage 串接與 signed URL、自動化 API/整合測試框架、Production readiness、`GlobalPlayer.js` 內建陪伴 UI 與 `CompanionOverlay.js` 的完整統一、Admin Prayed reaction 明細介面、真實行動裝置測試。這些項目的依賴分析已完成於 [[20-Anonymous-Submission-Design]]、[[22-API-Changes]]、[[23-Database-Migration]]、[[25-Companion-Mode-Reuse-Audit]]、[[26-Anonymous-Reporting-Design]]、[[27-Shared-Prayer-Interaction-Audit]]、[[28-Prayed-Reaction-Design]]、[[19-Security-Review]]。

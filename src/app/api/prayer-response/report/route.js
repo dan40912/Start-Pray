@@ -17,6 +17,7 @@ import {
   isGuestRateLimited,
   isResponseAlreadyHidden,
 } from "@/lib/prayer-response-report";
+import { isTrustedOrigin } from "@/lib/origin-guard";
 
 function normalizeRemarks(value) {
   if (!value) return "";
@@ -181,6 +182,13 @@ async function handleAuthenticatedReport({ session, response, responseId, reason
 
 export async function POST(request) {
   try {
+    if (!isTrustedOrigin(request)) {
+      return NextResponse.json(
+        { code: "INVALID_ORIGIN", message: "這個請求的來源不受信任，請重新整理頁面後再試一次。" },
+        { status: 403 }
+      );
+    }
+
     const session = readSessionUser();
 
     const payload = await request.json().catch(() => null);

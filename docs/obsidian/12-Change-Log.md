@@ -102,4 +102,11 @@ tags: [start-pray, changelog]
 - 已知限制：migration 未在全新環境驗證重放；Admin 無查看明細介面（規格未要求）；Real microphone 迴歸 Not Tested
 - 詳見 [[10-Implementation-Plan]] Commit 1、[[28-Prayed-Reaction-Design]]
 
+## 2026-08-05 — Commit：fix: harden prayer interaction flows（Commit 2，待建立）
+- 新增 `src/lib/origin-guard.js`，套用到三支匿名 POST API 的 CSRF/Origin 檢查，Real tested（偽造/缺少 Origin 皆正確 403，同源請求不受影響）
+- 新增 `scripts/dev/generate-test-audio.mjs`：產生真正可解碼的測試音檔（腳本提交，音檔本身依規則不提交），首次驗證播放引擎能完整處理合法音訊的生命週期（play→ended→UI 提示、Loop 循環）
+- Prayed reaction 雙擊防護 Real API tested；Storage/Rate limit 現況盤點（文件記錄，無破壞性改動，Storage ephemeral filesystem 問題標記 Production Blocker）
+- 人工驗證矩陣建立於 [[24-Manual-QA]]：Desktop Chrome 欄位盡量 Real tested，Android Chrome/iOS Safari 誠實標記 Not Tested（無真實裝置）
+- 詳見 [[10-Implementation-Plan]] Commit 2、[[19-Security-Review]]、[[24-Manual-QA]]
+
 後續每個 Implementation Plan Phase 執行後，應在此新增一筆紀錄（日期、Phase、實際修改檔案、commit hash）。

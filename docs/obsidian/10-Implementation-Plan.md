@@ -231,3 +231,18 @@ tags: [start-pray, implementation-plan]
   - 這份 migration 未在全新環境驗證過完整重放（見上方「Migration 執行過程」）
   - Real microphone／已登入會員的迴歸測試 Not Tested（環境限制，同既有限制）
 - 完成狀態：**完成**（前端/後端邏輯完整並 Real DB/API/Browser tested）
+
+## Commit 2：`fix: harden prayer interaction flows` —— 完成（2026-08-05）
+- 範圍：人工驗證矩陣、真實音訊播放 fixture、Recorder/Companion 壓力測試、CSRF/Origin 補強、Storage 與集中式 rate limit 盤點、Accessibility 最終檢查、回歸
+- **CSRF/Origin 補強（新增並 Real tested）**：新增 `src/lib/origin-guard.js`（`isTrustedOrigin`，刻意不 import `next/server` 以保持可單元測試），套用到三支匿名 POST API（`/api/responses`、`/api/prayer-response/report`、`/api/home-cards/[id]/prayed`）。開發過程中先寫了會 import `NextResponse` 的版本，導致單元測試整份失敗（`next/server` 無副檔名在純 Node ESM 下無法解析）——已重構修正，此為真實踩坑記錄，非假設性描述
+  - Real tested（對正在執行的本機 dev server 發送真實 HTTP 請求，繞開瀏覽器對手動設定 `Origin` header 的限制）：偽造 `Origin: https://evil.example` 打三支 API 皆正確 403；完全不帶 `Origin` 也正確 403；真實瀏覽器同源請求三支 API 均正常運作，未被誤擋
+  - 5 個新增單元測試（`tests/origin-guard.test.mjs`）
+- **真實音訊播放 fixture（新增）**：`scripts/dev/generate-test-audio.mjs` 產生真正可解碼的 440Hz 正弦波 WAV（**腳本本身可提交，產生出的音檔依全域安全規則不可提交**，需人工本機執行產生）。首次用這個 fixture 透過真實 `POST /api/responses` 上傳並在 `/prayfor/[id]` 陪伴模式播放，觀察到完整播放到 `ended`、正確顯示「播放完成，要重新播放嗎？」，以及 Loop 開啟後的 play→ended→replay 循環（Console log 佐證）——這是本專案至今第一次真正驗證播放引擎能處理**合法可解碼**音訊的完整生命週期，而非過去測試中反覆遇到的「假位元組導致自動跳過」路徑
+- **壓力測試**：Prayed reaction 雙擊防護 Real API tested（並發 2 次呼叫，count 仍為 1）；Companion X/Loop 快速操作 Real Browser tested；PrayerRecorder 雙擊送出防護與卸載清理僅完成程式碼審查（需要真實麥克風才能進入可測試狀態，Not Tested）
+- **Storage/Rate limit 盤點**（文件記錄，未做破壞性改動）：確認所有既有與新增的 rate limit 皆為 DB-backed（無 in-memory 風險）；Storage 是否為 ephemeral filesystem 無法從本 repo 確認，標記為 Production Blocker，見 [[19-Security-Review]]
+- **Accessibility/回歸**：Real Browser tested 確認 CompanionOverlay 的 focus 移動至關閉鈕、Escape 正確關閉；`/`、`/en`、`/global-prayer-room`、`/login`、`/signup`、`/customer-portal`、`/admin` 皆 200 且 Console/Server log 無新增錯誤
+- 已新增檔案：`src/lib/origin-guard.js`、`scripts/dev/generate-test-audio.mjs`、`tests/origin-guard.test.mjs`
+- 已修改檔案：`src/app/api/responses/route.js`、`src/app/api/prayer-response/report/route.js`、`src/app/api/home-cards/[id]/prayed/route.js`（皆只新增 Origin 檢查，業務邏輯不變）
+- 測試方式：`npm run lint`、`npm run build`、`npm run test:unit`（39/39）、`npm run i18n:check` 皆通過；詳細 Real API/Browser 測試記錄見 [[24-Manual-QA]]、[[19-Security-Review]]
+- 已知限制：Android Chrome／iOS Safari 完整測試矩陣 Not Tested（無真實裝置）；Recorder 雙擊/卸載清理/斷網重連僅程式碼審查；Storage ephemeral filesystem 問題無法本機確認，標記 Production Blocker；音訊播放的「解碼與觸發」已 Real tested，但持續播放的逐幀狀態在此 headless 環境仍不完全可觀察
+- 完成狀態：**完成**（CSRF/Origin 為真正新增且 Real tested 的程式碼變更；其餘為測試矩陣/文件盤點/已知限制的誠實記錄）

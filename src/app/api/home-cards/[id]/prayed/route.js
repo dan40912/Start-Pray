@@ -14,6 +14,7 @@ import {
   isPrayerUnavailable,
   resolveActor,
 } from "@/lib/prayed-reaction";
+import { isTrustedOrigin } from "@/lib/origin-guard";
 
 // "我已為你禱告" — anonymous-capable prayed reaction. Route lives under
 // /api/home-cards/[id]/... (not /api/prayers/[id]/... from the spec's
@@ -73,6 +74,13 @@ export async function GET(request, { params }) {
 
 export async function POST(request, { params }) {
   try {
+    if (!isTrustedOrigin(request)) {
+      return NextResponse.json(
+        { code: "INVALID_ORIGIN", message: "這個請求的來源不受信任，請重新整理頁面後再試一次。" },
+        { status: 403 }
+      );
+    }
+
     const id = parsePrayerId(params?.id);
     if (!id) {
       return NextResponse.json({ code: "INVALID_REQUEST", message: "Invalid prayer id" }, { status: 400 });
