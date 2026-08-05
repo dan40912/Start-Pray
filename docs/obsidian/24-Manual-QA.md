@@ -6,6 +6,43 @@ tags: [start-pray, qa, phase-1, phase-2, phase-3a, commit-b, commit-1, commit-2]
 
 參見 [[16-Final-Acceptance-Report]]、[[21-Recorder-State-Machine]]、[[15-Acceptance-Criteria]]、[[25-Companion-Mode-Reuse-Audit]]。以下步驟可用於人工複驗 Commit 1-3、Phase 3A（匿名投稿核心）、Commit B（瀏覽/陪伴模式）、Commit C1（匿名檢舉/共用元件）、Commit 1（Prayed reaction）與 Commit 2（真機驗證/安全收尾）。
 
+## 最終驗收檢查清單（Commit 3，可勾選版）
+
+以下彙整全部功能點，供人工在真機上快速逐項確認；每項後面標註自動化環境目前的驗證狀態（未打勾 = 需要人工在真機上補測）。
+
+### 首頁
+- [x] 開啟首頁，確認顯示一則真實 Prayer（Real Browser tested）
+- [x] 左右滑動／方向鍵切換到其他 Prayer（Real Browser tested）
+- [x] 播放 Prayer 本身附帶的原始語音，若有（既有功能，Real Browser tested 未退化）
+- [x] 點擊「為這件事禱告」開啟 Recorder（Real Browser tested：權限請求畫面正確出現）
+- [ ] 完成一次真實錄音（需要真實麥克風，Not Tested）
+- [ ] 預覽剛錄好的內容（需要真實麥克風，Not Tested）
+- [ ] 重新錄製一次（需要真實麥克風，Not Tested）
+- [x] 匿名送出一則文字或（透過測試 fixture 的）語音回應（Real API tested）
+
+### 陪伴模式
+- [x] Loop 開關（Real Browser tested，`aria-pressed` 正確切換）
+- [x] Stop（Real Browser tested：暫停但不關閉全螢幕）
+- [x] Exit（Real Browser tested：關閉並清空 queue）
+- [x] X（本地移除，Real Browser tested：零 API 請求，重開後復原）
+- [x] Report（檢舉，Real API/Browser tested：後端隱藏，重開後不復原）
+- [x] Prayed reaction（我已為你禱告，Real API/Browser tested）
+
+### `/prayfor/[id]`
+- [x] 未登入直接開啟（Real Browser tested）
+- [x] 確認 Mobile（375/390/412）上錄音入口在第一屏內（Real Browser tested）
+- [ ] 完成一次真實匿名錄音（需要真實麥克風，Not Tested）
+- [x] 確認 `prayerId` 正確綁定 URL 對應的卡片（Real API tested：送出後 `homeCardId` 與 URL 一致）
+- [x] 陪伴模式（同上，Real Browser tested）
+- [x] 檢舉（同上，Real API/Browser tested）
+- [x] Prayed reaction（同上，Real API/Browser tested）
+- [x] 既有 `Comments.js`（登入會員文字/語音/檢舉）維持可見、不受影響（Real Browser tested：兩套入口並存無衝突）
+
+### 裝置
+- [x] Desktop Chrome（此對話使用的瀏覽器自動化環境，Real tested，見「人工驗證矩陣」）
+- [ ] Android Chrome（Not Tested，無真實裝置）
+- [ ] iOS Safari（Not Tested，無真實裝置）
+
 ## 人工驗證矩陣（Commit 2，2026-08-05）
 
 以下矩陣需要人工在真實裝置上補測；本輪自動化只能驗證 Desktop Chrome（透過此對話使用的瀏覽器自動化環境）欄位，其餘欄位誠實標記為 Not Tested，不得填寫 Passed。
