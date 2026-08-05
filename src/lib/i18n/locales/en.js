@@ -78,6 +78,12 @@ const en = {
       discardConfirmYes: "Discard and switch",
       discardConfirmNo: "Stay here",
     },
+    prayed: {
+      label: "I prayed for this",
+      success: "Thank you for praying.",
+      error: "Could not save this right now. Please try again shortly.",
+      countSuffix: "prayed",
+    },
     recorder: {
       entryCta: "Pray for this",
       anonymousNote: "Submit anonymously. You can listen and record again before sending.",

@@ -4,7 +4,7 @@ tags: [start-pray, flows, target]
 
 # 目標使用者流程（提案，部分已實作）
 
-參見 [[07-Target-MVP]]、[[09-Change-Impact-Analysis]]、[[21-Recorder-State-Machine]]、[[25-Companion-Mode-Reuse-Audit]]、[[26-Anonymous-Reporting-Design]]、[[27-Shared-Prayer-Interaction-Audit]]。以下原為**設計提案**；流程 1-5 已於 Commit 2、3（2026-08-04）在首頁實作為前端狀態機（`src/components/prayer-recorder/`）；流程 6（匿名送出）已於 Phase 3A（2026-08-04）接上真實 API；流程 6b、8（瀏覽並播放禱告）已於 Commit A/B（2026-08-04）實作；流程 8b（匿名檢舉）、8c（`/prayfor/[id]` 匿名錄音）已於 Commit C1（2026-08-05）實作；流程 9、10 仍是提案，未實作。
+參見 [[07-Target-MVP]]、[[09-Change-Impact-Analysis]]、[[21-Recorder-State-Machine]]、[[25-Companion-Mode-Reuse-Audit]]、[[26-Anonymous-Reporting-Design]]、[[27-Shared-Prayer-Interaction-Audit]]、[[28-Prayed-Reaction-Design]]。以下原為**設計提案**；流程 1-5 已於 Commit 2、3（2026-08-04）在首頁實作為前端狀態機（`src/components/prayer-recorder/`）；流程 6（匿名送出）已於 Phase 3A（2026-08-04）接上真實 API；流程 6b、8（瀏覽並播放禱告）已於 Commit A/B（2026-08-04）實作；流程 8b（匿名檢舉）、8c（`/prayfor/[id]` 匿名錄音）已於 Commit C1（2026-08-05）實作；流程 9（我已為你禱告）已於 Commit 1（2026-08-05）實作；流程 10 仍是提案，未實作。
 
 ## 1. 陌生人第一次進站 — ✅ 已實作（Commit 2）
 ```mermaid
@@ -110,13 +110,17 @@ flowchart TD
 ```
 與首頁共用同一個 `PrayerRecorder` 元件與 Submit API，透過新抽出的 `usePrayerInteraction` Hook 共用狀態；頁面既有的 `Comments.js`（服務登入會員的文字/語音回應與檢舉）維持不動，兩條路徑並存但受眾不同，決策見 [[27-Shared-Prayer-Interaction-Audit]]。
 
-## 9. 點擊「我為你禱告」
+## 9. 點擊「我為你禱告」 — ✅ 已實作（Commit 1，2026-08-05，Real API/Browser tested，見 [[28-Prayed-Reaction-Design]]）
 ```mermaid
 flowchart TD
-    A[播放某則禱告] --> B[點擊「我為你禱告」]
-    B --> C[輕量互動記錄，不必然要求送出完整回應]
-    C --> D[即時回饋，避免重複點擊灌水]
+    A[瀏覽某則 Prayer] --> B[點擊「我已為你禱告」]
+    B --> C[Server 以登入 session 或 Guest session 決定身分]
+    C --> D[POST /api/home-cards/id/prayed，冪等建立 PrayerPrayedReaction]
+    D --> E[即時回饋：Count 更新、按鈕變為已按下狀態、短暫感謝訊息]
+    E --> F{重新整理或切換 Prayer 後返回}
+    F --> G[GET 同一支 API，正確還原「已按過」狀態，不重複計數]
 ```
+是一個獨立於 `PrayerResponse` 的輕量反應（不建立留言、不上傳音訊），與規劃時的假設完全一致：「不必然要求送出完整回應」。防止重複點擊灌水的機制是 `PrayerPrayedReaction` 的 `@@unique([prayerId, actorType, actorKeyHash])` 資料庫層級唯一約束，而非僅靠前端 `disabled` 屬性（前端 disabled 只是輔助，真正的防線在後端）。首頁與 `/prayfor/[id]` 共用同一個 `PrayedReactionButton`/`usePrayedReaction`，Prayer 左右切換時會正確讀取新 Prayer 自己的狀態，不會把上一則的「已按過」誤帶到下一則（Real Browser tested：swipe 到下一則變回未按過、swipe 回原本那則正確還原為已按過）。
 
 ## 10. 不登入情況下的內容管理方案
 ```mermaid

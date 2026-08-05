@@ -1,8 +1,8 @@
 ---
-tags: [start-pray, security, commit-c1]
+tags: [start-pray, security, commit-c1, commit-1]
 ---
 
-# 安全檢查（Commit C1：匿名檢舉）
+# 安全檢查（Commit C1：匿名檢舉；Commit 1：Prayed Reaction）
 
 參見 [[26-Anonymous-Reporting-Design]]、[[13-Risk-Register]]。本文件檢查匿名檢舉功能（`POST /api/prayer-response/report` 的 guest 分支）的安全面向，分類為 Mitigated／Partially mitigated／Production requirement／Remaining risk。以本機開發環境 Real API tested 為準，未宣稱涵蓋 Production 環境的額外防護（例如 CDN/WAF 層級規則）。
 
@@ -44,3 +44,32 @@ tags: [start-pray, security, commit-c1]
 | 無法精確追蹤「同一匿名者」的重複檢舉 | 因為選擇不寫入 `PrayerResponseReport`（該表 `reporterId` 是必填 User FK），匿名檢舉沒有像登入使用者一樣的、逐筆可稽核的「誰檢舉了什麼」記錄，只有 `AdminLog` 的粗粒度嘗試記錄。見 [[26-Anonymous-Reporting-Design]] 的設計決策說明。 |
 | Anonymous moderation abuse（惡意大量檢舉他人正當內容） | 目前的防護只有頻率限制（速度層面），沒有內容層面的濫用偵測（例如同一 Guest 短時間內檢舉多個不同 Response）；此為既有 Admin 後台稽核（`moderationStatus: PENDING` 可人工復核）需要承擔的角色，非本 API 本身能完全防堵。 |
 | `/voices`、`/uploads` 檔案路由無存取驗證 | 既有風險（[[13-Risk-Register]] 已記錄），本次的隱藏機制無法讓已流出的直接網址失效。 |
+
+## Prayed Reaction 安全檢查（Commit 1，見 [[28-Prayed-Reaction-Design]]）
+
+### Mitigated（Real API/DB tested）
+| 項目 | 說明 |
+|---|---|
+| Forged actor（偽造身分） | Server 完全不讀取 request body，身分只能來自 session 或簽章 Guest cookie；`userId`/`guestHash`/`actorKey`/`count`/`status`/`admin` 等偽造欄位即使送入也無效。Real API tested。 |
+| Duplicate reaction（重複建立） | 資料庫層級 `@@unique([prayerId, actorType, actorKeyHash])` 約束，非僅應用層檢查；Real DB tested 確認並發/重複 create 會拋出 `P2002` 並被正確吞下（回傳既有計數，不報錯）。 |
+| Count inflation（灌水） | 冪等設計：同一 actor 對同一 Prayer 永遠只會有一列，`count()` 是即時查詢真實列數，不是可被前端操縱的快取值。 |
+| Hidden Prayer（`isBlocked`） | `loadPrayer()` 查詢時即檢查，Real API tested：對已封鎖卡片操作回傳 404。 |
+| Deleted Prayer（等同查無此列） | `findUnique` 找不到即 404，Real API tested。 |
+| Rate limit | DB-backed（非 in-memory）：Guest 10 分鐘 20 個不同 Prayer、IP 10 分鐘 50 次，Real API tested 對 21 個不同 Prayer 送出請求，第 21 次正確 429。 |
+| Stale client count（前端顯示與後端不同步） | 前端 `count`/`reacted` 完全來自 API 回傳值，沒有任何前端本地遞增邏輯；Prayer 切換時用 generation counter 忽略過期回應，避免顯示錯誤 Prayer 的計數。Real Browser tested。 |
+
+### Partially mitigated
+| 項目 | 說明 | 殘留風險 |
+|---|---|---|
+| CSRF/Origin | 與既有匿名寫入 API（`/api/responses`、`/api/prayer-response/report`）相同，未額外新增 Origin/Referer 驗證 | 見下方「CSRF／Origin／CORS」段落（Commit 2 範圍），非本次新增攻擊面 |
+| Rate limit 查詢效能 | `prayer_prayed_reaction` 目前只有 `[prayerId]`、`[ipHash, createdAt]` 索引，guest 維度（`actorType`+`actorKeyHash`+`createdAt`）查詢無複合索引 | Production 規模下可能變慢，本機規模 Real API tested 無明顯延遲，見 [[13-Risk-Register]] |
+
+### Production requirement
+| 項目 | 說明 |
+|---|---|
+| Migration 在全新環境的可重放性 | 本次繞過了 `prisma migrate dev`（因既有、非本次的 migration 歷史問題），未驗證乾淨環境下完整重放是否成功，見 [[28-Prayed-Reaction-Design]]、[[13-Risk-Register]] |
+
+### Remaining risk
+| 項目 | 說明 |
+|---|---|
+| Admin 無法查看 Reaction 明細 | 規格文件本輪未要求新增 Admin UI；資料僅能透過 Prisma Studio 或直接查詢檢視，見 [[28-Prayed-Reaction-Design]] 問題 10 |

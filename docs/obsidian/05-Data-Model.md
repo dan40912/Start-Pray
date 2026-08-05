@@ -7,6 +7,8 @@ tags: [start-pray, data-model]
 來源：`prisma/schema.prisma`（MySQL），32 個 migration。參見 [[02-Current-Architecture]]、[[06-Authentication-Dependencies]]。
 
 > **2026-08-04 確認**：Commit 1-3（導覽收斂、首頁 Hero、首頁錄音前端）皆未修改 `prisma/schema.prisma`，本文件內容仍完全反映現況。Commit 4 前置分析（[[20-Anonymous-Submission-Design]]、[[23-Database-Migration]]）會基於本文件提出**變更草案**，但尚未核准、尚未套用。
+>
+> **2026-08-05 更新**：「我已為你禱告」（Commit 1）新增 `PrayerPrayedReaction` 表（additive，本機開發 DB 已套用並 Real DB tested），是本文件建立以來**第一個真正執行的 Schema 變更**。設計過程詳見 [[28-Prayed-Reaction-Design]]，含執行時發現的既有 migration 歷史/drift 問題記錄。
 
 | 資料模型 | 用途 | 重要欄位 | 關聯 | 是否依賴 User ID | 未登入後的影響 |
 |---|---|---|---|---|---|
@@ -24,6 +26,7 @@ tags: [start-pray, data-model]
 | `TokenTransaction` | 代幣交易紀錄 | `userId String`（**必填**，`onDelete: Cascade`） | `User`（required） | **是** | 匿名使用者無法獲得代幣獎勵（現況：guest 的 `rewardStatus` 為 `BLOCKED`） |
 | `AdminAccount` | 後台管理員帳號 | 與 `User` 分離的獨立表 | 無 | 是（自身） | 不受影響（後台維持登入） |
 | `AdminLog` | 後台操作日誌 | — | 關聯 `AdminAccount` | 是（admin 端） | 不受影響 |
+| `PrayerPrayedReaction`（`prayer_prayed_reaction`，**2026-08-05 新增**） | 「我已為你禱告」輕量匿名反應 | `actorType`（`USER`/`GUEST` enum）、`actorKeyHash String @db.VarChar(64)`（**唯一防重複鍵，永遠非 NULL**）、`userId String?`（僅供查詢用，不參與唯一性）、`ipHash String?`（rate limit 用） | `HomePrayerCard`（required, `onDelete: Cascade`）、`User?`（optional, `onDelete: SetNull`） | 否，`actorKeyHash` 對登入/匿名皆非 NULL | 完全支援匿名；`@@unique([prayerId, actorType, actorKeyHash])` 防止同一人（含匿名）對同一 Prayer 重複建立 |
 
 ## 特別檢查結果
 

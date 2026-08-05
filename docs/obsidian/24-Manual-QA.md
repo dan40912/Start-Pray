@@ -159,6 +159,54 @@ http://localhost:3000/prayfor/1
 1. 依序用 375×812、390×844、412×915 檢視 `/prayfor/[id]`，確認無橫向捲動，且錄音入口在第一屏內可見（不需捲動或僅需捲動一點點）
 2. 用 1280×800、1440×900 檢視同一頁面，確認錄音入口仍在首屏附近，版面未被破壞
 
+## 「我已為你禱告」驗證（Commit 1）
+
+### 基本流程（首頁與 `/prayfor/[id]` 皆測試一次）
+1. 開啟首頁或任一 `/prayfor/<id>`，確認能看到「我已為你禱告」按鈕與目前的人數（例如「0 人已禱告」）
+2. 點擊按鈕，確認：
+   - 按鈕立刻進入禁止重複點擊的狀態
+   - 短暫顯示「謝謝你為這件事禱告。」
+   - 人數變成「1 人已禱告」
+   - 按鈕維持在「已按下」的樣式（不會變回可點擊）
+3. 再次點擊同一顆按鈕（若因為畫面延遲還能點到），確認人數**不會**變成 2（後端冪等）
+4. 重新整理頁面，確認按鈕仍顯示「已按下」狀態、人數維持正確——這是靠瀏覽器裡的 Guest cookie，不是靠瀏覽器暫存的畫面狀態
+
+### Prayer 切換狀態驗證（僅首頁，需先按過至少一則 Prayer 的「我已為你禱告」）
+1. 在首頁對目前這則 Prayer 按下「我已為你禱告」
+2. 用左右方向鍵或滑動切換到下一則 Prayer，確認新 Prayer 的按鈕是**未按過**的初始狀態（不會誤繼承上一則的「已按下」樣式）
+3. 切換回原本那則 Prayer，確認正確顯示「已按下」、人數正確——證明狀態是跟著各自的 Prayer id 走，不是單一全域開關
+
+### 錯誤與邊界（可用 DevTools Console 直接測試 API，不需要真實裝置）
+```js
+// 對一個不存在的 Prayer id 呼叫，預期 404
+const res1 = await fetch('/api/home-cards/999999/prayed', { method: 'POST' });
+console.log(res1.status); // 404
+
+// 嘗試偽造欄位，預期完全無效（Server 不會讀取 request body）
+const res2 = await fetch('/api/home-cards/2/prayed', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ userId: 'fake', count: 9999, admin: true }),
+});
+console.log(await res2.json());
+```
+確認以上兩種情況都不會造成錯誤的資料寫入。
+
+### Accessibility 快速檢查
+1. 用 Tab 鍵將焦點移到「我已為你禱告」按鈕，確認有清楚可見的 focus 樣式
+2. 用瀏覽器 DevTools 檢查該按鈕的 `aria-pressed` 屬性：未按過應為 `false`，按下後應變成 `true`
+3. 確認按鈕本身是真正的 `<button>` 元素（可用鍵盤 Enter/Space 觸發，不是 `<div>` 假裝的按鈕）
+
+### 測試後清理（僅限本機開發 DB）
+測試會在 `prayer_prayed_reaction` 表留下真實測試列，測試後可用 `npx prisma studio` 手動清除，或執行：
+```js
+// 在專案根目錄執行，會清空整張表——僅限本機開發 DB，測試用
+import { PrismaClient } from "@prisma/client";
+const prisma = new PrismaClient();
+await prisma.prayerPrayedReaction.deleteMany({});
+await prisma.$disconnect();
+```
+
 ## 品質檢查
 ```bash
 npm run lint
@@ -175,3 +223,5 @@ npm run i18n:check
 - 陪伴模式的 Loop/Stop/Playlist X 按鈕、錄音中/倒數中/送出中的切換保護、Preview 未送出時的二次確認，皆已實作但未經自動化點擊測試（原因同上，環境限制），需要人工補測，見上方「Prayer 瀏覽與陪伴模式驗證」
 - 種子/測試音檔在此環境無法真正播放，播放品質本身需要人工用真實音檔補測
 - `/prayfor/[id]` 上 `GlobalPlayer.js` 內建的既有全螢幕陪伴 UI 與本輪新增的 `CompanionOverlay.js` 並存但視覺不同，未逐一測試 `GlobalPlayer.js` 內建陪伴 UI 的所有既有觸發路徑（該元件本身未被修改，非本輪引入的風險，但也未做回歸測試），見 [[13-Risk-Register]]
+- 「我已為你禱告」的 migration 未在全新（空白）環境驗證過完整重放，見 [[28-Prayed-Reaction-Design]]、[[13-Risk-Register]]
+- Admin 後台尚無查看 Prayed reaction 明細的介面（本輪規格未要求新增）

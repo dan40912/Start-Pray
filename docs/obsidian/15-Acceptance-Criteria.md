@@ -96,5 +96,22 @@ tags: [start-pray, acceptance-criteria]
 - [ ] Real microphone 錄音全流程 — **Not Tested**（環境限制，同既有限制）
 - [ ] 已登入會員的檢舉/三點選單迴歸測試 — **Not Tested**（無測試登入帳號）
 
+## Commit 1（`feat: add anonymous prayed reactions`，待建立）— 我已為你禱告
+- [x] 新增 `PrayerPrayedReaction` additive schema，未修改既有表 — Real DB tested
+- [x] `actorType`+`actorKeyHash` 唯一鍵可靠防止匿名重複（MySQL nullable-unique 限制已規避） — Real DB tested（`P2002` 正確擋下）
+- [x] `GET`/`POST /api/home-cards/[id]/prayed`，登入與匿名共用同一支 API — Real API tested
+- [x] Server 端自行解析身分，不接受 Client 傳入 `userId`/`guestHash`/`actorKey`/`count`/`status`/`admin` — Real API tested（偽造欄位完全無效）
+- [x] Hidden（`isBlocked`）／Private Prayer 拒絕 — Real API tested（404）
+- [x] 不存在的 Prayer（等同 deleted）拒絕 — Real API tested（404）
+- [x] 冪等：重複 POST 不重複計數 — Real API tested
+- [x] Rate limit（Guest 10 分鐘 20 個不同 Prayer／IP 10 分鐘 50 次） — Real API tested（第 21 個 Prayer 觸發 429）
+- [x] 首頁與 `/prayfor/[id]` 共用 `usePrayedReaction`/`PrayedReactionButton` — Implemented + Real Browser tested（兩頁行為一致）
+- [x] Prayer 切換時正確重置/還原狀態，無 stale response — Real Browser tested（左右切換來回驗證）
+- [x] Reload 後狀態透過 Guest cookie 正確保留 — Real Browser tested
+- [x] `aria-pressed`、44×44px、`aria-live` 成功/錯誤提示 — Implemented + Real Browser tested（電腦樣式量測 44px）
+- [x] Lint / Build / Unit tests（34/34）/ i18n:check（509 keys） — 全數通過
+- [ ] Admin 查看 Reaction 明細介面 — **Not Implemented**（規格未要求本輪新增）
+- [ ] Real microphone／已登入會員迴歸 — **Not Tested**（環境限制）
+
 ## 尚未開始（不在本次任何已完成 Commit 範圍內）
-匿名管理 Token（Phase 3B）、Prisma Schema/Migration、字幕/轉錄整合、「我已為你禱告」（prayed reaction）、首頁下方區塊收斂、完整安全補強（CSRF/CORS 對匿名 API、分散式 rate limit）、自動化 API/整合測試框架、Production readiness、`GlobalPlayer.js` 內建陪伴 UI 與 `CompanionOverlay.js` 的完整統一。這些項目的依賴分析已完成於 [[20-Anonymous-Submission-Design]]、[[22-API-Changes]]、[[23-Database-Migration]]、[[25-Companion-Mode-Reuse-Audit]]、[[26-Anonymous-Reporting-Design]]、[[27-Shared-Prayer-Interaction-Audit]]、[[19-Security-Review]]。
+匿名管理 Token（Phase 3B）、字幕/轉錄整合、首頁下方區塊收斂、完整安全補強（CSRF/CORS 對匿名 API、分散式 rate limit）、自動化 API/整合測試框架、Production readiness、`GlobalPlayer.js` 內建陪伴 UI 與 `CompanionOverlay.js` 的完整統一、Admin Prayed reaction 明細介面。這些項目的依賴分析已完成於 [[20-Anonymous-Submission-Design]]、[[22-API-Changes]]、[[23-Database-Migration]]、[[25-Companion-Mode-Reuse-Audit]]、[[26-Anonymous-Reporting-Design]]、[[27-Shared-Prayer-Interaction-Audit]]、[[28-Prayed-Reaction-Design]]、[[19-Security-Review]]。

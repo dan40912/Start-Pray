@@ -93,4 +93,13 @@ tags: [start-pray, changelog]
 - 已知限制：Real microphone 錄音全流程 Not Tested（環境限制）；匿名檢舉無法逐筆追蹤同一訪客的重複檢舉（設計取捨，見 [[26-Anonymous-Reporting-Design]]）；已流出的音檔直接網址在檢舉後仍可存取（既有風險，非本次引入）
 - 詳見 [[10-Implementation-Plan]] Commit C1、[[27-Shared-Prayer-Interaction-Audit]]、[[26-Anonymous-Reporting-Design]]、[[19-Security-Review]]
 
+## 2026-08-05 — Commit：feat: add anonymous prayed reactions（Commit 1，待建立）
+- 新增 `PrayerPrayedReaction` 表（additive Schema 變更，本機開發 DB 已套用，Real DB tested）+ `GET`/`POST /api/home-cards/[id]/prayed`
+- 唯一防重複鍵改用 `actorType`+`actorKeyHash`（兩者永遠非 NULL），而非規格文件建議的 nullable `userId`/`guestSessionHash`——因為 MySQL 的 UNIQUE INDEX 允許多個 NULL 並存，無法單靠 nullable 欄位防止匿名重複
+- Migration 執行過程中發現兩個既有、與本次無關的環境問題（`prisma migrate dev` shadow DB 重放既有 migration 失敗、`prisma db push` 會刪除既有 drift 欄位），改用手動 SQL + `prisma db execute` + `migrate resolve` 精準套用，未觸碰任何既有表
+- 新增共用 `usePrayedReaction`/`PrayedReactionButton`，首頁與 `/prayfor/[id]` 共用同一套元件，含 stale-response 防護
+- Real DB/API/Browser tested：建立、冪等重複、hidden/deleted 拒絕、偽造欄位無效、rate limit（20 個不同 Prayer/10 分鐘）、Prayer 切換狀態正確重置、reload 狀態保留
+- 已知限制：migration 未在全新環境驗證重放；Admin 無查看明細介面（規格未要求）；Real microphone 迴歸 Not Tested
+- 詳見 [[10-Implementation-Plan]] Commit 1、[[28-Prayed-Reaction-Design]]
+
 後續每個 Implementation Plan Phase 執行後，應在此新增一筆紀錄（日期、Phase、實際修改檔案、commit hash）。

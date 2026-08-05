@@ -79,6 +79,12 @@ const zhTW = {
       discardConfirmYes: "放棄並切換",
       discardConfirmNo: "留在這裡",
     },
+    prayed: {
+      label: "我已為你禱告",
+      success: "謝謝你為這件事禱告。",
+      error: "目前無法記錄，請稍後再試。",
+      countSuffix: "人已禱告",
+    },
     recorder: {
       entryCta: "為這件事禱告",
       anonymousNote: "匿名送出，你可以在送出前重新錄製。",

@@ -201,3 +201,33 @@ tags: [start-pray, implementation-plan]
 - 原範圍：「我已為你禱告」（prayed reaction）、首頁下方非必要區塊收斂、Accessibility、安全補強、測試、最終驗收報告
 - 依賴：「我已為你禱告」**需要新的 Schema**（[[25-Companion-Mode-Reuse-Audit]] 確認現有系統完全沒有等價機制），屬於新的 migration 決策點，需要你確認方向後才能實作（比照 [[23-Database-Migration]] 的模式：新增獨立表或計數欄位，additive-only）
 - 本輪 Commit C1 已完成其中的「安全補強」（匿名檢舉，[[19-Security-Review]]）與部分「測試」；「我已為你禱告」與「首頁下方區塊收斂」仍待你確認方向後另立一輪執行，明確不在 Commit C1 範圍內
+
+## Commit 1：`feat: add anonymous prayed reactions` —— 完成（2026-08-05）
+- 前置分析：[[28-Prayed-Reaction-Design]]（10 問答，確認完全沒有既有 Reaction 表/欄位，MySQL 的 UNIQUE INDEX 允許多個 NULL 並存，不能只靠 nullable `userId`/`guestSessionHash` 防重複，改採 `actorType` + `actorKeyHash` 兩個永遠非 NULL 欄位）
+- **Schema 變更（additive，本機開發 DB 已套用並 Real DB tested）**：新增 `PrayerPrayedReaction` 表 + `PrayedActorType` enum，`HomePrayerCard`/`User` 各加一個反向關聯陣列欄位（Prisma 語法要求，非既有欄位變更）
+- **Migration 執行過程中發現兩個既有、與本次功能無關的環境問題**（詳見 [[28-Prayed-Reaction-Design]]）：
+  1. `prisma migrate dev` 因既有 migration 歷史在 shadow DB 重放時失敗（`Table 'user' already exists`）而無法使用
+  2. `prisma db push` 會刪除本機開發 DB 中三處與 `schema.prisma` 有 drift 的既有欄位/enum 值（非本次修改造成，推測是舊分支合併殘留）
+  改採手動撰寫 migration SQL、用 `prisma db execute` 精準套用、`prisma migrate resolve --applied` 標記歷史，完全不觸碰既有表。**已知限制**：未驗證這份 migration 歷史能否在全新（空白）環境上完整重放成功，記錄於 [[13-Risk-Register]]。
+- 已新增檔案：
+  - `prisma/migrations/20260805000100_add_prayed_reaction/migration.sql`
+  - `src/lib/prayed-reaction.js`：純函式（`resolveActor`/`isPrayerUnavailable`/`isGuestRateLimited`/`actorKeyHashForUser`/`actorKeyHashForGuest`），13 個單元測試
+  - `src/app/api/home-cards/[id]/prayed/route.js`：`GET`（回傳 count/reacted）+ `POST`（冪等建立）。路由放在 `/api/home-cards/[id]/...` 而非規格文件示範的 `/api/prayers/[id]/...`，因為後者整個命名空間已是 410 Gone
+  - `src/components/prayer-interaction/usePrayedReaction.js`：共用 Hook，含 stale-response 防護（Prayer 切換時用 generation counter 忽略過期回應）
+  - `src/components/prayer-interaction/PrayedReactionButton.js`：共用 UI（`aria-pressed`、44×44px、成功/錯誤 `aria-live` 提示、3 秒後自動消失的感謝訊息）
+  - `tests/prayed-reaction.test.mjs`
+- 已修改檔案：
+  - `src/lib/guest-response.js`：新增通用的 `hashActorId(kind, value)`，`hashGuestId` 改為呼叫它（輸出值完全不變，純內部重構）
+  - `src/components/HomePrayerHero.js`、`src/components/prayer-detail/DetailPrayerInteractionPanel.js`：各自掛載 `<PrayedReactionButton>`
+  - `src/lib/i18n/locales/{zh-TW,en}.js`：新增 `home.prayed.*`（`label`/`success`/`error`/`countSuffix`），首頁與詳情頁共用同一份
+- 測試方式：
+  - `npm run lint`、`npm run build`、`npm run test:unit`（34/34）、`npm run i18n:check`（509 keys）皆通過
+  - **Real DB tested**（對本機開發 DB `prayercoin_dev`，非 Mock）：直接用 Prisma Client 對真實 `HomePrayerCard`（id=2）建立測試 Reaction，確認重複建立被 `@@unique` 正確擋下（`P2002`），確認 `count()` 正確，測試後已刪除
+  - **Real API tested**：GET 初始 `{count:0, reacted:false}`、POST 首次 `{count:1, reacted:true}`、POST 重複仍 `{count:1, reacted:true}`（冪等，未重複計數）、不存在的 Prayer 404、非整數 id 400、`isBlocked`/`isPrivate` 的 Prayer 皆 404、偽造 `userId`/`guestHash`/`actorKey`/`count`/`status`/`admin` 等欄位完全無效（API 從不讀取 request body）、連續對 21 個不同 Prayer 送出請求在第 21 次正確觸發 `429 RATE_LIMITED`
+  - **Real Browser tested**（首頁與 `/prayfor/[id]` 皆測試）：點擊後按鈕變為 `aria-pressed="true"` 且 `disabled`、顯示「謝謝你為這件事禱告。」（3 秒後自動消失）、count 正確更新為「1 人已禱告」、重新整理頁面後狀態正確保留（Guest cookie）、首頁左右切換 Prayer 時新 Prayer 正確顯示未按過、切回原 Prayer 正確還原為已按過（stale-response 防護，Real Browser tested 而非只讀程式碼）、按鈕 44×44px 真實尺寸確認
+  - 測試後已清空 `prayer_prayed_reaction` 表中的所有測試列
+- 已知限制：
+  - Admin 沒有新增查看 Reaction 明細的介面（規格文件本身未要求本輪新增，見 [[28-Prayed-Reaction-Design]] 問題 10）
+  - 這份 migration 未在全新環境驗證過完整重放（見上方「Migration 執行過程」）
+  - Real microphone／已登入會員的迴歸測試 Not Tested（環境限制，同既有限制）
+- 完成狀態：**完成**（前端/後端邏輯完整並 Real DB/API/Browser tested）

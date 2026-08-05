@@ -2,6 +2,7 @@
 
 import PrayerRecorder from "@/components/prayer-recorder/PrayerRecorder";
 import CompanionOverlay from "@/components/home-companion/CompanionOverlay";
+import PrayedReactionButton from "@/components/prayer-interaction/PrayedReactionButton";
 import { usePrayerInteraction } from "@/components/prayer-interaction/usePrayerInteraction";
 import { getDictionary, normalizeLocale } from "@/lib/i18n";
 
@@ -18,6 +19,7 @@ export default function DetailPrayerInteractionPanel({ prayerId, locale: localeP
   const dictionary = getDictionary(locale);
   const recorderText = dictionary.home.recorder;
   const companionText = dictionary.home.companion;
+  const prayedText = dictionary.home.prayed;
 
   const {
     recorderRef,
@@ -54,6 +56,7 @@ export default function DetailPrayerInteractionPanel({ prayerId, locale: localeP
             </button>
           ) : null}
           <p className="detail-interaction__note">{recorderText.anonymousNote}</p>
+          <PrayedReactionButton prayerId={prayerId} text={prayedText} />
         </div>
       )}
 

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import PrayerRecorder from "@/components/prayer-recorder/PrayerRecorder";
 import CompanionOverlay from "@/components/home-companion/CompanionOverlay";
+import PrayedReactionButton from "@/components/prayer-interaction/PrayedReactionButton";
 import { resolveArrowKeyDirection, resolveSwipeDirection } from "@/components/home-companion/swipe-utils";
 import { usePrayerInteraction } from "@/components/prayer-interaction/usePrayerInteraction";
 
@@ -215,6 +216,8 @@ export default function HomePrayerHero({ text, prayer }) {
                 </button>
               ) : null}
             </div>
+
+            <PrayedReactionButton prayerId={currentPrayer?.id} text={text.prayed} />
 
             <p className="prayer-hero__anonymous-note">{text.recorder.anonymousNote}</p>
 
