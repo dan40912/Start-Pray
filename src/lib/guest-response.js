@@ -14,8 +14,16 @@ export function createGuestId() {
   return crypto.randomBytes(24).toString("base64url");
 }
 
+// Generalized form of hashGuestId — lets other anonymous-identity features
+// (e.g. prayed reactions, see src/lib/prayed-reaction.js) mint their own
+// namespaced actor hashes off the same HMAC secret without colliding with
+// guest-response hashes that happen to share an input value.
+export function hashActorId(kind, value) {
+  return value ? hmac(`${kind}:${value}`) : null;
+}
+
 export function hashGuestId(value) {
-  return value ? hmac(`guest:${value}`) : null;
+  return hashActorId("guest", value);
 }
 
 export function readClientIp(request) {

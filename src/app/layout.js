@@ -3,7 +3,7 @@ import "@/styles/theme-modern.css";
 import "@/styles/admin.css";
 import "@/styles/fontawesome-lite.css";
 import { headers } from "next/headers";
-import { Open_Sans, Raleway, Poppins } from "next/font/google";
+import { Noto_Serif_TC } from "next/font/google";
 
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import GlobalPlayerGate from "@/components/GlobalPlayerGate";
@@ -12,12 +12,25 @@ import { getDictionary, localeFromPathname } from "@/lib/i18n";
 import { readSiteSettings } from "@/lib/siteSettings";
 import { SITE_NAME, SITE_URL, buildPageMetadata } from "@/lib/seo";
 
-const openSans = Open_Sans({ subsets: ["latin"], variable: "--font-sans" });
-const raleway = Raleway({ subsets: ["latin"], variable: "--font-raleway" });
-const poppins = Poppins({
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
-  variable: "--font-poppins",
+// Open Sans / Raleway / Poppins used to be loaded here, but nothing ever
+// referenced --font-sans, --font-raleway or --font-poppins, and no stylesheet
+// named those families directly: body text resolves through theme-modern.css's
+// --font-body ('Inter', system-ui). They were downloaded, self-hosted and
+// preloaded on every page for glyphs that never rendered.
+//
+// Display face for the "夜禱" hero headings (HomePrayerHero only). Kept to the
+// single weight that is actually used — a CJK family is self-hosted as ~45
+// unicode-range chunks *per weight*, so every extra weight costs megabytes of
+// build output for glyphs nothing renders. `preload: false` is required because
+// Google only exposes a `latin` subset for this family (next/font fails the
+// build otherwise) and it also keeps the font off the critical path: the
+// browser fetches only the chunks whose characters appear in the headline.
+// `display: swap` keeps the heading readable meanwhile.
+const notoSerifTC = Noto_Serif_TC({
+  weight: "600",
+  display: "swap",
+  preload: false,
+  variable: "--font-serif-tc",
 });
 
 export const metadata = {
@@ -139,7 +152,7 @@ export default async function RootLayout({ children }) {
       return (
         <html
           lang={dictionary.htmlLang}
-          className={`${openSans.variable} ${raleway.variable} ${poppins.variable}`}
+          className={notoSerifTC.variable}
         >
           <head>
             <meta name="robots" content="noindex,nofollow" />
@@ -223,7 +236,7 @@ export default async function RootLayout({ children }) {
   }
 
   return (
-    <html lang={dictionary.htmlLang} className={`${openSans.variable} ${raleway.variable} ${poppins.variable}`}>
+    <html lang={dictionary.htmlLang} className={notoSerifTC.variable}>
       <body className="admin-layout">
         <StructuredData />
         <AudioProvider>

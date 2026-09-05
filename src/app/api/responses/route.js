@@ -20,6 +20,7 @@ import {
   hashDailyIp,
   hashGuestId,
 } from "@/lib/guest-response";
+import { isTrustedOrigin } from "@/lib/origin-guard";
 
 const MAX_AUDIO_BYTES = 12 * 1024 * 1024;
 const MAX_MESSAGE_LENGTH = 2000;
@@ -66,6 +67,13 @@ function isAllowedAudioFile(file) {
 
 export async function POST(req) {
   try {
+    if (!isTrustedOrigin(req)) {
+      return NextResponse.json(
+        { code: "INVALID_ORIGIN", error: "這個請求的來源不受信任，請重新整理頁面後再試一次。" },
+        { status: 403 }
+      );
+    }
+
     const session = readSessionUser();
     if (session) await ensureActiveCustomer(session);
 
@@ -75,7 +83,6 @@ export async function POST(req) {
     const isAnonymous = form.get("isAnonymous") === "true";
     const audio = form.get("audio");
     const honeypot = String(form.get("website") || "").trim();
-    const loginHref = `/login?next=${encodeURIComponent(`/prayfor/${String(requestId)}#response-composer`)}`;
 
     const hasAudio = Boolean(audio && audio.name);
     if (honeypot) {
@@ -88,17 +95,6 @@ export async function POST(req) {
       return NextResponse.json(
         { code: "EMPTY_RESPONSE", error: "請先寫下禱告內容，再按「送出文字禱告」。" },
         { status: 422 }
-      );
-    }
-
-    if (!session && hasAudio) {
-      return NextResponse.json(
-        {
-          code: "VOICE_LOGIN_REQUIRED",
-          error: "登入後可以使用語音禱告；你也可以留在這裡直接送出文字禱告。",
-          action: { label: "登入並使用語音禱告", href: loginHref },
-        },
-        { status: 401 }
       );
     }
 
@@ -245,7 +241,7 @@ export async function POST(req) {
       );
       const recentVoiceCount = await prisma.prayerResponse.count({
         where: {
-          responderId: session.userId,
+          ...identityWhere,
           voiceUrl: { not: null },
           createdAt: { gte: recentVoiceWindowStart },
         },

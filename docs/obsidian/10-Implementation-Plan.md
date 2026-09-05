@@ -1,0 +1,248 @@
+---
+tags: [start-pray, implementation-plan]
+---
+
+# 分階段實作計畫
+
+參見 [[09-Change-Impact-Analysis]]、[[11-Decision-Log]]。**本次盤點僅完成 Phase 0，Phase 1 以後尚未執行，需等待 [[11-Decision-Log]] 中的決策確認。**
+
+## Phase 0：建立基準 —— ✅ 已完成（本次盤點）
+- 目標：確認專案可正常運作，建立可回滾的起點
+- 修改檔案：無（純檢查）
+- 執行內容：
+  - `git status` / `git log -1` → branch `main`，commit `4f06e73a`，working tree clean
+  - `node_modules` 已存在，未重新安裝
+  - `npm run lint` → ✅ 通過，無警告或錯誤
+  - 檢查測試現況 → **專案無自動化測試套件**（無 test script、無 `*.test.js`），僅有 `scripts/qa-flow.mjs` 可作腳本化 QA
+- 驗收條件：以上四項皆有明確記錄 ✅
+- 測試方式：見上
+- 回滾方式：不適用（無程式異動）
+- 風險：無自動化測試意味著後續每個 Phase 都需要更仰賴手動 QA / `qa-flow.mjs` / 瀏覽器實測
+- 完成狀態：**完成**
+
+## Phase 1：UI 收斂但不破壞後端 —— 部分完成（2026-08-04）
+- 目標：讓首頁視覺與導覽收斂，但不動任何 API/資料庫邏輯
+- 已修改檔案：
+  - `src/components/site-chrome.js` — 新增 `SHOW_ACCOUNT_NAV_ENTRIES`、`SHOW_GLOBAL_ROOM_NAV_ENTRY` 兩個常數（預設 `false`）；`PRIMARY_NAV` 改為以 `key` 對應 i18n 字典（原本用位置索引，改動時一併修正避免錯位）；主導覽與頁尾的登入/註冊/會員中心/全球禱告室連結依常數條件式隱藏；已登入會員的導覽列（建立代禱／問候語／登出）不受影響
+  - `src/components/HomeGlobeHero.js` — 新增 `SHOW_HOME_GLOBE_VISUAL` 常數（預設 `false`）；不再掛載 `HeroGlobe`（避免載入 Cesium），改用既有的 `GlobeSkeleton` 靜態裝飾；同步隱藏「進入全球禱告室」CTA 與地球縮放按鈕；標題/副標題/主要 CTA（分享代禱需要）/統計數字維持不變
+- 驗收條件：`/login`、`/signup`、`/customer-portal`、`/global-prayer-room` 頁面**仍可透過直接網址訪問**（只是拿掉入口，未刪除路由或元件）；桌面與手機導覽、頁尾皆不顯示登入/註冊/會員中心/全球禱告室；頁尾不留空欄位；所有支援語系（zh-TW、en）皆無 `undefined`/空白/未翻譯；`npm run lint`、`npm run build` 皆通過
+- 測試方式：
+  - `npm run lint` ✅
+  - `npm run build` ✅（確認 `/login`、`/signup`、`/customer-portal`、`/global-prayer-room` 等路由仍存在且成功編譯）
+  - i18n 覆蓋檢查：確認專案僅支援 `zh-TW`（預設）與 `en`（`src/lib/i18n/index.js` 的 `SUPPORTED_LOCALES`），且 `nav.prayerWall/globalRoom/overcomer/about/howto/portal` 等 key 在兩個語系字典（`src/lib/i18n/locales/zh-TW.js`、`en.js`）中皆存在，改用 key 對應後不會有缺字
+  - `npm run dev`（本機啟動，`.env.local` 已提供可用的 `DATABASE_URL`，實際連得上資料庫）+ 瀏覽器實測：
+    - 桌面（1280×800）：導覽列僅顯示 禱告牆/得勝者/平台介紹/使用方式/切換語言/分享代禱需要，無登入/註冊/會員中心/全球禱告室 ✅
+    - 手機（375×812）：漢堡選單開關前後，nav 項目與桌面一致，同樣不含被隱藏的四項 ✅
+    - 頁尾：Start Pray 欄僅剩 禱告牆/得勝者/平台介紹/使用方式；帳號與幫助欄僅剩「聯絡我們」；無空欄位 ✅
+    - 英文版 `/en`：Prayer Wall / Stories / About / How It Works 正確顯示，無 undefined ✅
+    - 直接訪問 `/login`、`/global-prayer-room`、`/customer-portal` 皆正常開啟（分別回傳「登入」「全球禱告室」「會員中心」頁面標題）✅
+- 回滾方式：把 `site-chrome.js`、`HomeGlobeHero.js` 內的常數改回 `true`，或 `git revert` 對應 commit
+- 風險：無自動化測試套件可執行；`scripts/qa-flow.mjs` 需要完整跑一輪帳號/投稿流程，本次僅做導覽/i18n/路由層級的目視驗收，未跑該腳本
+- 過渡狀態（重要）：已登入會員的導覽列（建立代禱／問候語／登出）本次**刻意維持不變**，這是 Phase 1 的過渡相容行為，不代表 Target MVP 最終仍保留會員系統。詳見 [[06-Authentication-Dependencies]]、[[09-Change-Impact-Analysis]] 的 2026-08-04 更新
+- **更新（2026-08-04，Commit 2 完成後）**：首頁核心區塊重建已完成——新增 `HomePrayerHero.js` 取代 `HomeGlobeHero.js` 成為首頁第一屏，Cesium 地球 hero 完全不再掛載於首頁（`HomeGlobeHero.js` 本身未刪除，變成孤兒元件，`/global-prayer-room` 全頁不受影響）
+- 完成狀態：**完成**（導覽收斂、地球隱藏、首頁核心區塊重建皆已完成並經瀏覽器實測）
+
+## Phase 2：匿名錄音流程 —— 完成（2026-08-04，對應 Commit 3）
+- 目標：未登入狀態下可完整走完「授權→錄音→預覽→重錄」，尚不涉及送出 API
+- 已修改/新增檔案：
+  - 新增 `src/components/prayer-recorder/recorder-utils.js`（純函式：MIME 選擇、時長格式化、支援度偵測）
+  - 新增 `src/components/prayer-recorder/usePrayerRecorder.js`（錄音狀態機 hook，重用 `VoicePrayerOverlay.js` 的權限/MIME/停止逾時/清理技巧，不含字幕/Auth/上傳）
+  - 新增 `src/components/prayer-recorder/PrayerRecorder.js`（UI，依 [[21-Recorder-State-Machine]] 的狀態渲染）
+  - 修改 `src/components/HomePrayerHero.js`（CTA 點擊後同頁切換成 `PrayerRecorder`）
+  - 修改 `src/lib/i18n/locales/zh-TW.js`、`en.js`（新增 `home.recorder.*`）
+  - 新增 `tests/recorder-utils.test.mjs` + `package.json` 新增 `test:unit` script
+- 驗收條件：麥克風被拒絕/不支援時有清楚提示；錄音/預覽/重錄狀態機邏輯完整；`npm run lint`、`npm run build`、`npm run test:unit`、`npm run i18n:check` 皆通過
+- 測試方式：
+  - `npm run test:unit`（`node --test`）✅ 7/7 通過
+  - `npm run i18n:check` ✅ 462 keys 一致
+  - Browser tested（真實瀏覽器，非 Mock）：權限拒絕畫面（自動化環境本身封鎖麥克風，觸發真實 reject 路徑）、不支援瀏覽器畫面（移除 `window.MediaRecorder` 後驗證）、桌面/手機版面、中英文案
+  - **Real microphone Not Tested**：完整「允許→倒數→錄音→停止→預覽→重錄」全流程需要真實麥克風輸入，自動化環境無法提供，需人工在真機/桌機瀏覽器補測
+- 回滾方式：`git revert` 對應 commit，或刪除 `src/components/prayer-recorder/` 並將 `HomePrayerHero.js` 的 CTA 改回單純顯示 Prototype 文字（Commit 2 當時的行為）
+- 風險：Cleanup（timer/stream/Object URL）邏輯未能實測（無法模擬完整錄音後卸載元件），僅程式碼比對確認與 `VoicePrayerOverlay.js` 一致
+- 完成狀態：**完成**（前端錄音狀態機；不含匿名投稿 API/字幕，明確排除於本階段）
+
+## Phase 3A：匿名投稿（核心送出，無需 Migration）—— 完成（2026-08-04）
+- 目標：語音回應可在不登入狀態下送出，走既有 `PrayerResponse` 表（依 [[20-Anonymous-Submission-Design]] 方案 1，使用者已確認採用此方向，不需要 Prisma migration）
+- 已修改檔案：
+  - `src/app/api/responses/route.js`：移除 94-103 行的 `VOICE_LOGIN_REQUIRED` 硬性檢查；修正 246-252 行的 bug（`recentVoiceCount` 查詢原本無條件讀取 `session.userId`，guest 情境下會直接拋出例外，改用既有的 `identityWhere` 模式）
+  - `src/components/prayer-recorder/usePrayerRecorder.js`：新增 `getBlob()` 存取器，暴露錄音完成後的 Blob 供上傳使用
+  - `src/components/prayer-recorder/PrayerRecorder.js`：「下一步：匿名送出」改為真正呼叫 `GET /api/home-cards?mode=one`（取得一張既有公開卡片）+ `POST /api/responses`（帶上錄音 Blob），新增 `uploading`/`success`/`failed` 三種送出狀態畫面
+  - `src/lib/i18n/locales/zh-TW.js`、`en.js`：新增送出中/成功/失敗相關文案
+- 驗收條件：匿名使用者可送出語音回應並成功落入 `PrayerResponse`（`responderId = null`）；重複送出會被既有 rate limit 擋下且不崩潰
+- 測試方式：
+  - `npm run lint`、`npm run build`、`npm run test:unit`、`npm run i18n:check` 皆通過
+  - **Real API tested（非 Mock）**：在真實瀏覽器對本機開發資料庫（`localhost:3306/prayercoin_dev`）直接呼叫 `GET /api/home-cards?mode=one` 取得真實卡片（id=5），再 `POST /api/responses` 送出合成音訊 Blob，回傳 `201`，`voiceUrl` 指向的檔案可透過 `/voices/[...path]` 實際讀回（bytes 數一致）；針對同一 guest 對不同卡片送出第二筆語音，驗證修正後的 `recentVoiceCount` 查詢不再崩潰（回傳 `201`，非 500）
+  - 前端 UI 層級的「preview → 點擊送出 → uploading → success/failed」畫面切換邏輯經程式碼審查確認正確，但**未能透過自動化瀏覽器完整走一次**（麥克風存取在此環境被封鎖，無法到達 preview 階段），標記 `Real microphone UI flow Not Tested`
+- 回滾方式：`git revert` 對應 commit（純 API + 前端邏輯改動，無 schema 變更，回滾零風險）
+- 風險：
+  - 本次在本機開發資料庫留下 2 筆測試用 `PrayerResponse` 與對應音訊檔（`id=5`、`id=39` 卡片各一筆），因為**目前系統沒有任何刪除 `PrayerResponse` 的 API**（見 [[20-Anonymous-Submission-Design]] 依賴矩陣），無法自動清理，需要你視情況透過 `prisma studio` 或後台手動清除
+  - 尚未實作：Management Token（匿名刪除自己投稿的能力）、DB-backed 的 guest 語音專屬 rate limit（沿用既有文字回應的 rate limit，未新增獨立限制）、伺服器端音訊時長驗證（沿用現況「前端自律，後端不驗證」）
+- 完成狀態：**完成**（核心匿名語音送出可用；管理 Token/刪除能力為 Phase 3B，尚未開始）
+
+## Phase 3B：匿名管理 Token（刪除能力）—— 未開始
+- 目標：匿名使用者可用一次性 Token 刪除自己剛送出的語音回應
+- 依賴：需要 Schema migration（`PrayerResponse.managementTokenHash`，見 [[23-Database-Migration]] 方案 A）與新的 `DELETE` API
+- 狀態：**設計已完成**（[[20-Anonymous-Submission-Design]]、[[22-API-Changes]]、[[23-Database-Migration]]），尚未實作、尚未建立 migration
+
+## Phase 4：公開播放與禱告回應 —— 待執行
+- 目標：完善「我為你禱告」互動與匿名內容管理雛形
+- 修改檔案（預期）：新增輕量互動元件、`/api/responses` 或新端點支援「我為你禱告」單獨動作、防重複點擊機制
+- 驗收條件：同一裝置對同一則禱告短時間內重複點擊不會重複計數；基本統計數字正確
+- 測試方式：手動 QA + 檢查資料庫計數
+- 回滾方式：單一 commit revert
+- 風險：需避免與現有「送出文字回應」邏輯混淆，需先在 DEC 中定義清楚「我為你禱告」到底是不是等於送出回應
+- 完成狀態：**未開始**
+
+## Phase 5：清理舊功能 —— 待執行（僅在前面全部驗證完成後才可進行）
+- 目標：正式移除不再使用的登入 UI、地球功能、孤立元件
+- 修改檔案（預期）：視 Phase 1-4 實際結果而定，執行前需重新盤點屆時的「未使用」清單，不可依本次盤點結果直接刪除
+- 驗收條件：移除後 `npm run lint`、`npm run build` 皆通過；`qa-flow.mjs` 通過
+- 測試方式：完整回歸測試（手動，因無自動化測試）
+- 回滾方式：需要提前建立安全分支/tag，方便整批回滾
+- 風險：一次刪除過多會難以定位問題根因，務必分成多個小 commit（登入頁、地球、未用套件分開清理，見 Commit 規則）
+- 完成狀態：**未開始**
+
+## 總原則提醒
+- 每個 Phase 完成後才能進入下一個 Phase
+- 每個 Phase 對應獨立 commit（或多個小 commit），不得混合不同目的
+- Phase 3、5 屬高風險，執行前需再次確認 [[13-Risk-Register]]
+
+---
+
+## 最終首頁改造（2026-08-04，取代先前「首頁錄音建立新 Prayer」的方向）
+
+**產品語意確認**：`Prayer` = `HomePrayerCard`（一件需要被禱告的事），`PrayerResponse` = 對它的文字/語音回應。首頁核心用途改為「顯示一件 Prayer，讓訪客聆聽、錄音回應，或表示已為它禱告」，**不再**是「訪客錄下自己的新需要」。
+
+### Commit A：`refactor: present prayer needs as the homepage focus` —— 完成（2026-08-04）
+- 目標：首頁載入並顯示一件真實 Prayer，錄音 CTA 綁定該 Prayer 的 id
+- 前置分析：[[25-Companion-Mode-Reuse-Audit]]（發現：陪伴模式的播放引擎/Loop/X 移除邏輯已存在於 `AudioContext.js`/`GlobalPlayer.js`，但只出現在收合式佇列面板，全螢幕 overlay 需要 UI 組裝；「我已為你禱告」的 prayed reaction **完全不存在**，需要新 Schema）
+- 已修改檔案：
+  - `src/components/HomeLandingPage.js`：新增 `readHomeCards({sort:"needsPrayer", limit:1})` 取得一件「最需要陪伴」的 Prayer，傳給 `HomePrayerHero`
+  - `src/components/HomePrayerHero.js`：改為顯示真實 Prayer 卡片（標題/內容純文字化/若 `voiceHref` 是真實可播放路徑則顯示原生 `<audio>`），CTA 文案改為「為這件事禱告」，Empty 狀態文案
+  - `src/components/prayer-recorder/PrayerRecorder.js`：新增 `prayerId` prop，送出時直接使用它作為 `requestId`（移除原本 `GET /api/home-cards?mode=one` 隨機取卡的邏輯，改為呼叫端明確指定）
+  - `src/lib/i18n/locales/{zh-TW,en}.js`：更新 hero 文案，新增 `cardLabel`/`emptyTitle`/`emptyBody`
+  - 新增 `docs/obsidian/25-Companion-Mode-Reuse-Audit.md`
+- 驗收條件：首頁顯示真實 Prayer；CTA 綁定該 Prayer id；不需要登入；zh-TW/en 正常；Desktop/Mobile 不破版
+- 測試方式：
+  - `npm run lint`、`npm run build`、`npm run test:unit`、`npm run i18n:check` 皆通過
+  - **Real API tested（非 Mock）**：瀏覽器內直接讀取 React fiber 確認 `PrayerRecorder` 收到的 `prayerId` 為真實資料庫 id（`6`），再對該 id 送出合成語音，回傳 `homeCardId: 6`，與首頁綁定的 id 完全一致
+  - Browser tested：桌面/手機版面、`/en` 英文文案、CTA 高度 49.78px、無橫向捲動
+- 明確不處理（依指令範圍）：左右滑動、全螢幕陪伴模式組裝、「我已為你禱告」——皆為後續 Commit 範圍
+- 已知偏離指令原文的地方：**未加入「左右滑動，看看更多需要禱告的事情」提示文字**，因為滑動功能尚未實作（下一個 Commit 才做），顯示這句提示但功能不存在會誤導使用者；待滑動功能完成後再一併補上
+- 完成狀態：**完成**
+
+### Commit B：`feat: add prayer browsing and companion playback` —— 完成（2026-08-04）
+- 範圍：左右滑動切換 Prayer、切換狀態保護（錄音中禁止切換等）、組裝全螢幕陪伴模式（播放清單 UI + Loop + Stop + Exit + 每筆 X + 三點選單/檢舉）
+- 策略執行結果：**重用 `AudioContext.js`（`useAudio()`）的播放引擎，零新增 Queue state**；新增的程式碼只有 UI 組裝層（`CompanionOverlay.js`）與資料 adapter（`/api/home-cards/[id]/adjacent`），沒有複製 `GlobalPlayer.js`、沒有第二套 AudioContext、沒有第二套 Report API、沒有動 hidden 欄位
+- 關鍵發現與修正：`GlobalPlayerGate.js` 原本會在非白名單路由（含首頁）自動 `pause()` 任何播放中的音訊——若不修正，首頁一呼叫 `setQueue()` 就會立刻被暫停。已將 `/`、`/en` 加入白名單（一行條件式增加，未動其他路由邏輯）
+- 已新增檔案：
+  - `src/app/api/home-cards/[id]/adjacent/route.js`：薄 adapter，直接呼叫既有 `readAdjacentHomeCards()`，只回傳公開安全欄位（id/title/description/voiceHref）
+  - `src/components/home-companion/swipe-utils.js`：純函式（`resolveSwipeDirection`/`resolveArrowKeyDirection`），已單元測試
+  - `src/components/home-companion/CompanionOverlay.js`：全螢幕陪伴 UI，消費 `useAudio()` 的 `setQueue`/`playByIndex`/`isLoop`/`setIsLoop`/`togglePlay`/`pause`/`removeTrack`/`playerPhase`，新增 Report 選單（`useAuthSession()` 登入才顯示，見下方已知限制）
+  - `tests/swipe-utils.test.mjs`
+- 已修改檔案：
+  - `src/components/GlobalPlayerGate.js`：`supportedByRoute` 加入首頁
+  - `src/components/prayer-recorder/PrayerRecorder.js`：改為 `forwardRef`，新增 `onStateChange` callback（回報 `{phase, submitState, confirmingRerecord}`）與 `useImperativeHandle` 暴露 `discard()`
+  - `src/components/HomePrayerHero.js`：改為完整的瀏覽/切換/狀態保護 orchestrator
+  - `src/lib/i18n/locales/{zh-TW,en}.js`：新增 `home.companion.*`、`home.prayerHero.swipeHint`
+- 驗收條件：見下方測試結果
+- 測試方式：
+  - `npm run lint`、`npm run build`、`npm run test:unit`（13/13）、`npm run i18n:check`（505 keys）皆通過
+  - **Real API tested（非 Mock，對本機開發 DB）**：
+    - `/api/home-cards/5/adjacent` 回傳真實 prev（id=4）/next（id=6）資料，且只含公開欄位
+    - `/api/responses/5` 回傳真實 `voiceUrl` 資料，`responder: null`（匿名）
+  - **Browser tested（真實瀏覽器，非 Mock）**：
+    - 鍵盤 ArrowLeft/ArrowRight 導覽：連續切換 6 張真實卡片，「聆聽大家的禱告」入口依真實可播放回應數量正確顯示/隱藏
+    - 手機觸控 swipe（`TouchEvent`，非模擬 click）：左滑正確觸發下一則，與鍵盤結果一致，無橫向捲動
+    - 陪伴模式開啟：真實填入 9 筆該卡片的真實回應資料（`6/9` 起始索引，反映既有 `AudioContext` 自動跳過失敗曲目邏輯正常運作）；Exit 正確關閉並回到首頁
+    - 狀態保護：錄音處於 `permission-denied`（真實瀏覽器阻擋麥克風觸發）時允許切換 Prayer，切換後正確關閉錄音元件、綁定新 prayerId
+    - 回歸：`/global-prayer-room`（Cesium 正常載入）、`/prayfor/[id]`（無 console 錯誤）皆不受 `GlobalPlayerGate.js` 改動影響
+  - **Real Audio Playback Not Tested**：此環境的無痕/自動化瀏覽器對兩種音源都無法真正播放成功——(a) 既有 demo 種子資料的 `/voices/demo/*.wav` 先前已確認會 `net::ERR_ABORTED`；(b) 我在 Phase 3A 用合成假位元組上傳的測試檔案本身不是有效音訊格式，無法被解碼。這是既有資料與測試環境的限制，不是本次程式邏輯的問題（`AudioContext` 的自動跳過失敗曲目與 `playbackNotice` 提示皆正確觸發，證明失敗處理路徑本身是健康的）
+  - **Not Tested（需要人工/真實環境）**：Recording/Countdown/Uploading 三種阻擋切換狀態（需要真實麥克風才能進入這些狀態）、Preview 放棄確認對話框、X 移除與 Loop 切換的實際點擊（邏輯為既有 `removeTrack`/`setIsLoop`，未變更，風險低但未逐一點擊驗證）、Focus trap/Tab 循環、快速連續切換的 stale-response 防護壓力測試、Report 流程（需要登入帳號，本次無測試帳密）
+- 已知限制與偏離指令原文之處：
+  - 三點選單／檢舉功能**只對已登入使用者顯示**——因為 `POST /api/prayer-response/report` 要求 `requireSessionUser()`，對匿名首頁訪客顯示一個一定會 401 的按鈕是誤導性 UI，故不顯示，而非「假裝可以檢舉」。這與 [[25-Companion-Mode-Reuse-Audit]] 原先標記的已知缺口一致，需要你之後決定是否要設計匿名檢舉方案
+  - 檢舉原因固定使用 `"other"`，未實作完整的原因選單 UI（`REPORT_REASONS` 有 7 種原因），為求 MVP 精簡；如需完整原因選單，可在後續 Commit 補上
+  - 「聆聽大家的禱告」入口的可播放判定只檢查 `voiceUrl` 是否存在（沿用 `/api/responses/[homeCardId]` 既有的 `isBlocked`/`moderationStatus`/`voiceModerationStatus` 過濾），未額外檢查音檔是否真的可解碼——這與既有系統的判定標準一致，非新缺口
+- 完成狀態：**完成**（前端邏輯完整；音訊實際播放與部分互動細節因環境限制標記 Not Tested，見上）
+
+### Commit C1：`refactor: unify anonymous prayer interactions across prayer pages` —— 完成（2026-08-05）
+- 範圍變更說明：原規劃的「Commit C」（見下方保留紀錄）涵蓋「我已為你禱告」／首頁區塊收斂／安全補強／最終驗收；使用者後續改以更精確的指令重新定義本輪範圍為「匿名檢舉 + 首頁與 `/prayfor/[id]` 共用元件」，並明確排除「我已為你禱告」/Prayed reaction Schema/Migration/Management Token/字幕/Production。故本輪命名為 **Commit C1**，原「Commit C」的 prayed reaction 範圍順延為未來一輪（見文末保留段落）。
+- 前置分析：[[26-Anonymous-Reporting-Design]]（匿名檢舉 13 問答，確認 `PrayerResponseReport.reporterId` 是必填 User FK、無法直接給匿名訪客使用，選擇不新增 migration）、[[27-Shared-Prayer-Interaction-Audit]]（首頁 vs `/prayfor/[id]` 完整盤點表）
+- **架構決策（AskUserQuestion）**：在「完全統一 Recorder/Companion」「匿名優先、可加性（低風險）」「只統一 Recorder」三個選項中，使用者選擇**「匿名優先、可加性」**——新增共用的匿名錄音/陪伴入口，但完全不修改 `/prayfor/[id]` 既有的 `Comments.js`（800 行，服務登入會員的文字/語音回應與檢舉）與 `GlobalPlayer.js` 內建的全螢幕陪伴 UI
+- 已新增檔案：
+  - `src/components/prayer-interaction/usePrayerInteraction.js`：共用 Hook（Recorder 開關狀態、Companion 開關狀態、可播放回應清單），首頁與詳情頁共用
+  - `src/components/prayer-detail/DetailPrayerInteractionPanel.js`：`/prayfor/[id]` 專用的頁面級 orchestrator，組合 `usePrayerInteraction` + 既有的 `PrayerRecorder` + `CompanionOverlay`
+  - `src/lib/prayer-response-report.js`：Report API 的純函式（`isResponseAlreadyHidden`/`isGuestRateLimited`/`buildGuestReportActorId`），供 `tests/prayer-response-report.test.mjs` 單元測試
+  - `docs/obsidian/19-Security-Review.md`、`26-Anonymous-Reporting-Design.md`、`27-Shared-Prayer-Interaction-Audit.md`
+- 已修改檔案：
+  - `src/app/api/prayer-response/report/route.js`：新增 `handleGuestReport`（不寫 `PrayerResponseReport`，改更新 `PrayerResponse.moderationStatus`/`reportCount` + `AdminLog` 稽核 + DB-backed rate limit），`handleAuthenticatedReport` 為原邏輯原封不動搬移
+  - `src/components/home-companion/CompanionOverlay.js`：三點選單移除 `authUser` 門檻（所有訪客可見）；新增點擊外部關閉選單、per-item Escape 關閉選單並將焦點還給觸發按鈕、`aria-haspopup="menu"`；檢舉成功後 dispatch `PRAYER_RESPONSE_CREATED`（見下方關鍵發現）
+  - `src/components/HomePrayerHero.js`：改用 `usePrayerInteraction`，移除重複的 recorder/companion/responses state（swipe/adjacent 邏輯保留在此頁面，詳情頁不需要）
+  - `src/components/prayer-recorder/PrayerRecorder.js`：送出成功時 dispatch `PRAYER_RESPONSE_CREATED`（既有事件，先前從未在送出成功時真正觸發過）
+  - `src/app/prayfor/[id]/page.js`：插入 `<DetailPrayerInteractionPanel>` 於 hero card 之後、既有「下一步」引導卡之前
+  - `src/lib/i18n/locales/{zh-TW,en}.js`：`recorder.entryCta`/`recorder.anonymousNote` 從 `prayerHero.*` 移入 `recorder.*`（兩頁共用同一份文案，不重複定義）
+  - `tests/prayer-response-report.test.mjs`（新增，8 個測試）
+- 關鍵發現與修正（開發過程中，非事後補記）：
+  1. **真實 Bug**：guest 檢舉的 IP 頻率限制第一版用 Prisma 陣列型 JSON path（`path: ["ipHash"]`，Postgres/Mongo 語法），MySQL provider 下觸發 `PrismaClientValidationError` → 500。已修正為 MySQL 需要的字串型 path（`path: "$.ipHash"`），Real API tested 通過。能抓到此問題是因為堅持用本機真實 DB 測試而非 Mock。
+  2. **真實缺口**：檢舉成功後，陪伴模式內的播放清單雖然立即移除該筆，但頁面上「聆聽大家的禱告」入口的可見性（`usePrayerInteraction` 的 `playableResponses`）是獨立的 state，不會自動同步——Real Browser tested 發現入口按鈕在檢舉後、離開陪伴模式時仍然顯示。修正方式：重用既有 `PRAYER_RESPONSE_CREATED` 事件（`PrayerRecorder` 送出成功時也重用同一個事件），讓 `CompanionOverlay` 檢舉成功時一併 dispatch，`usePrayerInteraction` 監聽並重新抓取清單。修正後 Real Browser tested 確認入口正確消失。
+- 測試方式：
+  - `npm run lint`、`npm run build`、`npm run test:unit`（21/21）、`npm run i18n:check`（505 keys）皆通過
+  - **Real API tested（對本機開發 DB，非 Mock）**：匿名檢舉成功（`moderationStatus` APPROVED→PENDING、`reportCount` +1、`isBlocked` 維持 false）、冪等重複檢舉（不再遞增）、偽造 `reporterId`/`userId`/`hidden`/`admin` 欄位被忽略、缺少/不存在/不合法 `responseId`/`reason` 回傳對應錯誤碼、連續 6 次請求觸發 `429 RATE_LIMITED`、檢舉後公開查詢立即排除但直接音檔網址仍可存取（見 [[19-Security-Review]]）
+  - **Real Browser tested**：陪伴模式三點選單未登入可見可操作、確認對話框/Loading/成功/失敗狀態、X 與 Report 行為分離（Network 面板確認 X 零請求）、陪伴入口在可播放數量歸零後正確消失、`/prayfor/5` 匿名錄音入口開啟 `PrayerRecorder`（permission-denied 真實路徑）、Mobile 375/390/412 與 Desktop 1280/1440 無橫向捲動且入口在首屏內、首頁既有 swipe/recorder 行為未退化、`/global-prayer-room`（Cesium 正常）/`/login`/`/signup`/`/customer-portal`/`/admin` 皆 200 且 Console/Server log 無新增錯誤
+  - **DEV TEST DATA**：測試用真實資料列 `PrayerResponse.id=cmsdx6kap0000exqkokopc86x`（`homeCardId=5`），測試前記錄狀態（`APPROVED`/`reportCount=0`），測試後已用 Prisma 手動復原為相同狀態
+  - **Not Tested**：Real microphone 錄音全流程（環境限制，同既有限制）；已登入會員使用 `Comments.js`/`CompanionOverlay` 三點選單的迴歸測試（無測試帳密）
+- 已知限制與偏離指令原文之處：
+  - 未完全統一 `/prayfor/[id]` 的錄音/陪伴體驗——`Comments.js`（登入會員專用）與 `GlobalPlayer.js` 內建的全螢幕陪伴 UI 完全未修改，與本輪新增的匿名入口/`CompanionOverlay.js` 並存。這是 AskUserQuestion 的**使用者明確選擇**，非執行疏漏，見上方「架構決策」
+  - 匿名檢舉不寫入 `PrayerResponseReport`，無法逐筆追蹤「這個訪客檢舉了什麼」，只有 `AdminLog` 粗粒度記錄，見 [[26-Anonymous-Reporting-Design]]「已知限制」
+  - 檢舉原因仍固定為 `"other"`（沿用 Commit B 既有的已知偏離，未在本輪擴充成完整原因選單）
+- 完成狀態：**完成**（前端/後端邏輯完整並 Real API/Browser tested；Real microphone 與已登入會員迴歸因環境限制 Not Tested，見上）
+
+### 保留：原「Commit C」規劃（`feat: complete anonymous prayer interaction flow`）—— 未開始，範圍已由 Commit C1 取代/順延
+- 原範圍：「我已為你禱告」（prayed reaction）、首頁下方非必要區塊收斂、Accessibility、安全補強、測試、最終驗收報告
+- 依賴：「我已為你禱告」**需要新的 Schema**（[[25-Companion-Mode-Reuse-Audit]] 確認現有系統完全沒有等價機制），屬於新的 migration 決策點，需要你確認方向後才能實作（比照 [[23-Database-Migration]] 的模式：新增獨立表或計數欄位，additive-only）
+- 本輪 Commit C1 已完成其中的「安全補強」（匿名檢舉，[[19-Security-Review]]）與部分「測試」；「我已為你禱告」與「首頁下方區塊收斂」仍待你確認方向後另立一輪執行，明確不在 Commit C1 範圍內
+
+## Commit 1：`feat: add anonymous prayed reactions` —— 完成（2026-08-05）
+- 前置分析：[[28-Prayed-Reaction-Design]]（10 問答，確認完全沒有既有 Reaction 表/欄位，MySQL 的 UNIQUE INDEX 允許多個 NULL 並存，不能只靠 nullable `userId`/`guestSessionHash` 防重複，改採 `actorType` + `actorKeyHash` 兩個永遠非 NULL 欄位）
+- **Schema 變更（additive，本機開發 DB 已套用並 Real DB tested）**：新增 `PrayerPrayedReaction` 表 + `PrayedActorType` enum，`HomePrayerCard`/`User` 各加一個反向關聯陣列欄位（Prisma 語法要求，非既有欄位變更）
+- **Migration 執行過程中發現兩個既有、與本次功能無關的環境問題**（詳見 [[28-Prayed-Reaction-Design]]）：
+  1. `prisma migrate dev` 因既有 migration 歷史在 shadow DB 重放時失敗（`Table 'user' already exists`）而無法使用
+  2. `prisma db push` 會刪除本機開發 DB 中三處與 `schema.prisma` 有 drift 的既有欄位/enum 值（非本次修改造成，推測是舊分支合併殘留）
+  改採手動撰寫 migration SQL、用 `prisma db execute` 精準套用、`prisma migrate resolve --applied` 標記歷史，完全不觸碰既有表。**已知限制**：未驗證這份 migration 歷史能否在全新（空白）環境上完整重放成功，記錄於 [[13-Risk-Register]]。
+- 已新增檔案：
+  - `prisma/migrations/20260805000100_add_prayed_reaction/migration.sql`
+  - `src/lib/prayed-reaction.js`：純函式（`resolveActor`/`isPrayerUnavailable`/`isGuestRateLimited`/`actorKeyHashForUser`/`actorKeyHashForGuest`），13 個單元測試
+  - `src/app/api/home-cards/[id]/prayed/route.js`：`GET`（回傳 count/reacted）+ `POST`（冪等建立）。路由放在 `/api/home-cards/[id]/...` 而非規格文件示範的 `/api/prayers/[id]/...`，因為後者整個命名空間已是 410 Gone
+  - `src/components/prayer-interaction/usePrayedReaction.js`：共用 Hook，含 stale-response 防護（Prayer 切換時用 generation counter 忽略過期回應）
+  - `src/components/prayer-interaction/PrayedReactionButton.js`：共用 UI（`aria-pressed`、44×44px、成功/錯誤 `aria-live` 提示、3 秒後自動消失的感謝訊息）
+  - `tests/prayed-reaction.test.mjs`
+- 已修改檔案：
+  - `src/lib/guest-response.js`：新增通用的 `hashActorId(kind, value)`，`hashGuestId` 改為呼叫它（輸出值完全不變，純內部重構）
+  - `src/components/HomePrayerHero.js`、`src/components/prayer-detail/DetailPrayerInteractionPanel.js`：各自掛載 `<PrayedReactionButton>`
+  - `src/lib/i18n/locales/{zh-TW,en}.js`：新增 `home.prayed.*`（`label`/`success`/`error`/`countSuffix`），首頁與詳情頁共用同一份
+- 測試方式：
+  - `npm run lint`、`npm run build`、`npm run test:unit`（34/34）、`npm run i18n:check`（509 keys）皆通過
+  - **Real DB tested**（對本機開發 DB `prayercoin_dev`，非 Mock）：直接用 Prisma Client 對真實 `HomePrayerCard`（id=2）建立測試 Reaction，確認重複建立被 `@@unique` 正確擋下（`P2002`），確認 `count()` 正確，測試後已刪除
+  - **Real API tested**：GET 初始 `{count:0, reacted:false}`、POST 首次 `{count:1, reacted:true}`、POST 重複仍 `{count:1, reacted:true}`（冪等，未重複計數）、不存在的 Prayer 404、非整數 id 400、`isBlocked`/`isPrivate` 的 Prayer 皆 404、偽造 `userId`/`guestHash`/`actorKey`/`count`/`status`/`admin` 等欄位完全無效（API 從不讀取 request body）、連續對 21 個不同 Prayer 送出請求在第 21 次正確觸發 `429 RATE_LIMITED`
+  - **Real Browser tested**（首頁與 `/prayfor/[id]` 皆測試）：點擊後按鈕變為 `aria-pressed="true"` 且 `disabled`、顯示「謝謝你為這件事禱告。」（3 秒後自動消失）、count 正確更新為「1 人已禱告」、重新整理頁面後狀態正確保留（Guest cookie）、首頁左右切換 Prayer 時新 Prayer 正確顯示未按過、切回原 Prayer 正確還原為已按過（stale-response 防護，Real Browser tested 而非只讀程式碼）、按鈕 44×44px 真實尺寸確認
+  - 測試後已清空 `prayer_prayed_reaction` 表中的所有測試列
+- 已知限制：
+  - Admin 沒有新增查看 Reaction 明細的介面（規格文件本身未要求本輪新增，見 [[28-Prayed-Reaction-Design]] 問題 10）
+  - 這份 migration 未在全新環境驗證過完整重放（見上方「Migration 執行過程」）
+  - Real microphone／已登入會員的迴歸測試 Not Tested（環境限制，同既有限制）
+- 完成狀態：**完成**（前端/後端邏輯完整並 Real DB/API/Browser tested）
+
+## Commit 2：`fix: harden prayer interaction flows` —— 完成（2026-08-05）
+- 範圍：人工驗證矩陣、真實音訊播放 fixture、Recorder/Companion 壓力測試、CSRF/Origin 補強、Storage 與集中式 rate limit 盤點、Accessibility 最終檢查、回歸
+- **CSRF/Origin 補強（新增並 Real tested）**：新增 `src/lib/origin-guard.js`（`isTrustedOrigin`，刻意不 import `next/server` 以保持可單元測試），套用到三支匿名 POST API（`/api/responses`、`/api/prayer-response/report`、`/api/home-cards/[id]/prayed`）。開發過程中先寫了會 import `NextResponse` 的版本，導致單元測試整份失敗（`next/server` 無副檔名在純 Node ESM 下無法解析）——已重構修正，此為真實踩坑記錄，非假設性描述
+  - Real tested（對正在執行的本機 dev server 發送真實 HTTP 請求，繞開瀏覽器對手動設定 `Origin` header 的限制）：偽造 `Origin: https://evil.example` 打三支 API 皆正確 403；完全不帶 `Origin` 也正確 403；真實瀏覽器同源請求三支 API 均正常運作，未被誤擋
+  - 5 個新增單元測試（`tests/origin-guard.test.mjs`）
+- **真實音訊播放 fixture（新增）**：`scripts/dev/generate-test-audio.mjs` 產生真正可解碼的 440Hz 正弦波 WAV（**腳本本身可提交，產生出的音檔依全域安全規則不可提交**，需人工本機執行產生）。首次用這個 fixture 透過真實 `POST /api/responses` 上傳並在 `/prayfor/[id]` 陪伴模式播放，觀察到完整播放到 `ended`、正確顯示「播放完成，要重新播放嗎？」，以及 Loop 開啟後的 play→ended→replay 循環（Console log 佐證）——這是本專案至今第一次真正驗證播放引擎能處理**合法可解碼**音訊的完整生命週期，而非過去測試中反覆遇到的「假位元組導致自動跳過」路徑
+- **壓力測試**：Prayed reaction 雙擊防護 Real API tested（並發 2 次呼叫，count 仍為 1）；Companion X/Loop 快速操作 Real Browser tested；PrayerRecorder 雙擊送出防護與卸載清理僅完成程式碼審查（需要真實麥克風才能進入可測試狀態，Not Tested）
+- **Storage/Rate limit 盤點**（文件記錄，未做破壞性改動）：確認所有既有與新增的 rate limit 皆為 DB-backed（無 in-memory 風險）；Storage 是否為 ephemeral filesystem 無法從本 repo 確認，標記為 Production Blocker，見 [[19-Security-Review]]
+- **Accessibility/回歸**：Real Browser tested 確認 CompanionOverlay 的 focus 移動至關閉鈕、Escape 正確關閉；`/`、`/en`、`/global-prayer-room`、`/login`、`/signup`、`/customer-portal`、`/admin` 皆 200 且 Console/Server log 無新增錯誤
+- 已新增檔案：`src/lib/origin-guard.js`、`scripts/dev/generate-test-audio.mjs`、`tests/origin-guard.test.mjs`
+- 已修改檔案：`src/app/api/responses/route.js`、`src/app/api/prayer-response/report/route.js`、`src/app/api/home-cards/[id]/prayed/route.js`（皆只新增 Origin 檢查，業務邏輯不變）
+- 測試方式：`npm run lint`、`npm run build`、`npm run test:unit`（39/39）、`npm run i18n:check` 皆通過；詳細 Real API/Browser 測試記錄見 [[24-Manual-QA]]、[[19-Security-Review]]
+- 已知限制：Android Chrome／iOS Safari 完整測試矩陣 Not Tested（無真實裝置）；Recorder 雙擊/卸載清理/斷網重連僅程式碼審查；Storage ephemeral filesystem 問題無法本機確認，標記 Production Blocker；音訊播放的「解碼與觸發」已 Real tested，但持續播放的逐幀狀態在此 headless 環境仍不完全可觀察
+- 完成狀態：**完成**（CSRF/Origin 為真正新增且 Real tested 的程式碼變更；其餘為測試矩陣/文件盤點/已知限制的誠實記錄）

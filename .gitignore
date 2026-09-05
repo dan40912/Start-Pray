@@ -25,3 +25,7 @@ tmp/
 .codex_tmp_figma*
 .codex-*/
 .codex-ux-shots/
+
+# 本機工具設定（不進版控）
+.claude/
+.obsidian/

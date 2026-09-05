@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+import CardVoiceRecorder from "@/components/prayer-recorder/CardVoiceRecorder";
 import PrayerLocationField from "@/components/PrayerLocationField";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { useAuthSession } from "@/hooks/useAuthSession";
@@ -36,6 +37,7 @@ const INITIAL_FORM = {
   tags: DEFAULT_PRAYER_TAG,
   meta: "",
   detailsHref: "",
+  voiceHref: "",
   ...TAIPEI_LOCATION,
   isPrivate: false,
   acceptedGuestTerms: false,
@@ -76,6 +78,7 @@ export default function CustomerPortalCreatePage() {
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [uploadedImages, setUploadedImages] = useState([]);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [isUploadingVoice, setIsUploadingVoice] = useState(false);
   const [lastAutoSavedAt, setLastAutoSavedAt] = useState(null);
 
   const uploadLockRef = useRef(false);
@@ -373,7 +376,7 @@ export default function CustomerPortalCreatePage() {
         .filter(Boolean),
       meta: buildCardMetaArray(infoLines, galleryUrls),
       detailsHref: form.detailsHref.trim(),
-      voiceHref: "",
+      voiceHref: form.voiceHref.trim(),
       categoryId,
       locationKey: form.locationKey,
       locationCity: form.locationCity.trim(),
@@ -551,6 +554,17 @@ export default function CustomerPortalCreatePage() {
               </label>
             </div>
 
+            {authUser?.id ? (
+              <div className="customer-create__row">
+                <CardVoiceRecorder
+                  value={form.voiceHref}
+                  onChange={(url) => setForm((prev) => ({ ...prev, voiceHref: url }))}
+                  onUploadingChange={setIsUploadingVoice}
+                  disabled={submitting}
+                />
+              </div>
+            ) : null}
+
             {!authUser?.id ? (
               <>
                 <input
@@ -657,8 +671,8 @@ export default function CustomerPortalCreatePage() {
             <button
               type={needsGuestTerms ? "button" : "submit"}
               className={`button button--primary${needsGuestTerms ? " is-disabled" : ""}`}
-              disabled={submitting || isUploadingImage}
-              aria-disabled={needsGuestTerms || submitting || isUploadingImage}
+              disabled={submitting || isUploadingImage || isUploadingVoice}
+              aria-disabled={needsGuestTerms || submitting || isUploadingImage || isUploadingVoice}
               onClick={needsGuestTerms ? handleGuestTermsRequired : undefined}
             >
               {submitting ? "建立中..." : "建立禱告卡"}
