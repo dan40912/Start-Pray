@@ -1,8 +1,12 @@
-const ANONYMOUS_AVATAR_ROUTE = "/api/anonymous-prayer-avatar";
+// Anonymous responders all share the site logo as their avatar. This used to be
+// a per-response generated "angel" figure (see /api/anonymous-prayer-avatar,
+// now a redirect to this same file) which read as unsettling rather than warm.
+// A single shared brand mark is also cheaper: one immutable asset the browser
+// caches once, instead of a distinct SVG per response id.
+export const ANONYMOUS_AVATAR_SRC = "/img/logo.png";
 
-export function buildAnonymousPrayerAvatarUrl(responseId) {
-  const seed = String(responseId || "prayer-friend").trim().slice(0, 80);
-  return `${ANONYMOUS_AVATAR_ROUTE}?seed=${encodeURIComponent(seed || "prayer-friend")}`;
+export function buildAnonymousPrayerAvatarUrl() {
+  return ANONYMOUS_AVATAR_SRC;
 }
 
 export function toPublicPrayerResponse(response) {
@@ -16,7 +20,7 @@ export function toPublicPrayerResponse(response) {
   if (publicResponse.isAnonymous) {
     delete publicResponse.responderId;
     publicResponse.responder = null;
-    publicResponse.anonymousAvatarUrl = buildAnonymousPrayerAvatarUrl(publicResponse.id);
+    publicResponse.anonymousAvatarUrl = buildAnonymousPrayerAvatarUrl();
   }
 
   return publicResponse;

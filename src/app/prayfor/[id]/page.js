@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import Comments from "@/components/Comments";
 import DetailAudioQueueBootstrap from "@/components/prayer-detail/DetailAudioQueueBootstrap";
+import DetailPrayerInteractionPanel from "@/components/prayer-detail/DetailPrayerInteractionPanel";
 import PrayerRequestActions from "@/components/PrayerRequestActions";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { parseCardMeta } from "@/lib/card-meta";
@@ -198,6 +199,8 @@ export default async function PrayerDetailPage({ params, locale: localeProp = "z
               </div>
             </div>
           </article>
+
+          <DetailPrayerInteractionPanel prayerId={card.id} locale={locale} />
 
           <section className="pdv2-companion-panel" aria-labelledby="companion-actions-title">
             <div className="pdv2-companion-panel__intro">

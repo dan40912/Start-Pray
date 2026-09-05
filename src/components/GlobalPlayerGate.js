@@ -20,8 +20,12 @@ export default function GlobalPlayerGate() {
   const inOvercomer = isPath(pathname, "/overcomer");
   const inCustomerPortal = pathname === "/customer-portal";
   const inGlobalPrayerRoom = isPath(pathname, "/global-prayer-room");
+  // Homepage companion mode (docs/obsidian/25-Companion-Mode-Reuse-Audit.md) reuses
+  // this same shared queue, so it needs to be on the supported list too — otherwise
+  // the effect below immediately pauses any homepage-initiated playback.
+  const inHome = pathname === "/" || pathname === "/en";
   const supportedByRoute =
-    inPrayerList || inOvercomer || inCustomerPortal || inGlobalPrayerRoom;
+    inPrayerList || inOvercomer || inCustomerPortal || inGlobalPrayerRoom || inHome;
 
   const blockedByRoute =
     isPath(pathname, "/about") ||

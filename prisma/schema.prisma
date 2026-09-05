@@ -46,6 +46,7 @@ model User {
   overcomerReportsSent     OvercomerUserReport[]  @relation("OvercomerReportsSent")
   overcomerReportsReceived OvercomerUserReport[]  @relation("OvercomerReportsReceived")
   homePrayerCards          HomePrayerCard[]
+  prayedReactions          PrayerPrayedReaction[]
   resetToken               String?                @db.VarChar(255)
   resetTokenExpiry         DateTime?
 
@@ -142,6 +143,35 @@ model PrayerResponseReport {
   @@index([reason])
   @@index([createdAt])
   @@map("prayer_response_report")
+}
+
+/// 「我已為你禱告」——輕量匿名 prayed reaction，見 docs/obsidian/28-Prayed-Reaction-Design.md。
+/// actorKeyHash 是唯一的防重複鍵（登入與匿名皆非 NULL）；userId 只是額外保留的
+/// FK 供人工查詢，不參與唯一性判斷（MySQL 的 UNIQUE INDEX 允許多個 NULL 並存，
+/// 不能單靠 nullable userId 防止匿名重複）。
+model PrayerPrayedReaction {
+  id           Int             @id @default(autoincrement())
+  prayerId     Int
+  prayer       HomePrayerCard  @relation(fields: [prayerId], references: [id], onDelete: Cascade)
+  actorType    PrayedActorType
+  actorKeyHash String          @db.VarChar(64)
+  userId       String?
+  user         User?           @relation(fields: [userId], references: [id])
+  // Informational only (not part of the unique key) — lets the API rate-limit
+  // by IP across many distinct guest identities, same pattern as
+  // PrayerResponse.ipHash.
+  ipHash       String?         @db.VarChar(64)
+  createdAt    DateTime        @default(now())
+
+  @@unique([prayerId, actorType, actorKeyHash])
+  @@index([prayerId])
+  @@index([ipHash, createdAt])
+  @@map("prayer_prayed_reaction")
+}
+
+enum PrayedActorType {
+  USER
+  GUEST
 }
 
 model OvercomerUserReport {
@@ -249,6 +279,7 @@ model HomePrayerCard {
   responses         PrayerResponse[]
   tokenTransactions TokenTransaction[]     @relation("HomePrayerCardTransactions")
   reports           HomePrayerCardReport[]
+  prayedReactions   PrayerPrayedReaction[]
 
   isBlocked     Boolean  @default(false)
   reportCount   Int      @default(0)
