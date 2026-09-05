@@ -6,6 +6,11 @@ import { useAudio } from "@/context/AudioContext";
 import { getDictionary, localizePath, normalizeLocale } from "@/lib/i18n";
 
 const POPULAR_SLUG = "popular";
+// Pseudo-category like POPULAR_SLUG: it isn't a real HomeCategory row, it just
+// swaps the API sort to "recent" so the newest needs surface without filtering
+// by category. Kept next to POPULAR_SLUG because every place that special-cases
+// one has to special-case the other.
+const LATEST_SLUG = "latest";
 const DEFAULT_LIMIT = 12;
 const SUGGESTION_LIMIT = 6;
 const FALLBACK_CATEGORY_LIMIT = 3;
@@ -120,16 +125,28 @@ export default function HomePrayerExplorer({
         description: text.popularDescription,
         background: "/img/categories/popular.jpg",
       },
+      {
+        slug: LATEST_SLUG,
+        name: text.latestPrayer,
+        description: text.latestDescription,
+        background: "/img/categories/world.jpg",
+      },
       ...topCategories.map((item) => ({
         ...item,
         background: getCategoryBackground(item.slug),
       })),
     ];
-  }, [text.popularDescription, text.popularPrayer, topCategories]);
+  }, [
+    text.latestDescription,
+    text.latestPrayer,
+    text.popularDescription,
+    text.popularPrayer,
+    topCategories,
+  ]);
   const fallbackCategories = useMemo(
     () =>
       categoryItems
-        .filter((item) => item?.slug && item.slug !== POPULAR_SLUG)
+        .filter((item) => item?.slug && item.slug !== POPULAR_SLUG && item.slug !== LATEST_SLUG)
         .slice(0, FALLBACK_CATEGORY_LIMIT),
     [categoryItems]
   );
@@ -235,6 +252,9 @@ export default function HomePrayerExplorer({
       const params = { limit: resolvedCardLimit };
       if (slug === POPULAR_SLUG) {
         params.sort = "responses";
+      } else if (slug === LATEST_SLUG) {
+        // Newest needs across every category — no category filter.
+        params.sort = "recent";
       } else {
         params.category = slug;
         params.sort = "recent";
@@ -348,7 +368,9 @@ export default function HomePrayerExplorer({
     ? `${text.headingSearch}: "${trimmedQuery}"`
     : activeCategory === POPULAR_SLUG
       ? text.headingPopular
-      : text.headingCards;
+      : activeCategory === LATEST_SLUG
+        ? text.headingLatest
+        : text.headingCards;
 
   return (
     <section className="section home-explorer">

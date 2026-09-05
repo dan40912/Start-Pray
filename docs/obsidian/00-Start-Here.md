@@ -7,14 +7,12 @@ tags: [start-pray, index]
 ## 一句話說明
 Start Pray 是一個線上禱告分享平台：使用者可以建立禱告卡片、錄音/文字回應他人的禱告、在 3D 地球上瀏覽全球禱告，並附帶完整會員系統與管理後台。
 
-## 目前狀態（2026-08-04 更新）
+## 目前狀態（2026-09-02 更新）
 - 底層產品仍是功能完整、已上線的系統，包含會員（註冊/登入/個人中心）、管理後台、Cesium 3D 地球（`/global-prayer-room`）、既有語音回應（`VoicePrayerOverlay.js`）、代幣獎勵系統——這些**都還在，一行都沒刪**
-- 在獨立分支 `poc/minimal-prayer-redesign` 上，已完成三個 Commit（**皆為前端/文件改動，未動 Schema/API/Storage**）：
-  1. `6b8cc84` 導覽與頁尾收斂（隱藏登入/註冊/會員中心/全球禱告室入口，路由本身保留）
-  2. `04538e7` 首頁改用極簡 `HomePrayerHero`（不再顯示地球/GlobeSkeleton/統計數字）
-  3. `a69ae05` 首頁整合本地錄音前端流程（`src/components/prayer-recorder/`）——**權限/倒數/錄音/預覽/重錄皆已實作，但尚未接上匿名投稿 API，也尚未用真實麥克風完整測過**
-- 已經內建**部分匿名投稿基礎設施**（文字回應免登入、`guestSessionHash`/`ipHash` 追蹤機制），語音送出目前仍被 `VOICE_LOGIN_REQUIRED` 卡關，尚未處理
-- 目前正在做 Commit 4（匿名投稿）前的**純讀碼依賴分析**，尚未修改 Schema、API 或 Storage
+- 分支 `poc/minimal-prayer-redesign` 已累積 11 個 Commit，HEAD 為 `c6b5b7d`（`docs: complete final acceptance and release readiness review`）
+- 匿名體驗主線已完成：極簡首頁 → 匿名錄音投稿 → 左右滑動瀏覽 → 陪伴模式播放 → 匿名檢舉 → 「我已為你禱告」反應 → CSRF/Origin 加固，皆已 Real API/Browser tested
+- **工作目錄有一組尚未提交的產品程式碼**：禱告卡語音留言（`CardVoiceRecorder` + `POST /api/customer/cards/voice`），屬於 customer-portal 的登入者功能，不在匿名首頁主線上，詳見 [[29-Card-Voice-Message]]
+- 未解的上版阻礙：ephemeral filesystem 音檔儲存（Production Blocker，見 [[19-Security-Review]]）、真實麥克風與真實行動裝置皆 Not Tested
 
 ## 最終目標
 收斂成一個「匿名、免登入、三秒理解、一鍵錄禱告」的極簡首頁體驗：陌生人進站即可錄音、送出、播放他人禱告、按下「我為你禱告」，全程不需註冊或登入。詳見 [[01-Product-Vision]]。
@@ -43,17 +41,21 @@ Start Pray 是一個線上禱告分享平台：使用者可以建立禱告卡片
 | [[22-API-Changes]] | 匿名投稿 API 設計草案（Commit 4 前置分析） |
 | [[23-Database-Migration]] | 資料模型變更與本地 Migration 計畫（Commit 4 前置分析） |
 | [[24-Manual-QA]] | 人工 QA 步驟 |
+| [[25-Companion-Mode-Reuse-Audit]] | 陪伴模式重用盤點 |
+| [[26-Anonymous-Reporting-Design]] | 匿名檢舉設計 |
+| [[27-Shared-Prayer-Interaction-Audit]] | 首頁／詳情頁互動共用盤點 |
+| [[28-Prayed-Reaction-Design]] | 「我已為你禱告」反應設計 |
+| [[29-Card-Voice-Message]] | 禱告卡語音留言（工作目錄，未提交） |
 
 ## 本次分析資訊
-- 文件最後更新日期：2026-08-04
-- Repository branch：`poc/minimal-prayer-redesign`（原始盤點時是 `main`）
-- 最新 commit：`a69ae05`（`feat: integrate prayer recording flow into homepage`）
+- 文件最後更新日期：2026-09-02
+- Repository branch：`poc/minimal-prayer-redesign`
+- 最新 commit：`c6b5b7d`（`docs: complete final acceptance and release readiness review`）
 - Base branch/commit：`main` @ `4f06e73aa95724ecb68bc5e0c8e4db8041f50ece`（未變動）
-- Working tree：僅剩 post-commit hook 自動更新的 xlsx 追蹤檔（非產品程式碼）
-- 環境基準：`npm run lint`、`npm run build` 通過；新增 `npm run test:unit`（`node --test tests/`，7/7 通過）與既有 `npm run i18n:check`（462 keys 一致）
+- Working tree：`customer-portal/create`、`customer-portal/edit/[id]`、`usePrayerRecorder.js` 已修改；`CardVoiceRecorder.js`、`api/customer/cards/voice/`、`tests/card-voice-recorder.test.mjs` 為未追蹤新檔；另有 post-commit hook 自動更新的 xlsx（非產品程式碼）
 
 ## 下一個建議行動
-1. 使用者複核 [[20-Anonymous-Submission-Design]]、[[22-API-Changes]]、[[23-Database-Migration]] 的匿名投稿設計草案
-2. 針對 [[14-Open-Questions]] 中的待確認事項給出裁示
-3. 在 [[11-Decision-Log]] 中確認 DEC-004（匿名投稿）、DEC-007（匿名管理 Token）的最終方案
-4. 決策確認後，才開始 Commit 4A（Schema）等實作步驟——目前尚未核准，不得修改 Schema/API/Storage
+1. 決定 [[29-Card-Voice-Message]] 的去留：補上缺失的 CSS、處理孤兒音檔與 moderation 缺口後提交，或先擱置
+2. 處理 [[19-Security-Review]] 的 ephemeral filesystem Production Blocker——所有語音功能（匿名回應、卡片語音留言）都卡在同一個儲存層
+3. 補真實麥克風與真實行動裝置的驗證（[[24-Manual-QA]] 中目前誠實標記為 Not Tested 的欄位）
+4. 依 [[16-Final-Acceptance-Report]] 的結論決定是否合併回 `main`

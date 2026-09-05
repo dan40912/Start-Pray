@@ -109,4 +109,45 @@ tags: [start-pray, changelog]
 - 人工驗證矩陣建立於 [[24-Manual-QA]]：Desktop Chrome 欄位盡量 Real tested，Android Chrome/iOS Safari 誠實標記 Not Tested（無真實裝置）
 - 詳見 [[10-Implementation-Plan]] Commit 2、[[19-Security-Review]]、[[24-Manual-QA]]
 
+## 2026-09-02 — 工作目錄：禱告卡語音留言（尚未提交）
+- 這是 `c6b5b7d` 之後**唯一還沒進入任何 Commit 的產品程式碼**，本次僅做知識庫歸檔，未修改程式
+- 新增 `src/components/prayer-recorder/CardVoiceRecorder.js`、`src/app/api/customer/cards/voice/route.js`（比照既有 `story-audio/route.js` 的 auth／驗證／儲存模式）、`tests/card-voice-recorder.test.mjs`
+- 修改 `usePrayerRecorder.js`（改為接受 `{ maxDurationSeconds }`，預設仍是 60s，既有 `PrayerRecorder.js` 零行為變更）、`customer-portal/create/page.js`（`voiceHref` 不再寫死為空字串）、`customer-portal/edit/[id]/page.js`
+- 語意釐清：這是**卡片擁有者自己的語音留言（`HomePrayerCard.voiceHref`，180s，需登入）**，與匿名訪客的「我為你禱告」回應（`PrayerResponse`，60s，免登入）是兩件事
+- 已知缺口：`card-voice-recorder*` 的 CSS 在 repo 中完全不存在；取消建卡會留下孤兒音檔；沿用同一個 ephemeral filesystem 儲存層（既有 Production Blocker）；此路徑不經過任何 moderation
+- 驗證：`npm run lint` OK、`npm run i18n:check` OK、`npm run test:unit` 42/42 OK、`npm run build` OK
+- 詳見 [[29-Card-Voice-Message]]
+
+## 2026-09-02 — 工作目錄：匿名代禱者頭像改用站徽（尚未提交）
+- 起因：使用者回報既有的匿名頭像「很恐怖、很醜」——`/api/anonymous-prayer-avatar` 會依 `responseId` 產生一張帶光環的人形 SVG（5 組配色 × 5 種膚色），在深色列表中連續出現時觀感不佳
+- 改動：`src/lib/anonymous-prayer-avatar.js` 匯出 `ANONYMOUS_AVATAR_SRC = "/img/logo.png"`，`buildAnonymousPrayerAvatarUrl()` 不再吃 seed，所有匿名代禱者共用站徽
+- `src/app/api/anonymous-prayer-avatar/route.js` 的人形 SVG 產生器整段移除，改為 308 導向至 `/img/logo.png`（保留舊 `?seed=` 網址不會 404）
+- 同步更正兩處已過時的文件描述：`docs/deployment/PROD_MR_PLAN_72cccec_TO_MAIN.md` 的兩條驗收項（原本要求該 API 回 200 `image/svg+xml`、原本寫「顯示新生成 avatar」）、[[03-Current-Feature-Inventory]] 的匿名名稱列
+- 消費端（`Comments.js`、`VoiceWallPlayer.js`、`PrayerAudioPlayer.js`、`GlobalPrayerRoom.js`、`DetailAudioQueueBootstrap.js`）皆讀同一個 `anonymousAvatarUrl` 欄位，**未修改任何元件與 CSS**
+- 副作用：所有匿名代禱者頭像從此完全相同（不再可視覺區分）；效能上反而更好——單一 immutable 資產只快取一次，取代每則回應一張獨立 SVG
+- Real API/Browser tested：`GET /api/responses/5` 回傳 `anonymousAvatarUrl: "/img/logo.png"`；`/prayfor/5` 的回應列表與底部播放器、首頁皆正確渲染站徽；舊網址 `?seed=12` 回 308 → `/img/logo.png`
+- 驗證：`npm run lint` ✅、`npm run test:unit` 42/42 ✅
+
+## 2026-09-05 — 首頁改版（夜禱視覺語言）與字型載入精簡
+
+**首頁結構**
+- 移除「第一次來 Start Pray」三張入口卡（`HomeEntryCards` 元件與其呼叫一併刪除）
+- 接回 `HomeGlobeHero`：該元件先前寫好但**全專案沒有任何地方 import**，等於孤兒程式碼，首頁一直看不到地球；現置於熱門禱告牆之後、法律連結之前
+- `HomePrayerExplorer` 新增「最新代禱」分頁：比照既有 `POPULAR_SLUG` 的 pseudo-category 做法，切換時改用 `sort=recent` 且不套分類篩選
+
+**Hero 視覺（夜禱設計語言，設計稿另存於 Artifact，未進 repo）**
+- 根因：Hero 的 styled-jsx 引用淺色系 `globals.css` 的 `--accent`／`--text-secondary`（`#4b5563` 深灰），疊在近黑背景上幾乎無法閱讀——屬對比度 bug 而非風格偏好
+- 改為區域宣告的夜禱色票（`--nv-ember #e2a05a` 單一強調色、`--nv-moonlight #e7ebf3` 主文字、`--nv-mist #8a93a8` 次要文字），刻意只作用於本區塊，全站其他地方不受影響
+- 標題改用 Noto Serif TC 600，字級提升至 `clamp(2rem, 1.2rem + 3.4vw, 3.1rem)`
+- 新增可見的左右導覽鈕（原本只有隱形的觸控滑動／方向鍵），無相鄰卡片時自動 disabled
+
+**字型載入精簡**
+- Noto Serif TC 由 3 個字重（500/600/700）縮為只載實際使用的 600；CJK 家族每個字重都是約 45 個 unicode-range 分片，多載的字重成本以 MB 計
+- 移除 Open Sans／Raleway／Poppins：`--font-sans`／`--font-raleway`／`--font-poppins` 全專案 0 處引用，也無任何 CSS 直接指名這些家族（body 實際走 `theme-modern.css` 的 `--font-body: 'Inter', system-ui`，而 Inter 並非以 next/font 載入）。它們被下載、自架，且 Open Sans／Raleway 預設 `preload: true`，每頁都在打 preload 標籤卻套用在零個元素上
+- 成效：build 字型產物 138 檔 6.1 MB → 108 檔 2.93 MB；每頁字型 preload 標籤 2 → 0；首頁實際下載 7 chunk 321 KB
+- `preload: false` 為必要設定（Google 對此家族只提供 `latin` subset，否則 next/font 直接 build 失敗），同時讓未使用襯線字的頁面一個字型檔都不抓
+- 已驗證但無效的優化：把襯線字限縮到只有 h1（讓使用者輸入的卡片標題退回 sans）並不會減少下載量，h1 自己那 15 個字就已橫跨同樣 7 個 chunk，故維持原設計
+
+**驗證**：`npm run lint` OK、`npm run i18n:check` 515 keys OK、`npm run test:unit` 42/42 OK、`npm run build` OK；瀏覽器實測 h1 為 Noto Serif TC 600、body 維持 `Inter, system-ui`、「最新代禱」分頁依 `createdAt` 由新到舊、左右導覽鈕可正確切換卡片
+
 後續每個 Implementation Plan Phase 執行後，應在此新增一筆紀錄（日期、Phase、實際修改檔案、commit hash）。

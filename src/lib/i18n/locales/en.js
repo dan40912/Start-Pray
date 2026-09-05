@@ -38,14 +38,18 @@ const en = {
   },
   home: {
     prayerHero: {
-      eyebrow: "Start Pray",
-      headline: "Pray for this",
-      subheadline: "Listen to a real need, leave a prayer, or let them know you have prayed.",
+      eyebrow: "Someone is still awake, praying",
+      headline: "Right now, someone is waiting for your prayer",
+      subheadline:
+        "You don't have to know each other. Just stop for a moment and light a lamp for a stranger — with your voice, or a few simple words.",
       prototypeNotice: "(Prototype) Full recording is coming soon.",
       cardLabel: "The need being prayed for right now",
+      voiceLabel: "They left a voice message",
       emptyTitle: "There is no prayer need to show right now.",
       emptyBody: "Please check back soon, or write down a prayer need yourself.",
       swipeHint: "Swipe to see more prayer needs",
+      prevPrayer: "Previous prayer",
+      nextPrayer: "Next prayer",
     },
     companion: {
       listenEntry: "Listen to the prayers",
@@ -239,12 +243,15 @@ const en = {
   explorer: {
     popularPrayer: "Popular prayers",
     popularDescription: "Prayer needs with the most responses",
+    latestPrayer: "Latest prayers",
+    latestDescription: "Just posted, still waiting for a first response",
     anonymous: "Anonymous",
     prayerRecording: "Prayer recording",
     searchFailed: "Search failed. Please try again later.",
     loadFailed: "We could not load this content. Please try again later.",
     headingSearch: "Search results",
     headingPopular: "Popular Prayer Wall",
+    headingLatest: "Newest prayer needs",
     headingCards: "Prayer Cards",
     defaultIntroTitle: "Find a prayer you can carry with someone",
     defaultIntroCopy: "Search by topic, switch categories, or start with prayer cards that already have responses.",

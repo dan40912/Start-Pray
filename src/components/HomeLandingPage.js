@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import HomeGlobeHero from "@/components/HomeGlobeHero";
 import HomePrayerExplorer from "@/components/HomePrayerExplorer";
 import HomePrayerHero from "@/components/HomePrayerHero";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
@@ -172,55 +173,6 @@ function HomeStructuredData({ stats, globalPrayerCount, text = PAGE_TEXT, locale
   );
 }
 
-function HomeEntryCards({ text = PAGE_TEXT, locale = "zh-TW" }) {
-  const entries = [
-    {
-      title: text.entryNeedTitle,
-      copy: text.entryNeedCopy,
-      cta: text.entryNeedCta,
-      href: localizePath("/customer-portal/create", locale),
-    },
-    {
-      title: text.entryPrayTitle,
-      copy: text.entryPrayCopy,
-      cta: text.entryPrayCta,
-      href: localizePath("/prayfor/one", locale),
-    },
-    {
-      title: text.entryLookTitle,
-      copy: text.entryLookCopy,
-      cta: text.entryLookCta,
-      href: localizePath("/global-prayer-room", locale),
-    },
-  ];
-
-  return (
-    <section className="home-entry section" aria-labelledby="home-entry-title">
-      <div className="section__container home-entry__container">
-        <div className="home-entry__head">
-          <span>{text.entryEyebrow}</span>
-          <h2 id="home-entry-title">{text.entryTitle}</h2>
-          <p>{text.entryCopy}</p>
-        </div>
-        <div className="home-entry__grid">
-          {entries.map((entry) => (
-            <Link
-              key={entry.href}
-              href={entry.href}
-              className="home-entry__card"
-              prefetch={false}
-            >
-              <strong>{entry.title}</strong>
-              <p>{entry.copy}</p>
-              <span>{entry.cta}</span>
-            </Link>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
 function HomeProofSection({ proofStats, text = PAGE_TEXT, locale = "zh-TW" }) {
   const promises = text.promises.map(([title, copy]) => ({ title, copy }));
 
@@ -344,6 +296,9 @@ export default async function HomeLandingPage({ locale: localeProp = "zh-TW" } =
   const proofStats = buildProofStats(stats, globalPrayers, categories, text);
   const clientCategories = toClientValue(categories);
   const clientTopCards = toClientValue(topCards);
+  // HomeGlobeHero is a client component, so Date/Decimal values from Prisma
+  // have to be flattened the same way the other client props are.
+  const clientGlobalPrayers = toClientValue(globalPrayers);
   const featuredPrayer = toClientValue(featuredPrayerCards[0] || null);
 
   return (
@@ -353,8 +308,6 @@ export default async function HomeLandingPage({ locale: localeProp = "zh-TW" } =
       <main className="home-page">
         <HomeStructuredData stats={heroStats} globalPrayerCount={globalPrayers.length} text={text} locale={locale} />
         <HomePrayerHero text={text} prayer={featuredPrayer} />
-
-        <HomeEntryCards text={text} locale={locale} />
 
         <HomeProofSection proofStats={proofStats} text={text} locale={locale} />
 
@@ -374,6 +327,13 @@ export default async function HomeLandingPage({ locale: localeProp = "zh-TW" } =
             locale={locale}
           />
         </section>
+
+        <HomeGlobeHero
+          prayers={clientGlobalPrayers}
+          stats={heroStats}
+          primaryHref={localizePath("/global-prayer-room", locale)}
+          secondaryHref={localizePath("/customer-portal/create", locale)}
+        />
 
         <section className="section bg-legal-links" id="trust-links">
           <div className="section__container">
