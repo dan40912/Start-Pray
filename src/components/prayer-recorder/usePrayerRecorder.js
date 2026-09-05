@@ -19,7 +19,11 @@ import {
 //
 // phase: idle | permission-explanation | requesting-permission | permission-denied
 //        | unsupported | countdown | recording | preview | error
-export function usePrayerRecorder() {
+//
+// maxDurationSeconds defaults to the 60s anonymous-response limit so every
+// existing caller (PrayerRecorder.js) is unaffected; pass a longer value
+// (e.g. the card-voice-message feature's 180s) without touching that default.
+export function usePrayerRecorder({ maxDurationSeconds = MAX_DURATION_SECONDS } = {}) {
   const [phase, setPhase] = useState("idle");
   const [countdownValue, setCountdownValue] = useState(3);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -180,7 +184,7 @@ export function usePrayerRecorder() {
     timerRef.current = setInterval(() => {
       setElapsedSeconds((prev) => {
         const next = prev + 1;
-        if (next >= MAX_DURATION_SECONDS) {
+        if (next >= maxDurationSeconds) {
           clearAllTimers();
           finishRecordingRef.current();
         }
@@ -188,7 +192,7 @@ export function usePrayerRecorder() {
       });
     }, 1000);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clearAllTimers, releaseStream, revokePreviewUrl]);
+  }, [clearAllTimers, releaseStream, revokePreviewUrl, maxDurationSeconds]);
 
   const beginCountdown = useCallback(() => {
     setPhase("countdown");
@@ -294,7 +298,7 @@ export function usePrayerRecorder() {
     transientMessage,
     setTransientMessage,
     confirmingRerecord,
-    maxDurationSeconds: MAX_DURATION_SECONDS,
+    maxDurationSeconds,
     minDurationSeconds: MIN_DURATION_SECONDS,
     showPermissionExplanation: () => setPhase("permission-explanation"),
     getBlob: () => blobRef.current,

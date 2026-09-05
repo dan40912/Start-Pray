@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
+import CardVoiceRecorder from "@/components/prayer-recorder/CardVoiceRecorder";
 import PrayerLocationField from "@/components/PrayerLocationField";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { buildCardMetaArray, parseCardMeta } from "@/lib/card-meta";
@@ -74,6 +75,7 @@ export default function CustomerPortalEditCardPage() {
   const [saving, setSaving] = useState(false);
   const [galleryImages, setGalleryImages] = useState([]);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [isUploadingVoice, setIsUploadingVoice] = useState(false);
 
   const tagsPreview = useMemo(
     () =>
@@ -365,6 +367,13 @@ export default function CustomerPortalEditCardPage() {
                 <textarea rows={4} value={form.description} onChange={updateField("description")} />
               </label>
 
+              <CardVoiceRecorder
+                value={form.voiceHref}
+                onChange={(url) => setForm((prev) => ({ ...prev, voiceHref: url }))}
+                onUploadingChange={setIsUploadingVoice}
+                disabled={saving}
+              />
+
               <div className="cp-form__grid">
                 <label>
                   <span>分類 *</span>
@@ -497,7 +506,7 @@ export default function CustomerPortalEditCardPage() {
                 >
                   取消
                 </button>
-                <button type="submit" className="cp-button" disabled={saving}>
+                <button type="submit" className="cp-button" disabled={saving || isUploadingVoice}>
                   {saving ? "儲存中…" : "儲存變更"}
                 </button>
               </div>
