@@ -478,9 +478,9 @@ LIMIT 5;
 - [ ] 私密卡片不洩漏 title、description、image、owner、detailsHref。
 - [ ] 未登入訪客可送文字禱告；短時間重複送出會正確 rate limit。
 - [ ] 登入會員可送公開與匿名回應。
-- [ ] 匿名回應顯示新生成 avatar，不顯示本人頭像，且不能點到本人 profile。
+- [ ] 匿名回應顯示站徽（`/img/logo.png`）作為頭像，不顯示本人頭像，且不能點到本人 profile。
 - [ ] `GET /api/responses/{homeCardId}` 的匿名項目沒有 `responderId`，`responder` 為 null，只有站內 `anonymousAvatarUrl`。
-- [ ] `/api/anonymous-prayer-avatar?seed=<response-id>` 回 200 與 `image/svg+xml`。
+- [ ] `/api/anonymous-prayer-avatar`（已淘汰的舊網址）回 308 導向 `/img/logo.png`，不再自行產生 SVG。
 - [ ] 新圖片上傳成功，實體檔在 `UPLOADS_STORAGE_DIR` 且前台可讀。
 - [ ] 新語音回應成功，實體檔在 `VOICES_STORAGE_DIR` 且可播放。
 - [ ] Admin 登入、回應審核、語音審核與 token rule 頁面可讀寫。

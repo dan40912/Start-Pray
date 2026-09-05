@@ -67,7 +67,7 @@ tags: [start-pray, inventory]
 | 播放進度 | 播放器 | 進度條/全域播放器 | `GlobalPlayer.js`、`GlobalPlayerGate.js` | — | — | — | 保留 |
 | 禱告標題 | 建立禱告卡片 | 文字欄位 | `customer-portal/create` | `POST /api/home-cards` | `HomePrayerCard` | — | 保留 |
 | 禱告內容 | 同上 | 文字/錄音內容 | 同上 | 同上 | `HomePrayerCard` | — | 保留 |
-| 匿名名稱 | 送出回應 | 已有 `isAnonymous` + 匿名頭像產生 | `src/lib/anonymous-prayer-avatar.js` | `POST /api/responses` | `PrayerResponse.isAnonymous` | 無 | 保留、擴大使用 |
+| 匿名名稱 | 送出回應 | 已有 `isAnonymous`；匿名頭像自 2026-09-02 起一律為站徽 `/img/logo.png`（原本依 `responseId` 產生人形 SVG，已移除） | `src/lib/anonymous-prayer-avatar.js` | `POST /api/responses` | `PrayerResponse.isAnonymous` | 無 | 保留、擴大使用 |
 | 禱告分類 | 首頁/建立卡片 | 分類篩選 | `HomePrayerExplorer.js` | `/api/home-categories` | `HomePrayerCategory` | — | 保留但簡化 |
 | 送出 | 建立卡片/回應 | 表單送出 | 各表單元件 | `POST /api/home-cards`、`POST /api/responses` | `HomePrayerCard`、`PrayerResponse` | — | 保留，需匿名化 |
 | 刪除 | 會員中心 | 擁有者刪除自己卡片 | `CustomerPortalClient.js` | `DELETE /api/customer/cards/[id]` | `HomePrayerCard` | — | 需修改（匿名情境下的替代機制） |
