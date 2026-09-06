@@ -33,7 +33,7 @@ async function findTargetUser({ targetUserId, targetUsername }) {
   if (!targetUsername) return null;
   return prisma.user.findFirst({
     where: {
-      username: { equals: targetUsername, mode: "insensitive" },
+      username: { equals: targetUsername },
       isBlocked: false,
       publicProfileEnabled: true,
     },

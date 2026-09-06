@@ -5122,6 +5122,62 @@ details.terms-card summary {
   align-items: center;
 }
 
+/* Account entries (DEC-001 restored). Deliberately quieter than the prayer CTA:
+   praying and creating a card never require an account, so login/signup must not
+   out-weigh them visually. No btn-primary here on purpose. */
+.nav-account {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.nav-account .btn {
+  padding: 0.5rem 0.9rem;
+  font-size: 0.9rem;
+}
+.nav-account__hint {
+  display: none;
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+@media (max-width: 900px) {
+  .nav-account {
+    width: 100%;
+    gap: 0.5rem 0.75rem;
+  }
+  .nav-account .btn {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+  .nav-account__hint {
+    display: block;
+    flex-basis: 100%;
+    order: 3;
+    text-align: center;
+  }
+}
+
+/* The admin lists render pagination as <button>, which the a/span rule below
+   never matched, so the controls rendered unstyled and read as disabled. */
+.pagination button {
+  padding: 0.5rem 0.85rem;
+  border-radius: 0.7rem;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.pagination button:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.pagination button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 /*  */
 .cp-input-card {
   background: #fff;

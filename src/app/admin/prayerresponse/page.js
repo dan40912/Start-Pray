@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import GainAudio from "@/components/GainAudio";
 
 import AdminLinkedUserEditor from "@/components/admin/AdminLinkedUserEditor";
 import AdminHintPanel from "@/components/admin/AdminHintPanel";
@@ -34,6 +35,33 @@ function mapDetailToForm(detail) {
     moderationStatus: detail?.moderationStatus || "APPROVED",
     voiceModerationStatus: detail?.voiceModerationStatus || "APPROVED",
   };
+}
+
+// The old cell printed "匿名" whenever a member had no display name, so a member
+// who simply never set a nickname looked identical to someone who deliberately
+// posted anonymously. Those are different facts and moderators act on them
+// differently, so identity and the anonymous flag are now separate columns:
+// this one always says who actually posted.
+function renderResponder(resp, openLinkedUser) {
+  if (resp.responder?.id) {
+    return (
+      <button
+        type="button"
+        className="link-button"
+        onClick={() => openLinkedUser(resp.responder.id, "回覆者")}
+      >
+        {resp.responder.name || resp.responder.email || `會員 ${resp.responder.id.slice(0, 8)}`}
+      </button>
+    );
+  }
+  if (resp.guestFingerprint) {
+    return (
+      <span title="訪客識別指紋，可比對是否為同一人洗版">
+        訪客 <code>{resp.guestFingerprint}</code>
+      </span>
+    );
+  }
+  return <span style={{ color: "var(--text-muted)" }}>舊資料（未留識別）</span>;
 }
 
 export default function AdminPrayerResponsePage() {
@@ -434,6 +462,7 @@ export default function AdminPrayerResponsePage() {
                 <tr>
                   <th>ID</th>
                   <th>回應者</th>
+                  <th>匿名</th>
                   <th>Email</th>
                   <th>內容</th>
                   <th>所屬禱告</th>
@@ -447,7 +476,7 @@ export default function AdminPrayerResponsePage() {
               <tbody>
                 {responses.length === 0 ? (
                   <tr>
-                    <td colSpan={10}>目前沒有回應資料</td>
+                    <td colSpan={11}>目前沒有回應資料</td>
                   </tr>
                 ) : (
                   responses.map((resp) => (
@@ -457,17 +486,14 @@ export default function AdminPrayerResponsePage() {
                           {resp.id}
                         </button>
                       </td>
+                      <td>{renderResponder(resp, openLinkedUser)}</td>
                       <td>
-                        {resp.responder?.id ? (
-                          <button
-                            type="button"
-                            className="link-button"
-                            onClick={() => openLinkedUser(resp.responder.id, "回覆者")}
-                          >
-                            {resp.responder?.name || "匿名"}
-                          </button>
+                        {resp.postedAnonymously ? (
+                          <span className="status-badge" title="送出時勾選了匿名，前台不顯示身分">
+                            匿名送出
+                          </span>
                         ) : (
-                          resp.responder?.name || "訪客文字"
+                          <span style={{ color: "var(--text-muted)" }}>具名</span>
                         )}
                       </td>
                       <td>{resp.responder?.email || "-"}</td>
@@ -579,7 +605,7 @@ export default function AdminPrayerResponsePage() {
                     <p>{detail?.message || "（無文字內容）"}</p>
 
                     {detail?.voiceUrl ? (
-                      <audio controls preload="none" src={detail.voiceUrl} className="admin-editor__audio" />
+                      <GainAudio controls preload="none" src={detail.voiceUrl} className="admin-editor__audio" />
                     ) : (
                       <p className="admin-editor__muted">此回應沒有音檔。</p>
                     )}

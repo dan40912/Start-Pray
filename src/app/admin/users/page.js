@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import GainAudio from "@/components/GainAudio";
 
 import AdminHintPanel from "@/components/admin/AdminHintPanel";
 import { useAdminFeedback } from "@/components/admin/useAdminFeedback";
@@ -397,6 +398,8 @@ export default function AdminUsersPage() {
                     <th>ID</th>
                     <th>姓名</th>
                     <th>Email</th>
+                    <th>信任分數</th>
+                    <th>標記數</th>
                     <th>檢舉數</th>
                     <th>狀態</th>
                     <th>更新時間</th>
@@ -406,7 +409,7 @@ export default function AdminUsersPage() {
                 <tbody>
                   {users.length === 0 ? (
                     <tr>
-                      <td colSpan={7}>目前沒有符合條件的使用者</td>
+                      <td colSpan={9}>目前沒有符合條件的使用者</td>
                     </tr>
                   ) : (
                     users.map((user) => (
@@ -423,6 +426,19 @@ export default function AdminUsersPage() {
                         </td>
                         <td>{user.name || "未設定"}</td>
                         <td>{user.email}</td>
+                        <td>
+                          {typeof user.trustScore === "number" ? (
+                            <span
+                              className={`status-badge${user.trustScore < 30 ? " status-badge--blocked" : ""}`}
+                              title="PRD-005 信任分數，低於 30 的投稿會自動進待審"
+                            >
+                              {user.trustScore}
+                            </span>
+                          ) : (
+                            <span style={{ color: "var(--text-muted)" }}>—</span>
+                          )}
+                        </td>
+                        <td>{user.flaggedCount ?? 0}</td>
                         <td>{user.reportCount ?? 0}</td>
                         <td>
                           {user.isBlocked ? (
@@ -522,7 +538,7 @@ export default function AdminUsersPage() {
                       <span>故事更新：{editForm.storyUpdatedAt ? new Date(editForm.storyUpdatedAt).toLocaleString() : "-"}</span>
                     </div>
                     {editForm.storyAudioUrl ? (
-                      <audio className="admin-editor__audio" controls preload="none" src={editForm.storyAudioUrl} />
+                      <GainAudio className="admin-editor__audio" controls preload="none" src={editForm.storyAudioUrl} />
                     ) : null}
                     {editForm.storyYoutubeUrl ? (
                       <a className="admin-editor__preview-link" href={editForm.storyYoutubeUrl} target="_blank" rel="noreferrer">

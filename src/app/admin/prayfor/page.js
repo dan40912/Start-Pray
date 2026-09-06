@@ -45,6 +45,28 @@ function normalizeCategoryList(payload) {
     .sort((a, b) => a.id - b.id);
 }
 
+// Anonymous submissions have no owner. Since the fingerprint columns landed
+// they do carry a guest hash, so a moderator can at least tell one guest posting
+// five cards from five separate guests. Cards created before that migration have
+// neither, and「舊資料」says so rather than implying a failed lookup.
+function renderAuthor(card, openLinkedUser) {
+  if (card.owner?.id) {
+    return (
+      <button type="button" className="link-button" onClick={() => openLinkedUser(card.owner.id, "作者")}>
+        {card.owner.name || card.owner.email || `會員 ${card.owner.id.slice(0, 8)}`}
+      </button>
+    );
+  }
+  if (card.guestFingerprint) {
+    return (
+      <span title="匿名訪客的識別指紋，可用來比對是否為同一人">
+        訪客 <code>{card.guestFingerprint}</code>
+      </span>
+    );
+  }
+  return <span style={{ color: "var(--text-muted)" }}>舊資料（未留識別）</span>;
+}
+
 export default function AdminPrayforPage() {
   const { feedbackNode, confirmAction, notifyError, notifySuccess } = useAdminFeedback();
 
@@ -393,6 +415,8 @@ export default function AdminPrayforPage() {
             <option value="all">全部</option>
             <option value="active">啟用中</option>
             <option value="blocked">封鎖中</option>
+            <option value="review">待審</option>
+            <option value="private">私密</option>
           </select>
           <select value={sort} onChange={(e) => setSort(e.target.value)}>
             <option value="createdAt">建立時間</option>
@@ -427,6 +451,7 @@ export default function AdminPrayforPage() {
                   <th>標題</th>
                   <th>作者</th>
                   <th>狀態</th>
+                  <th>回應</th>
                   <th>檢舉數</th>
                   <th>建立時間</th>
                   <th>操作</th>
@@ -435,7 +460,7 @@ export default function AdminPrayforPage() {
               <tbody>
                 {cards.length === 0 ? (
                   <tr>
-                    <td colSpan={7}>目前沒有資料</td>
+                    <td colSpan={8}>目前沒有資料</td>
                   </tr>
                 ) : (
                   cards.map((card) => (
@@ -446,20 +471,21 @@ export default function AdminPrayforPage() {
                         </button>
                       </td>
                       <td>{card.title}</td>
-                      <td>
-                        {card.owner?.id ? (
-                          <button type="button" className="link-button" onClick={() => openLinkedUser(card.owner.id, "作者")}>
-                            {card.owner?.name || card.owner?.email || "未知"}
-                          </button>
-                        ) : (
-                          card.owner?.name || card.owner?.email || "未知"
-                        )}
-                      </td>
+                      <td>{renderAuthor(card, openLinkedUser)}</td>
                       <td>
                         {card.isBlocked ? (
                           <span className="status-badge status-badge--blocked">封鎖中</span>
                         ) : (
                           <span className="status-badge status-badge--active">啟用中</span>
+                        )}
+                        {card.needsReview ? <span className="status-badge">待審</span> : null}
+                        {card.isPrivate ? <span className="status-badge">私密</span> : null}
+                      </td>
+                      <td>
+                        {card.responseCount > 0 ? (
+                          `${card.responseCount} 人`
+                        ) : (
+                          <span style={{ color: "var(--text-muted)" }}>還沒有人</span>
                         )}
                       </td>
                       <td>{card.reportCount}</td>

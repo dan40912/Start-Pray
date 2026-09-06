@@ -1,4 +1,5 @@
 ﻿import prisma from "./prisma";
+import { toPublicPrayerCard } from "./anonymous-prayer-avatar";
 
 const CARD_DEFAULT_INCLUDE = {
   category: true,
@@ -81,18 +82,19 @@ export async function readHomeCards(options = {}) {
   const orderBy = buildOrder(sort);
   const where = buildWhereClause({ categorySlug, categoryId, search });
 
-  return prisma.homePrayerCard.findMany({
+  const cards = await prisma.homePrayerCard.findMany({
     where,
     include: include ?? CARD_DEFAULT_INCLUDE,
     orderBy,
     take: parseLimit(limit),
     skip: Number.isFinite(skip) && skip > 0 ? Math.floor(skip) : undefined,
   });
+  return cards.map(toPublicPrayerCard);
 }
 
 export async function readHomeCard(id) {
   console.log("[homeCards] readHomeCard", { id });
-  return prisma.homePrayerCard.findFirst({
+  const card = await prisma.homePrayerCard.findFirst({
     where: { id: Number(id), isBlocked: false, isPrivate: false },
     include: {
       category: true,
@@ -100,6 +102,7 @@ export async function readHomeCard(id) {
       _count: { select: { responses: { where: { isBlocked: false, moderationStatus: "APPROVED" } } } },
     },
   });
+  return toPublicPrayerCard(card);
 }
 
 export async function createHomeCard(payload = {}) {
@@ -108,7 +111,7 @@ export async function createHomeCard(payload = {}) {
     throw new Error("Owner ID must be a string when provided");
   }
 
-  return prisma.homePrayerCard.create({
+  const created = await prisma.homePrayerCard.create({
     data: {
       slug: payload.slug || crypto.randomUUID(),
       image: payload.image || "/img/personal.jpg",
@@ -127,19 +130,25 @@ export async function createHomeCard(payload = {}) {
       needsReview: Boolean(payload.needsReview),
       categoryId: Number(payload.categoryId),
       ownerId: cardOwnerId ?? null,
+      // Null for members (ownerId identifies them) and for any caller that does
+      // not supply them, which keeps seed/import paths working unchanged.
+      guestSessionHash: payload.guestSessionHash ?? null,
+      ipHash: payload.ipHash ?? null,
     },
     include: CARD_DEFAULT_INCLUDE,
   });
+  return toPublicPrayerCard(created);
 }
 
 export async function readRelatedHomeCards(id, limit = 3) {
   console.log("[homeCards] readRelatedHomeCards", { id, limit });
-  return prisma.homePrayerCard.findMany({
+  const cards = await prisma.homePrayerCard.findMany({
     where: { id: { not: Number(id) }, isBlocked: false, isPrivate: false },
     orderBy: [{ createdAt: "desc" }],
     take: Math.max(0, Number(limit) || 0),
     include: CARD_DEFAULT_INCLUDE,
   });
+  return cards.map(toPublicPrayerCard);
 }
 
 export async function readAdjacentHomeCards(id) {
@@ -169,5 +178,5 @@ export async function readAdjacentHomeCards(id) {
     }),
   ]);
 
-  return { prev, next };
+  return { prev: toPublicPrayerCard(prev), next: toPublicPrayerCard(next) };
 }

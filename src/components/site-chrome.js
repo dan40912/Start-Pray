@@ -16,15 +16,16 @@ import {
   stripLocalePrefix,
 } from "@/lib/i18n";
 
-// --- Phase 1 temporary navigation switches (docs/obsidian/11-Decision-Log.md DEC-001/DEC-003) ---
-// These only hide entry points from the header/footer for the anonymous-first MVP.
-// They do NOT remove the underlying routes, auth system, or API — /login, /signup,
-// /customer-portal and /global-prayer-room all still work when visited directly.
-// Flip a flag back to `true` to restore that entry point.
-// Once anonymization is complete and the account/globe features are actually
-// removed (Phase 5), delete the flag, the dead branches it guards, and this comment.
-const SHOW_ACCOUNT_NAV_ENTRIES = false;
+// --- Phase 1 temporary navigation switch (docs/obsidian/11-Decision-Log.md DEC-003) ---
+// Hides the global prayer room entry only. It does NOT remove the route —
+// /global-prayer-room still works when visited directly.
 const SHOW_GLOBAL_ROOM_NAV_ENTRY = false;
+
+// Account entry points (DEC-001) are visible again. The anonymous-first flows are
+// unchanged: praying, responding and creating a card still need no account, so the
+// account entries stay deliberately quieter than the prayer CTA — 登入 is a plain
+// text button, 註冊 an outline, and neither uses btn-primary. 會員中心 only appears
+// once there is a session to open.
 
 const PRIMARY_NAV = [
   { href: "/prayfor", key: "prayerWall" },
@@ -32,7 +33,7 @@ const PRIMARY_NAV = [
   { href: "/overcomer", key: "overcomer" },
   { href: "/about", key: "about" },
   { href: "/howto", key: "howto" },
-  { href: "/customer-portal", key: "portal", requiresAuth: true, hidden: !SHOW_ACCOUNT_NAV_ENTRIES },
+  { href: "/customer-portal", key: "portal", requiresAuth: true, authOnly: true },
 ];
 
 const FOOTER_COLUMNS = [
@@ -58,6 +59,7 @@ const FOOTER_COLUMNS = [
     links: [
       { href: "/login", label: "登入" },
       { href: "/signup", label: "註冊" },
+      { href: "/forgot-password", label: "忘記密碼" },
       { href: "mailto:startpraynow@gmail.com", label: "聯絡我們" },
     ],
   },
@@ -158,11 +160,13 @@ export function SiteHeader({ activePath, hideAuthActions = false, locale: locale
   const isAuthenticated = Boolean(authUser);
   const navItems = useMemo(
     () =>
-      PRIMARY_NAV.filter((item) => !item.hidden).map((item) => ({
-        ...item,
-        label: siteText.nav[item.key],
-      })),
-    [siteText],
+      PRIMARY_NAV.filter((item) => !item.hidden)
+        .filter((item) => !item.authOnly || isAuthenticated)
+        .map((item) => ({
+          ...item,
+          label: siteText.nav[item.key],
+        })),
+    [siteText, isAuthenticated],
   );
   const languageHref = localizePath(stripLocalePrefix(pathname || current || "/"), nextLocale);
 
@@ -256,12 +260,12 @@ export function SiteHeader({ activePath, hideAuthActions = false, locale: locale
                     {siteText.nav.logout}
                   </button>
                 </>
-              ) : SHOW_ACCOUNT_NAV_ENTRIES ? (
-                <>
+              ) : (
+                <div className="nav-account">
                   <Link
                     href={localizePath("/login", locale)}
                     prefetch={false}
-                    className="btn btn-glass"
+                    className="btn btn-quiet nav-account__login"
                     onClick={closeMenu}
                   >
                     {siteText.nav.login}
@@ -269,13 +273,14 @@ export function SiteHeader({ activePath, hideAuthActions = false, locale: locale
                   <Link
                     href={localizePath("/signup", locale)}
                     prefetch={false}
-                    className="btn btn-primary"
+                    className="btn btn-outline nav-account__signup"
                     onClick={closeMenu}
                   >
                     {siteText.nav.signup}
                   </Link>
-                </>
-              ) : null}
+                  <p className="nav-account__hint">{siteText.nav.anonymousHint}</p>
+                </div>
+              )}
             </div>
           ) : null}
         </nav>
@@ -298,7 +303,7 @@ export function SiteFooter({ locale: localeProp }) {
         { href: "/overcomer", label: siteText.nav.overcomer },
         { href: "/about", label: siteText.nav.about },
         { href: "/howto", label: siteText.nav.howto },
-        ...(SHOW_ACCOUNT_NAV_ENTRIES ? [{ href: "/customer-portal", label: siteText.nav.portal }] : []),
+        { href: "/customer-portal", label: siteText.nav.portal },
       ],
     },
     {
@@ -310,12 +315,9 @@ export function SiteFooter({ locale: localeProp }) {
     {
       title: siteText.footer.accountHelp,
       links: [
-        ...(SHOW_ACCOUNT_NAV_ENTRIES
-          ? [
-              { href: "/login", label: siteText.nav.login },
-              { href: "/signup", label: siteText.nav.signup },
-            ]
-          : []),
+        { href: "/login", label: siteText.nav.login },
+        { href: "/signup", label: siteText.nav.signup },
+        { href: "/forgot-password", label: siteText.footer.forgotPassword },
         { href: "mailto:startpraynow@gmail.com", label: siteText.footer.contact },
       ],
     },

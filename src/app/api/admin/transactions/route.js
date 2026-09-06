@@ -78,11 +78,11 @@ export async function GET(request) {
   if (search) {
     whereClauses.push({
       OR: [
-        { txHash: { contains: search, mode: "insensitive" } },
-        { targetAddress: { contains: search, mode: "insensitive" } },
-        { user: { email: { contains: search, mode: "insensitive" } } },
-        { user: { name: { contains: search, mode: "insensitive" } } },
-        { userId: { contains: search, mode: "insensitive" } },
+        { txHash: { contains: search } },
+        { targetAddress: { contains: search } },
+        { user: { email: { contains: search } } },
+        { user: { name: { contains: search } } },
+        { userId: { contains: search } },
       ],
     });
   }

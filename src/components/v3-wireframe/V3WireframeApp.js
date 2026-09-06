@@ -70,6 +70,17 @@ function fmt(sec) {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
+// Bare `{ audio: true }` leaves gain entirely to the device, and the recordings
+// it produced measured -29 to -34 dBFS RMS — roughly 10-14 dB under a normal
+// speech level, which is why they play back so quietly. autoGainControl asks the
+// browser to ride the level up for a quiet microphone instead. It is on by
+// default in some browsers and off in others, so state it rather than inherit it.
+const MIC_CONSTRAINTS = {
+  autoGainControl: true,
+  echoCancellation: true,
+  noiseSuppression: true,
+};
+
 export default function V3WireframeApp({ initialScreen = "home" }) {
   /* ---------- navigation ---------- */
   const [screen, setScreen] = useState("home");
@@ -364,7 +375,7 @@ export default function V3WireframeApp({ initialScreen = "home" }) {
       return;
     }
     try {
-      mediaStreamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = await navigator.mediaDevices.getUserMedia({ audio: MIC_CONSTRAINTS });
       go("vcount");
       runCountdown();
     } catch {

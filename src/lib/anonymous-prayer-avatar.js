@@ -25,3 +25,17 @@ export function toPublicPrayerResponse(response) {
 
   return publicResponse;
 }
+
+// Cards gained guestSessionHash / ipHash so moderators can tell one anonymous
+// submitter from many. Those two fields must never reach a browser, and every
+// public card read goes through src/lib/homeCards.js, so that module applies
+// this on the way out — new public consumers are safe by default rather than
+// by remembering. The admin surface queries Prisma directly and is unaffected.
+export function toPublicPrayerCard(card) {
+  if (!card) return card;
+
+  const publicCard = { ...card };
+  delete publicCard.guestSessionHash;
+  delete publicCard.ipHash;
+  return publicCard;
+}

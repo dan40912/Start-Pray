@@ -96,7 +96,7 @@ export async function readOvercomerProfile(username) {
   try {
     user = await prisma.user.findFirst({
       where: {
-        username: { equals: normalized, mode: "insensitive" },
+        username: { equals: normalized },
         isBlocked: false,
         publicProfileEnabled: true,
       },

@@ -49,8 +49,8 @@ export async function GET(request) {
         search
           ? {
               OR: [
-                { name: { contains: search, mode: "insensitive" } },
-                { email: { contains: search, mode: "insensitive" } },
+                { name: { contains: search } },
+                { email: { contains: search } },
               ],
             }
           : {},
@@ -79,6 +79,10 @@ export async function GET(request) {
           isBlocked: true,
           reportCount: true,
           walletBalance: true,
+          // PRD-005 added these two and nothing ever read them back, so the
+          // anti-abuse score existed only in the database.
+          trustScore: true,
+          flaggedCount: true,
         },
       }),
       prisma.user.count({ where }),
