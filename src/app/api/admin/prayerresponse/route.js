@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin-route-auth";
 import { resolveServerAudioUrl } from "@/lib/server-audio";
+import { toAdminPrayerResponse } from "@/lib/admin-visibility";
 
 export async function GET(request) {
   const { error } = requireAdmin(request);
@@ -23,9 +24,9 @@ export async function GET(request) {
         search
           ? {
               OR: [
-                { message: { contains: search, mode: "insensitive" } },
-                { responder: { name: { contains: search, mode: "insensitive" } } },
-                { responder: { email: { contains: search, mode: "insensitive" } } },
+                { message: { contains: search } },
+                { responder: { name: { contains: search } } },
+                { responder: { email: { contains: search } } },
               ],
             }
           : {},
@@ -54,16 +55,10 @@ export async function GET(request) {
     ]);
 
     return NextResponse.json({
-      data: responses.map((response) => {
-        const safeResponse = { ...response };
-        delete safeResponse.guestSessionHash;
-        delete safeResponse.ipHash;
-        return {
-          ...safeResponse,
-          responseSource: response.responderId ? (response.voiceUrl ? "MEMBER_VOICE" : "MEMBER_TEXT") : "GUEST_TEXT",
-          voiceUrl: resolveServerAudioUrl(response.voiceUrl),
-        };
-      }),
+      data: responses.map((response) => ({
+        ...toAdminPrayerResponse(response),
+        voiceUrl: resolveServerAudioUrl(response.voiceUrl),
+      })),
       pagination: {
         total,
         page,

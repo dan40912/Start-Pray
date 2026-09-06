@@ -77,13 +77,21 @@ async function getCardReports(limit) {
       id: `card-${group.cardId}`,
       type: "card",
       targetId: String(group.cardId),
-      title: card?.isPrivate ? "私密代禱卡" : card?.title || "已刪除的代禱卡",
+      // A private card's title used to be replaced with the placeholder
+      // "私密代禱卡" even here, which asked a moderator to rule on a report about
+      // content they were not allowed to read. Privacy from other users is the
+      // product promise; privacy from the person handling the report just makes
+      // moderation guesswork. The card stays flagged as private so the UI can
+      // mark it, and opening one is written to the admin log.
+      title: card?.title || "已刪除的代禱卡",
       owner: card?.owner ?? null,
       isBlocked: Boolean(card?.isBlocked),
       isPrivate: Boolean(card?.isPrivate),
       reportCount: card?.reportCount ?? group._count._all,
       latestReportedAt: latest?.createdAt ?? group._max.createdAt,
       latestReport: latestReportMeta(latest),
+      // The public URL stays withheld for private cards — that page is the
+      // front end and would 404 anyway. Review happens in the admin detail view.
       href: card && !card.isPrivate ? `/prayfor/${card.id}` : null,
       adminHref: `/admin/prayfor?search=${encodeURIComponent(String(group.cardId))}`,
     };

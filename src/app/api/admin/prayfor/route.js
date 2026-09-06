@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { logAdminAction, logSystemError } from "@/lib/logger";
 import { requireAdmin } from "@/lib/admin-route-auth";
+import { toAdminPrayerCard } from "@/lib/admin-visibility";
 
 // 取得禱告卡片列表，支援搜尋、狀態篩選與排序
 export async function GET(request) {
@@ -24,8 +25,8 @@ export async function GET(request) {
         search
           ? {
               OR: [
-                { title: { contains: search, mode: "insensitive" } },
-                { description: { contains: search, mode: "insensitive" } },
+                { title: { contains: search } },
+                { description: { contains: search } },
               ],
             }
           : {},
@@ -33,6 +34,12 @@ export async function GET(request) {
           ? { isBlocked: true }
           : status === "active"
           ? { isBlocked: false }
+          // Low-trust submissions are held with needsReview = true and were
+          // otherwise unreachable — the queue existed with no way to open it.
+          : status === "review"
+          ? { needsReview: true }
+          : status === "private"
+          ? { isPrivate: true }
           : {},
       ],
     };
@@ -42,6 +49,15 @@ export async function GET(request) {
         where,
         include: {
           owner: { select: { id: true, name: true, email: true } },
+          // PRD-004 is entirely about finding cards nobody has answered, but the
+          // count was only ever computed for the public wall.
+          _count: { select: { responses: { where: { isBlocked: false } } } },
+          responses: {
+            where: { isBlocked: false },
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            select: { createdAt: true },
+          },
         },
         orderBy: { [sort]: order },
         skip,
@@ -51,7 +67,14 @@ export async function GET(request) {
     ]);
 
     return NextResponse.json({
-      data: cards,
+      data: cards.map((card) => {
+        const { responses, _count, ...rest } = card;
+        return {
+          ...toAdminPrayerCard(rest),
+          responseCount: _count?.responses ?? 0,
+          lastRespondedAt: responses?.[0]?.createdAt ?? null,
+        };
+      }),
       pagination: {
         total,
         page,

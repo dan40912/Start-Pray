@@ -4,6 +4,14 @@ import fallbackCards from "@/data/homeCards.json";
 import { ensureActiveCustomer } from "@/lib/customer-access";
 import { buildDefaultThumbnailUrl, isDefaultThumbnailUrl } from "@/lib/default-thumbnail";
 import { createHomeCard, readHomeCards } from "@/lib/homeCards";
+import { toPublicPrayerCard } from "@/lib/anonymous-prayer-avatar";
+import {
+  GUEST_RESPONSE_COOKIE,
+  createGuestId,
+  guestCookieOptions,
+  hashDailyIp,
+  hashGuestId,
+} from "@/lib/guest-response";
 import { sanitizePrayerLocationPayload } from "@/lib/prayerLocations";
 import prisma from "@/lib/prisma";
 import { checkRateLimit } from "@/lib/rateLimit";
@@ -336,14 +344,33 @@ export async function POST(request) {
       needsReview = lowTrust;
     }
 
+    // Anonymous submissions get the same fingerprint pair that anonymous
+    // responses have always stored, so a moderator can tell one guest posting
+    // five cards from five different guests. Members are identified by ownerId
+    // and need no fingerprint.
+    let guestId = null;
+    let guestSessionHash = null;
+    let ipHash = null;
+    if (!user) {
+      guestId = request.cookies.get(GUEST_RESPONSE_COOKIE)?.value || createGuestId();
+      guestSessionHash = hashGuestId(guestId);
+      ipHash = hashDailyIp(request);
+    }
+
     let created = await createHomeCard({
       ...payload,
       needsReview,
       ownerId: user?.id ?? null,
+      guestSessionHash,
+      ipHash,
     });
     const expectedDetailsHref = `/prayfor/${created.id}`;
     if (created.detailsHref !== expectedDetailsHref) {
-      created = await prisma.homePrayerCard.update({
+      // detailsHref is always empty at insert time, so this branch always runs.
+      // It talks to Prisma directly rather than going through homeCards.js, so
+      // it has to apply the public serializer itself — without it the create
+      // response hands the submitter their own guest fingerprint back.
+      created = toPublicPrayerCard(await prisma.homePrayerCard.update({
         where: { id: created.id },
         data: { detailsHref: expectedDetailsHref },
         include: {
@@ -361,9 +388,13 @@ export async function POST(request) {
             },
           },
         },
-      });
+      }));
     }
-    return NextResponse.json(created, { status: 201 });
+    const result = NextResponse.json(created, { status: 201 });
+    // Same cookie the response flow uses, so one guest keeps one identity
+    // across both actions instead of minting a fresh one per submission.
+    if (guestId) result.cookies.set(GUEST_RESPONSE_COOKIE, guestId, guestCookieOptions());
+    return result;
   } catch (error) {
     if (error?.code === "UNAUTHENTICATED") {
       return NextResponse.json({ message: "Please sign in." }, { status: 401 });

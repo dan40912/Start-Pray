@@ -31,10 +31,10 @@ export async function GET(request) {
   const where = search
     ? {
         OR: [
-          { email: { contains: search, mode: "insensitive" } },
-          { name: { contains: search, mode: "insensitive" } },
-          { username: { contains: search, mode: "insensitive" } },
-          { id: { contains: search, mode: "insensitive" } },
+          { email: { contains: search } },
+          { name: { contains: search } },
+          { username: { contains: search } },
+          { id: { contains: search } },
         ],
       }
     : {};

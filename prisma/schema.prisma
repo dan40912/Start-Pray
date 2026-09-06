@@ -276,6 +276,12 @@ model HomePrayerCard {
   ownerId String?
   owner   User?   @relation(fields: [ownerId], references: [id])
 
+  /// 匿名投稿的訪客指紋。與 PrayerResponse 上的同名欄位語意一致(見 guest-response.js)。
+  /// 兩者皆為 nullable:登入會員建立的卡片不寫入,而在此欄位加入之前建立的匿名卡片
+  /// 永遠是 NULL —— 那些是真的沒有身分可還原,後台顯示為「舊資料」而非「未知」。
+  guestSessionHash String? @db.VarChar(64)
+  ipHash           String? @db.VarChar(64)
+
   responses         PrayerResponse[]
   tokenTransactions TokenTransaction[]     @relation("HomePrayerCardTransactions")
   reports           HomePrayerCardReport[]
@@ -290,6 +296,8 @@ model HomePrayerCard {
   needsReview Boolean @default(false)
 
   @@index([categoryId])
+  @@index([guestSessionHash, createdAt])
+  @@index([ipHash, createdAt])
   @@map("home_prayer_card")
 }
 

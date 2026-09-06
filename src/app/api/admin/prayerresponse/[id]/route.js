@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/admin-route-auth";
 import { logAdminAction, logSystemError } from "@/lib/logger";
 import prisma from "@/lib/prisma";
 import { resolveServerAudioUrl } from "@/lib/server-audio";
+import { toAdminPrayerResponse } from "@/lib/admin-visibility";
 
 const VOICE_MODERATION_STATUSES = new Set(["PENDING", "APPROVED", "REJECTED", "NOT_APPLICABLE"]);
 const RESPONSE_MODERATION_STATUSES = new Set(["PENDING", "APPROVED", "REJECTED"]);
@@ -23,19 +24,26 @@ function normalizeVoiceUrl(value) {
 }
 
 function buildResponseDetail(response) {
+  // Built from the shared admin serializer so the detail view and the list can
+  // never drift apart on what a moderator is allowed to see.
+  const admin = toAdminPrayerResponse(response);
   return {
-    id: response.id,
-    message: response.message,
-    voiceUrl: resolveServerAudioUrl(response.voiceUrl),
-    isAnonymous: response.isAnonymous,
-    isBlocked: response.isBlocked,
-    reportCount: response.reportCount,
-    moderationStatus: response.moderationStatus,
-    responseSource: response.responderId ? (response.voiceUrl ? "MEMBER_VOICE" : "MEMBER_TEXT") : "GUEST_TEXT",
-    voiceModerationStatus: response.voiceModerationStatus,
-    createdAt: response.createdAt,
-    responder: response.responder,
-    homeCard: response.homeCard,
+    id: admin.id,
+    message: admin.message,
+    voiceUrl: resolveServerAudioUrl(admin.voiceUrl),
+    isAnonymous: admin.isAnonymous,
+    postedAnonymously: admin.postedAnonymously,
+    isBlocked: admin.isBlocked,
+    reportCount: admin.reportCount,
+    moderationStatus: admin.moderationStatus,
+    responseSource: admin.responseSource,
+    voiceModerationStatus: admin.voiceModerationStatus,
+    createdAt: admin.createdAt,
+    responder: admin.responder,
+    homeCard: admin.homeCard,
+    actorKind: admin.actorKind,
+    guestFingerprint: admin.guestFingerprint,
+    ipFingerprint: admin.ipFingerprint,
   };
 }
 
