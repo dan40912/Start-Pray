@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import GainAudio from "@/components/GainAudio";
 
 import { usePrayerRecorder } from "./usePrayerRecorder";
 import { formatDuration } from "./recorder-utils";
@@ -135,7 +136,7 @@ export default function CardVoiceRecorder({ value, onChange, onUploadingChange, 
       {attachState === "attached" && value ? (
         <div className="card-voice-recorder__attached">
           {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-          <audio controls preload="metadata" src={value} />
+          <GainAudio controls preload="metadata" src={value} />
           <div className="card-voice-recorder__actions">
             <button type="button" onClick={handleReRecordFromAttached} disabled={isBusy}>
               重新錄製
@@ -239,7 +240,7 @@ export default function CardVoiceRecorder({ value, onChange, onUploadingChange, 
 
           {phase === "preview" ? (
             <div className="card-voice-recorder__step">
-              <audio
+              <GainAudio
                 ref={audioRef}
                 src={previewUrl}
                 preload="metadata"

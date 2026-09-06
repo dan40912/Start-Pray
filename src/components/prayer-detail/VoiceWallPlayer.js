@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { attachPlaybackGain } from "@/lib/audio-gain";
 import { PRAYER_RESPONSE_CREATED } from "@/lib/events";
 import { useAudio } from "@/context/AudioContext";
 
@@ -62,6 +63,13 @@ function isValidResponse(item) {
 export default function VoiceWallPlayer({ requestId, prayerTitle = "", initialTrack = null }) {
   const { setQueue } = useAudio();
   const audioRef = useRef(null);
+
+  // Prayer recordings play back around -30 dBFS RMS; an <audio> element cannot
+  // exceed volume 1, so the level has to come from Web Audio.
+  useEffect(() => {
+    const detach = attachPlaybackGain(audioRef.current);
+    return () => detach?.();
+  }, []);
   const [allTracks, setAllTracks] = useState(() => {
     const primary = normalizePrimaryTrack(initialTrack, prayerTitle, requestId);
     return primary ? [primary] : [];

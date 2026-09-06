@@ -1,6 +1,7 @@
 "use client";
 
 import "@/styles/theme-customer.css";
+import GainAudio from "@/components/GainAudio";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -1249,14 +1250,14 @@ export default function CustomerPortalPage() {
               ) : null}
 
               {reply.voiceUrl ? (
-                <audio
+                <GainAudio
                   className="cp-reply__audio"
                   controls
                   preload="none"
                   src={reply.voiceUrl}
                 >
                   您的瀏覽器不支援音訊播放。
-                </audio>
+                </GainAudio>
               ) : null}
 
               <div className="cp-reply__footer">
@@ -1752,12 +1753,11 @@ export default function CustomerPortalPage() {
 
               {storyAudioPreview || profileForm.storyAudioUrl ? (
                 <div className="cp-story-recorder__review">
-                  <audio
+                  <GainAudio
                     className="cp-modal__audio"
                     controls
                     preload="metadata"
-                    src={storyAudioPreview || profileForm.storyAudioUrl}
-                  />
+                    src={storyAudioPreview || profileForm.storyAudioUrl} />
                   {selectedStoryAudioFile ? (
                     <div className="cp-story-recorder__actions">
                       <button

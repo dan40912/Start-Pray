@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 import { normalizeAudioUrl } from "@/lib/media-url";
+import { attachPlaybackGain } from "@/lib/audio-gain";
 
 const AudioContext = createContext(null);
 const hasOwn = Object.prototype.hasOwnProperty;
@@ -496,6 +497,10 @@ export function AudioProvider({ children }) {
     audioRef.current.preload = "metadata";
 
     const audio = audioRef.current;
+    // Every prayer recording played through the global player runs at roughly
+    // -30 dBFS RMS, well under a comfortable speech level, and an <audio>
+    // element cannot be pushed past volume 1. See src/lib/audio-gain.js.
+    attachPlaybackGain(audio);
     const handlePlayEvent = () => {
       clearPlaybackAttemptTimeout();
       setIsPlaying(true);

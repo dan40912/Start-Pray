@@ -1,4 +1,5 @@
 import Link from "next/link";
+import GainAudio from "@/components/GainAudio";
 import { notFound, redirect } from "next/navigation";
 
 import "@/styles/theme-customer.css";
@@ -141,9 +142,9 @@ export default async function OvercomerProfilePage({ params }) {
               {storyAudioUrl ? (
                 <article className="cp-story-media__item">
                   <h3>故事錄音</h3>
-                  <audio controls preload="metadata" src={storyAudioUrl}>
+                  <GainAudio controls preload="metadata" src={storyAudioUrl}>
                     你的瀏覽器不支援音訊播放。
-                  </audio>
+                  </GainAudio>
                   {profile.storyUpdatedAt ? (
                     <p className="cp-helper">更新：{formatDateTime(profile.storyUpdatedAt)}</p>
                   ) : null}
@@ -280,14 +281,14 @@ export default async function OvercomerProfilePage({ params }) {
                     ) : null}
 
                     {reply.voiceUrl ? (
-                      <audio
+                      <GainAudio
                         className="cp-reply__audio"
                         controls
                         preload="none"
                         src={reply.voiceUrl}
                       >
                         您的瀏覽器不支援音訊播放。
-                      </audio>
+                      </GainAudio>
                     ) : null}
 
                     <div className="cp-reply__footer">

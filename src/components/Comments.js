@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import GainAudio from "@/components/GainAudio";
 import Link from "next/link";
 
 import { useAuthSession } from "@/hooks/useAuthSession";
@@ -560,7 +561,7 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
                     {response.message ? <p>{response.message}</p> : null}
                     {response.voiceUrl ? (
                         <div className="comment-item__audio">
-                          <audio src={response.voiceUrl} controls preload="metadata" />
+                          <GainAudio src={response.voiceUrl} controls preload="metadata" />
                         </div>
                     ) : null}
                   </article>
@@ -581,12 +582,11 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
           <h3 className="comments__success-title">{successPendingReview ? commentsText.pendingSuccessTitle : commentsText.successTitle}</h3>
           <p className="comments__success-body">{successPendingReview ? commentsText.pendingSuccessBody : commentsText.successBody}</p>
           {successHasVoice && successBlobUrlRef.current ? (
-            <audio
+            <GainAudio
               className="comments__success-audio"
               src={successBlobUrlRef.current}
               controls
-              aria-label="重聽剛才的語音祝福"
-            />
+              aria-label="重聽剛才的語音祝福" />
           ) : null}
           <Link href={localizePath("/prayfor/one", locale)} className="comments__success-btn comments__success-btn--primary" prefetch={false}>
             {commentsText.prayAgain}
