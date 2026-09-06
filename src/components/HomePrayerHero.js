@@ -7,6 +7,7 @@ import CompanionOverlay from "@/components/home-companion/CompanionOverlay";
 import PrayedReactionButton from "@/components/prayer-interaction/PrayedReactionButton";
 import { resolveArrowKeyDirection, resolveSwipeDirection } from "@/components/home-companion/swipe-utils";
 import { usePrayerInteraction } from "@/components/prayer-interaction/usePrayerInteraction";
+import GainAudio from "@/components/GainAudio";
 
 // HomePrayerCard.voiceHref sometimes points at a legacy HTML page
 // (e.g. "/legacy/prayfor/details.html?prayer=pc-509#voice") rather than a
@@ -169,6 +170,11 @@ export default function HomePrayerHero({ text, prayer }) {
 
   const description = toPlainText(currentPrayer?.description);
   const playableVoiceHref = isPlayableVoiceHref(currentPrayer?.voiceHref) ? currentPrayer.voiceHref : null;
+  // Cards submitted anonymously have no owner at all, which is the common case
+  // on this wall — falling back to the anonymous label keeps the line present
+  // rather than collapsing the card's layout for half the prayers.
+  const uploaderName =
+    currentPrayer?.owner?.name || currentPrayer?.owner?.username || copy.uploaderAnonymous;
 
   return (
     <section
@@ -189,18 +195,25 @@ export default function HomePrayerHero({ text, prayer }) {
           />
         ) : currentPrayer ? (
           <>
-            <span className="prayer-hero__eyebrow">{copy.eyebrow}</span>
             <h1 id="prayer-hero-title">{copy.headline}</h1>
-            <p className="prayer-hero__subhead">{copy.subheadline}</p>
 
             <article className="prayer-hero__card" aria-label={copy.cardLabel}>
               <h2>{currentPrayer.title}</h2>
+              <p className="prayer-hero__uploader">
+                {copy.uploaderLabel}
+                <span className="prayer-hero__uploader-name">{uploaderName}</span>
+              </p>
               {description ? <p>{description}</p> : null}
               {playableVoiceHref ? (
                 <div className="prayer-hero__voice">
                   <span className="prayer-hero__voice-label">{copy.voiceLabel}</span>
                   {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-                  <audio controls preload="metadata" src={playableVoiceHref} className="prayer-hero__card-audio" />
+                  <GainAudio
+                    controls
+                    preload="metadata"
+                    src={playableVoiceHref}
+                    className="prayer-hero__card-audio"
+                  />
                 </div>
               ) : null}
             </article>
@@ -275,7 +288,6 @@ export default function HomePrayerHero({ text, prayer }) {
           </>
         ) : (
           <>
-            <span className="prayer-hero__eyebrow">{copy.eyebrow}</span>
             <h1 id="prayer-hero-title">{copy.emptyTitle}</h1>
             <p className="prayer-hero__subhead">{copy.emptyBody}</p>
           </>
@@ -336,24 +348,22 @@ export default function HomePrayerHero({ text, prayer }) {
           text-align: center;
         }
 
-        .prayer-hero__eyebrow {
-          display: inline-flex;
-          align-items: center;
-          gap: 0.6rem;
-          font-size: 0.78rem;
-          font-weight: 600;
-          letter-spacing: 0.14em;
-          text-transform: uppercase;
-          color: var(--nv-ember-bright);
+        /* The uploader line sits between the title and the need itself, so it
+           reads as attribution rather than as part of the prayer's text. The
+           ember accent is the same one the card's voice label uses. */
+        .prayer-hero__uploader {
+          display: flex;
+          align-items: baseline;
+          gap: 0.5rem;
+          margin: 0.1rem 0 0;
+          font-size: 0.82rem;
+          letter-spacing: 0.02em;
+          color: var(--nv-mist);
         }
 
-        .prayer-hero__eyebrow::before {
-          content: "";
-          width: 6px;
-          height: 6px;
-          border-radius: 50%;
-          background: var(--nv-ember-bright);
-          box-shadow: 0 0 10px 2px var(--nv-ember-glow);
+        .prayer-hero__uploader-name {
+          font-weight: 600;
+          color: var(--nv-ember-bright);
         }
 
         .prayer-hero__inner h1 {

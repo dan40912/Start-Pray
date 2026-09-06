@@ -2850,6 +2850,38 @@ body {
   color: #e6f0ff;
 }
 
+/* The header is dark, but .btn-quiet / .btn-outline in globals.css are defined
+   against the light theme — .btn-outline's near-white background inherited the
+   header's pale text colour and rendered white-on-white. Both get explicit
+   colours here, and stay lighter in weight than .btn-primary so the prayer CTA
+   keeps the visual lead. */
+.site-header .nav-links a.nav-account__login {
+  background: transparent;
+  border: 1px solid transparent;
+  color: rgba(226, 232, 240, 0.82);
+}
+
+.site-header .nav-links a.nav-account__login:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #f8fafc;
+}
+
+.site-header .nav-links a.nav-account__signup {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(125, 183, 255, 0.55);
+  color: #dbeafe;
+}
+
+.site-header .nav-links a.nav-account__signup:hover {
+  background: rgba(125, 183, 255, 0.18);
+  border-color: rgba(125, 183, 255, 0.8);
+  color: #ffffff;
+}
+
+.site-header .nav-account__hint {
+  color: rgba(203, 213, 225, 0.75);
+}
+
 footer {
   margin-top: 4rem;
   background:
@@ -3199,6 +3231,7 @@ header .nav-links .nav-link:hover {
 
 header .nav-actions .btn,
 .site-header .btn-primary,
+.site-header .nav-account .btn,
 .site-header .btn-glass {
   min-height: 32px;
   border-radius: 999px;
