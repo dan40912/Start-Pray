@@ -89,6 +89,7 @@ const zhTW = {
       success: "謝謝你為這件事禱告。",
       error: "目前無法記錄，請稍後再試。",
       countSuffix: "人已禱告",
+      countEmpty: "還沒有人回應這件事，你可以是第一個",
     },
     recorder: {
       entryCta: "為這件事禱告",
@@ -475,6 +476,8 @@ const zhTW = {
   },
   comments: {
     anonymousResponder: "匿名代禱者",
+    anonymousResponderShort: "匿名",
+    showMore: "看更多回應（還有 {count} 則）",
     unnamed: "未命名",
     loginRequired: "登入後可以使用語音禱告；文字禱告不需登入。",
     loginAction: "前往登入",

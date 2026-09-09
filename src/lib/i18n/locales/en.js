@@ -88,6 +88,7 @@ const en = {
       success: "Thank you for praying.",
       error: "Could not save this right now. Please try again shortly.",
       countSuffix: "prayed",
+      countEmpty: "No one has answered this yet — you could be the first",
     },
     recorder: {
       entryCta: "Pray for this",
@@ -474,6 +475,8 @@ const en = {
   },
   comments: {
     anonymousResponder: "Anonymous prayer friend",
+    anonymousResponderShort: "Anonymous",
+    showMore: "Show more replies ({count} left)",
     unnamed: "Unnamed",
     loginRequired: "Please log in before leaving a written or voice prayer.",
     loginAction: "Log in",

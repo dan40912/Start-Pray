@@ -45,42 +45,6 @@ function countLocationLights(globalPrayers) {
   ).size;
 }
 
-function buildProofStats(stats, globalPrayers, categories, text = PAGE_TEXT) {
-  const proofText = text.proofStats || PAGE_TEXT.proofStats;
-  return [
-    {
-      value: stats.totalPrayerCards,
-      label: proofText.totalPrayerCards[0],
-      copy: proofText.totalPrayerCards[1],
-    },
-    {
-      value: stats.totalResponses,
-      label: proofText.totalResponses[0],
-      copy: proofText.totalResponses[1],
-    },
-    {
-      value: stats.totalVoiceResponses,
-      label: proofText.totalVoiceResponses[0],
-      copy: proofText.totalVoiceResponses[1],
-    },
-    {
-      value: stats.totalUsers,
-      label: proofText.totalUsers[0],
-      copy: proofText.totalUsers[1],
-    },
-    {
-      value: countLocationLights(globalPrayers),
-      label: proofText.locationLights[0],
-      copy: proofText.locationLights[1],
-    },
-    {
-      value: categories.length,
-      label: proofText.categories[0],
-      copy: proofText.categories[1],
-    },
-  ];
-}
-
 function toClientValue(value) {
   if (value == null) return value;
   if (value instanceof Date) return value.toISOString();
@@ -173,7 +137,7 @@ function HomeStructuredData({ stats, globalPrayerCount, text = PAGE_TEXT, locale
   );
 }
 
-function HomeProofSection({ proofStats, text = PAGE_TEXT, locale = "zh-TW" }) {
+function HomeProofSection({ text = PAGE_TEXT, locale = "zh-TW" }) {
   const promises = text.promises.map(([title, copy]) => ({ title, copy }));
 
   return (
@@ -195,16 +159,6 @@ function HomeProofSection({ proofStats, text = PAGE_TEXT, locale = "zh-TW" }) {
               {text.proofSecondary}
             </Link>
           </div>
-        </div>
-
-        <div className="home-proof__stats" aria-label="Start Pray 平台數據">
-          {proofStats.map((item) => (
-            <article key={item.label} className="home-proof__stat">
-              <strong>{Number(item.value || 0).toLocaleString(locale)}</strong>
-              <span>{item.label}</span>
-              <p>{item.copy}</p>
-            </article>
-          ))}
         </div>
 
         <div className="home-proof__promise" aria-labelledby="home-proof-promise-title">
@@ -293,7 +247,6 @@ export default async function HomeLandingPage({ locale: localeProp = "zh-TW" } =
 
   const globalPrayers = globalPrayerCards.map((card) => toGlobalPrayerPayload(card, locale));
   const heroStats = buildHeroStats(stats, globalPrayers, locale);
-  const proofStats = buildProofStats(stats, globalPrayers, categories, text);
   const clientCategories = toClientValue(categories);
   const clientTopCards = toClientValue(topCards);
   // HomeGlobeHero is a client component, so Date/Decimal values from Prisma
@@ -309,7 +262,7 @@ export default async function HomeLandingPage({ locale: localeProp = "zh-TW" } =
         <HomeStructuredData stats={heroStats} globalPrayerCount={globalPrayers.length} text={text} locale={locale} />
         <HomePrayerHero text={text} prayer={featuredPrayer} />
 
-        <HomeProofSection proofStats={proofStats} text={text} locale={locale} />
+        <HomeProofSection text={text} locale={locale} />
 
         <section>
           <HomePrayerExplorer

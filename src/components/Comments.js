@@ -20,17 +20,51 @@ function formatMessage(template, values = {}) {
   return String(template || "").replace(/\{(\w+)\}/g, (_, key) => values[key] ?? "");
 }
 
-function getDisplayName(response, text) {
-  if (response.isAnonymous) return text.anonymousResponder;
+// 匿名回應過去全部長成同一個樣子：同一張站標頭像、同一個「匿名代禱者」。
+// 一張卡上二十筆並排時，看起來不像二十個人，像同一段文字被複製了二十次 ——
+// 而旁邊真人留下的「You will be fine」「加油希望你快點好起來」一眼可辨，
+// 對比之下更假。這裡不動任何資料，只是讓每個匿名的人看起來是不同的人。
+const ANON_CODES = "ABCDEFGHJKLMNPQRSTUVWXYZ"; // 去掉 I 與 O，避免和 1、0 混淆
+const ANON_HUES = [18, 46, 96, 152, 196, 232, 268, 316];
+
+function buildAnonymousLabels(responses) {
+  const labels = new Map();
+  let index = 0;
+  for (const response of responses) {
+    if (!response?.isAnonymous) continue;
+    labels.set(response.id, ANON_CODES[index % ANON_CODES.length]);
+    index += 1;
+  }
+  return labels;
+}
+
+function getDisplayName(response, text, anonCode) {
+  if (response.isAnonymous) {
+    if (!anonCode) return text.anonymousResponder;
+    return `${text.anonymousResponderShort || text.anonymousResponder} · ${anonCode}`;
+  }
   return response.responder?.name || response.responder?.username || text.unnamed;
 }
+
 function getAvatarUrl(response) {
-  if (response.isAnonymous) return response.anonymousAvatarUrl || null;
+  // 匿名頭像刻意不用 anonymousAvatarUrl —— 那是全站共用的站標，正是「看起來
+  // 都是同一個人」的來源。改用下面依代號產生的色塊。
+  if (response.isAnonymous) return null;
   return response.responder?.avatarUrl || null;
 }
+
 function getAvatarFallback(name) {
   const initial = name?.trim()?.charAt(0) || "祈";
   return initial.toUpperCase();
+}
+
+function getAnonymousAvatarStyle(anonCode) {
+  const index = Math.max(0, ANON_CODES.indexOf(anonCode || "A"));
+  const hue = ANON_HUES[index % ANON_HUES.length];
+  return {
+    background: `hsl(${hue} 46% 30%)`,
+    color: `hsl(${hue} 70% 88%)`,
+  };
 }
 
 function getResponderProfileHref(response) {
@@ -89,6 +123,7 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
   const commentsText = getDictionary(locale).comments;
   const authUser = useAuthSession();
 
+  const [showAllResponses, setShowAllResponses] = useState(false);
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [text, setText] = useState("");
   const [audioFile, setAudioFile] = useState(null);
@@ -420,6 +455,14 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
   const visibleResponses = responses.filter(
     (response) => !response.isBlocked && Number(response.reportCount ?? 0) === 0
   );
+  const anonymousLabels = buildAnonymousLabels(visibleResponses);
+  // 一次攤開二十幾則回應，讀者是滑不完的，而且長度與句式的重複在長列表裡
+  // 特別刺眼。預設只顯示前五則。
+  const RESPONSE_PREVIEW_COUNT = 5;
+  const shownResponses = showAllResponses
+    ? visibleResponses
+    : visibleResponses.slice(0, RESPONSE_PREVIEW_COUNT);
+  const hiddenResponseCount = visibleResponses.length - shownResponses.length;
   const pendingReviewCount = responses.filter(
     (response) => response.isBlocked || Number(response.reportCount ?? 0) > 0
   ).length;
@@ -465,10 +508,16 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
           ) : visibleResponses.length === 0 ? (
             <p className="cp-helper">{commentsText.empty}</p>
           ) : (
-            visibleResponses.map((response) => {
-                const name = getDisplayName(response, commentsText);
+            shownResponses.map((response) => {
+                const anonCode = anonymousLabels.get(response.id);
+                const name = getDisplayName(response, commentsText, anonCode);
                 const avatarUrl = getAvatarUrl(response);
-                const avatarFallback = getAvatarFallback(name);
+                const avatarFallback = response.isAnonymous
+                  ? anonCode || "祈"
+                  : getAvatarFallback(name);
+                const avatarStyle = response.isAnonymous
+                  ? getAnonymousAvatarStyle(anonCode)
+                  : undefined;
                 const profileHref = getResponderProfileHref(response);
                 const isActionMenuOpen = openActionMenuId === response.id;
                 return (
@@ -481,7 +530,7 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
                         <div className="comment-item__identity">
                           {profileHref ? (
                             <Link href={profileHref} prefetch={false} className="comment-item__avatar-link">
-                                <div className="comment-item__avatar" aria-hidden>
+                                <div className="comment-item__avatar" aria-hidden style={avatarStyle}>
                                   {avatarUrl ? (
                                     <img src={avatarUrl} alt={name} loading="lazy" />
                                   ) : (
@@ -490,7 +539,7 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
                                 </div>
                             </Link>
                           ) : (
-                            <div className="comment-item__avatar" aria-hidden>
+                            <div className="comment-item__avatar" aria-hidden style={avatarStyle}>
                                 {avatarUrl ? (
                                   <img src={avatarUrl} alt={name} loading="lazy" />
                                 ) : (
@@ -568,6 +617,16 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
                 );
             })
           )}
+
+          {hiddenResponseCount > 0 ? (
+            <button
+              type="button"
+              className="comments__show-more"
+              onClick={() => setShowAllResponses(true)}
+            >
+              {commentsText.showMore.replace("{count}", String(hiddenResponseCount))}
+            </button>
+          ) : null}
         </div>
       {showVoiceOverlay && (
         <VoicePrayerOverlay

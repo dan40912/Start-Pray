@@ -29,8 +29,11 @@ export default function PrayedReactionButton({ prayerId, text }) {
       >
         {text.label}
       </button>
-      <span className="prayed-reaction__count" aria-live="polite">
-        {count} {text.countSuffix}
+      <span
+        className={`prayed-reaction__count${count > 0 ? "" : " is-empty"}`}
+        aria-live="polite"
+      >
+        {count > 0 ? `${count} ${text.countSuffix}` : text.countEmpty || text.countSuffix}
       </span>
 
       {status === "error" ? (

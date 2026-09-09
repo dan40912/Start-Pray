@@ -2252,28 +2252,32 @@
     gap: 0.6rem;
   }
 
+  /* 這幾條規則過去讓 header 換行、操作鈕撐成整行 —— 結果「分享 / ⋯」自成
+     一列，插在名字與留言內文之間，把閱讀順序切斷。留言的內文必須緊接在名字
+     之後；操作鈕收回名字那一行的右端。 */
   #responses-panel .comment-item__header {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
   }
 
   #responses-panel .comment-item__meta-actions {
-    width: 100%;
+    width: auto;
     min-width: 0;
-    margin-left: 0;
-    justify-items: stretch;
-    gap: 0.55rem;
+    margin-left: auto;
+    justify-items: end;
+    gap: 0.35rem;
   }
 
   #responses-panel .comment-item__actions {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 0.5rem;
-    justify-content: stretch;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    justify-content: flex-end;
   }
 
   #responses-panel .comment-item__action-btn {
-    min-height: 40px;
-    width: 100%;
+    min-height: 36px;
+    width: auto;
+    padding-inline: 0.7rem;
     justify-content: center;
   }
 
@@ -2749,4 +2753,40 @@
   background: transparent;
   color: #9aa5b4;
   font-size: 14px;
+}
+
+/* 「看更多回應」—— 回應區預設只顯示 5 則。 */
+.comments__show-more {
+  align-self: start;
+  margin-top: 0.25rem;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-1);
+  font-size: 0.86rem;
+  cursor: pointer;
+}
+
+.comments__show-more:hover {
+  background: var(--surface-3);
+}
+
+/* 名字與操作鈕同一行時，名字負責截斷，按鈕不換行 —— 不然「分享」會被壓成
+   直排兩個字，名字被擠成兩行。 */
+.comment-item__identity {
+  min-width: 0;
+}
+
+.comment-item__name,
+.comment-item__identity strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.comment-item__action-btn,
+.comment-item__menu-trigger {
+  white-space: nowrap;
 }
