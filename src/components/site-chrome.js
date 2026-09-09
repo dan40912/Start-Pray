@@ -33,7 +33,7 @@ const PRIMARY_NAV = [
   { href: "/overcomer", key: "overcomer" },
   { href: "/about", key: "about" },
   { href: "/howto", key: "howto" },
-  { href: "/customer-portal", key: "portal", requiresAuth: true, authOnly: true },
+  { href: "/me", key: "portal", requiresAuth: true, authOnly: true },
 ];
 
 const FOOTER_COLUMNS = [
@@ -45,7 +45,7 @@ const FOOTER_COLUMNS = [
       { href: "/overcomer", label: "得勝者" },
       { href: "/about", label: "平台介紹" },
       { href: "/howto", label: "使用方式" },
-      { href: "/customer-portal", label: "會員中心" },
+      { href: "/me", label: "會員中心" },
     ],
   },
   {
@@ -65,7 +65,7 @@ const FOOTER_COLUMNS = [
   },
 ];
 
-const LOCALE_REDIRECT_ONLY_PATHS = ["/customer-portal"];
+const LOCALE_REDIRECT_ONLY_PATHS = ["/me"];
 
 const SOCIAL_LINKS = [
   {
@@ -135,7 +135,7 @@ function SocialIcon({ icon }) {
 
 function resolveNavHref(item, isAuthenticated, locale) {
   if (item.requiresAuth && !isAuthenticated) {
-    return localizedLoginPath(locale, "/customer-portal");
+    return localizedLoginPath(locale, "/me");
   }
   return localizePath(item.href, locale);
 }
@@ -171,7 +171,7 @@ export function SiteHeader({ activePath, hideAuthActions = false, locale: locale
     [siteText, isAuthenticated],
   );
   const languageHref = localizePath(stripLocalePrefix(pathname || current || "/"), nextLocale);
-  // /en/customer-portal 與 /en/customer-portal/create 只是 redirect 回中文版
+  // /en/me 與 /en/me/create 只是 redirect 回中文版
   // （見那兩個 page.js）。在這些頁面上顯示語言切換，是給一個兌現不了的承諾：
   // 使用者按下 English，整頁還是中文。有真英文版的頁面照常顯示。
   const hasEnglishVersion = !LOCALE_REDIRECT_ONLY_PATHS.some((prefix) => {
@@ -259,7 +259,7 @@ export function SiteHeader({ activePath, hideAuthActions = false, locale: locale
               {isAuthenticated ? (
                 <>
                   <Link
-                    href={localizePath("/customer-portal/create", locale)}
+                    href={localizePath("/me/create", locale)}
                     prefetch={false}
                     className="btn btn-primary"
                     onClick={closeMenu}
@@ -317,7 +317,7 @@ export function SiteFooter({ locale: localeProp }) {
         { href: "/overcomer", label: siteText.nav.overcomer },
         { href: "/about", label: siteText.nav.about },
         { href: "/howto", label: siteText.nav.howto },
-        { href: "/customer-portal", label: siteText.nav.portal },
+        { href: "/me", label: siteText.nav.portal },
       ],
     },
     {
@@ -330,7 +330,7 @@ export function SiteFooter({ locale: localeProp }) {
       title: siteText.footer.accountHelp,
       links: [
         ...(isAuthenticated
-          ? [{ href: "/customer-portal", label: siteText.nav.portal }]
+          ? [{ href: "/me", label: siteText.nav.portal }]
           : [
               { href: "/login", label: siteText.nav.login },
               { href: "/signup", label: siteText.nav.signup },

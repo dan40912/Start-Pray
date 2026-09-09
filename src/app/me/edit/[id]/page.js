@@ -320,12 +320,12 @@ export default function CustomerPortalEditCardPage() {
   };
 
   const handleBack = () => {
-    router.push("/customer-portal");
+    router.push("/me");
   };
 
   return (
     <>
-      <SiteHeader activePath="/customer-portal" />
+      <SiteHeader activePath="/me" />
       <main className="cp-main">
         <section className="cp-section cp-section--form">
           <div className="cp-section__head">

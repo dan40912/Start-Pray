@@ -266,7 +266,7 @@ export default function SignupForm({ locale: localeProp = "zh-TW" }) {
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    const nextPath = resolveSafeNextPath(searchParams?.get("next"), "/customer-portal");
+    const nextPath = resolveSafeNextPath(searchParams?.get("next"), "/me");
     const normalizedUsername = String(form.username)
       .trim()
       .normalize("NFKC")
@@ -318,7 +318,7 @@ export default function SignupForm({ locale: localeProp = "zh-TW" }) {
       saveAuthSession(data.user);
       setStatus({
         state: "success",
-        message: nextPath === "/customer-portal" ? text.successPortal : text.successNext,
+        message: nextPath === "/me" ? text.successPortal : text.successNext,
       });
       setForm(initialForm);
       setTimeout(() => {

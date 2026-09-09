@@ -3117,7 +3117,7 @@ export default function GlobalPrayerRoom({ prayers = [] }) {
             </section>
           ) : null}
 
-          <Link href="/customer-portal/create" className="global-room__cta" prefetch={false}>
+          <Link href="/me/create" className="global-room__cta" prefetch={false}>
             新增代禱
           </Link>
         </aside>
@@ -4548,7 +4548,7 @@ export function GlobalPrayerRoomPageExperience({ prayers = [] }) {
                 <h1 id="gpr-page-title">看見世界正在被守望</h1>
                 <p>看見全球正在被守望的禱告光點，快速定位國家、聆聽語音並加入代禱。</p>
               </div>
-              <Link className="gpr-page__intro-link" href="/customer-portal/create">
+              <Link className="gpr-page__intro-link" href="/me/create">
                 新增代禱
               </Link>
             </header>

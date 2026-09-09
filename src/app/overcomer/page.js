@@ -79,7 +79,7 @@ export default async function OvercomerIndexPage() {
           {overcomers.length === 0 ? (
             <div className="cp-empty">
               <p>目前尚未有公開的得勝者資料。</p>
-              <Link href="/customer-portal" prefetch={false} className="cp-link">
+              <Link href="/me" prefetch={false} className="cp-link">
                 前往會員中心完善公開個人頁
               </Link>
             </div>

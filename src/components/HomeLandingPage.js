@@ -149,7 +149,7 @@ function HomeProofSection({ text = PAGE_TEXT, locale = "zh-TW" }) {
           <p>{text.proofCopy}</p>
           <div className="home-proof__actions">
             <Link
-              href={localizePath("/customer-portal/create", locale)}
+              href={localizePath("/me/create", locale)}
               className="home-proof__action home-proof__action--primary"
               prefetch={false}
             >
@@ -187,7 +187,7 @@ function HomeFinalCta({ text = PAGE_TEXT, locale = "zh-TW" }) {
         </div>
         <div className="home-final-cta__actions">
           <Link
-            href={localizePath("/customer-portal/create", locale)}
+            href={localizePath("/me/create", locale)}
             className="home-final-cta__button home-final-cta__button--primary"
             prefetch={false}
           >
@@ -277,7 +277,7 @@ export default async function HomeLandingPage({ locale: localeProp = "zh-TW" } =
               title: text.explorerTitle,
               copy: text.explorerCopy,
               primaryLabel: text.explorerPrimary,
-              primaryHref: localizePath("/customer-portal/create", locale),
+              primaryHref: localizePath("/me/create", locale),
               secondaryLabel: text.explorerSecondary,
               secondaryHref: localizePath("/prayfor/one", locale),
             }}
@@ -289,7 +289,7 @@ export default async function HomeLandingPage({ locale: localeProp = "zh-TW" } =
           prayers={clientGlobalPrayers}
           stats={heroStats}
           primaryHref={localizePath("/global-prayer-room", locale)}
-          secondaryHref={localizePath("/customer-portal/create", locale)}
+          secondaryHref={localizePath("/me/create", locale)}
         />
 
         <section className="section bg-legal-links" id="trust-links">

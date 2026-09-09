@@ -1,8 +1,8 @@
-export function resolveSafeNextPath(candidate, fallback = "/customer-portal") {
+export function resolveSafeNextPath(candidate, fallback = "/me") {
   const fallbackPath =
     typeof fallback === "string" && fallback.startsWith("/") && !fallback.startsWith("//")
       ? fallback
-      : "/customer-portal";
+      : "/me";
 
   if (typeof candidate !== "string") {
     return fallbackPath;

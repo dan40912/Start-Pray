@@ -41,6 +41,8 @@ const INITIAL_FORM = {
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 const MAX_GALLERY_IMAGES = 3;
+// 路由改成 /me 之後這個 key 刻意不動：換掉等於把所有人正在寫的草稿
+// 從 localStorage 裡弄丟。
 const DRAFT_STORAGE_KEY = "customer-portal-create-draft-v1";
 const AUTO_SAVE_DELAY_MS = 700;
 const UPLOADS_PREFIX = "/uploads/";
@@ -415,7 +417,7 @@ export default function CustomerPortalCreatePage() {
       setShowModal(true);
 
       const timer = setTimeout(() => {
-        router.push(isGuest ? "/prayfor" : "/customer-portal");
+        router.push(isGuest ? "/prayfor" : "/me");
       }, 1000);
       setRedirectTimer(timer);
     } catch (error) {
@@ -436,7 +438,7 @@ export default function CustomerPortalCreatePage() {
 
   return (
     <>
-      <SiteHeader activePath="/customer-portal" />
+      <SiteHeader activePath="/me" />
       <main className="customer-create">
         <div className="customer-create__header-band">
           <h1>寫下一件需要被守望的事</h1>
@@ -658,7 +660,7 @@ export default function CustomerPortalCreatePage() {
               {submitting ? "建立中..." : "建立代禱"}
             </button>
             <Link
-              href={authUser?.id ? "/customer-portal" : "/login?next=/customer-portal/create"}
+              href={authUser?.id ? "/me" : "/login?next=/me/create"}
               className="button button--ghost"
               prefetch={false}
             >

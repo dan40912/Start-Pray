@@ -25,7 +25,7 @@ export default function GlobalPlayerGate() {
   const hasPlaybackState = Boolean(currentTrack);
   const inPrayerList = isPath(pathname, "/prayfor");
   const inOvercomer = isPath(pathname, "/overcomer");
-  const inCustomerPortal = pathname === "/customer-portal";
+  const inCustomerPortal = pathname === "/me";
   const inGlobalPrayerRoom = isPath(pathname, "/global-prayer-room");
   // Homepage companion mode (docs/obsidian/25-Companion-Mode-Reuse-Audit.md) reuses
   // this same shared queue, so it needs to be on the supported list too — otherwise
@@ -44,8 +44,8 @@ export default function GlobalPlayerGate() {
     isPath(pathname, "/forgot-password") ||
     isPath(pathname, "/reset-password") ||
     isPath(pathname, "/admin") ||
-    isPath(pathname, "/customer-portal/create") ||
-    isPath(pathname, "/customer-portal/edit");
+    isPath(pathname, "/me/create") ||
+    isPath(pathname, "/me/edit");
 
   useEffect(() => {
     if (!blockedByRoute && supportedByRoute) return;

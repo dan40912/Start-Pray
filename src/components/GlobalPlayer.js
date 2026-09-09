@@ -504,7 +504,7 @@ export default function GlobalPlayer({ onClose }) {
     restartQueue();
   };
 
-  if (pathname?.startsWith("/customer-portal/create")) {
+  if (pathname?.startsWith("/me/create")) {
     return null;
   }
 

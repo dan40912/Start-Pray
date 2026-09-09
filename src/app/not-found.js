@@ -22,7 +22,7 @@ export default function NotFound() {
           </div>
 
           <div className="not-found-actions">
-            <Link className="btn btn-primary" href="/customer-portal" prefetch={false}>
+            <Link className="btn btn-primary" href="/me" prefetch={false}>
               回到會員中心
             </Link>
             <Link className="btn btn-outline" href="/prayfor" prefetch={false}>

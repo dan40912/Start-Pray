@@ -103,7 +103,7 @@ export function HeroGlobe({
 export default function HomeGlobeHero({
   prayers = [],
   primaryHref = "/global-prayer-room",
-  secondaryHref = "/customer-portal/create",
+  secondaryHref = "/me/create",
   stats = {},
 }) {
   const globeRef = useRef(null);

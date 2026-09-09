@@ -1062,7 +1062,7 @@ export default function CustomerPortalPage() {
       return (
         <div className="cp-empty">
           <p>目前尚未建立代禱。</p>
-          <Link href="/customer-portal/create" className="cp-link">
+          <Link href="/me/create" className="cp-link">
             點我立即建立代禱
           </Link>
         </div>
@@ -1137,7 +1137,7 @@ export default function CustomerPortalPage() {
                   <div className="cp-card__actions">
                     {canManage ? (
                       <Link
-                        href={`/customer-portal/edit/${card.id}`}
+                        href={`/me/edit/${card.id}`}
                         className="cp-link"
                         prefetch={false}
                       >
@@ -1342,7 +1342,7 @@ export default function CustomerPortalPage() {
 
     <>
 
-      <SiteHeader activePath="/customer-portal" />
+      <SiteHeader activePath="/me" />
 
       <main className="cp-main">
 
@@ -1408,7 +1408,7 @@ export default function CustomerPortalPage() {
                 <div className="cp-welcome__actions">
                   <Link
                     className="cp-button"
-                    href="/customer-portal/create"
+                    href="/me/create"
                     prefetch={false}
                   >
                     寫下我的代禱
@@ -1478,7 +1478,7 @@ export default function CustomerPortalPage() {
 
                 <Link
 
-                  href="/customer-portal/create"
+                  href="/me/create"
 
                   className="cp-button"
 
