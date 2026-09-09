@@ -193,3 +193,92 @@ C 指出 25 則回應裡 20 則是生成的（同頭像、同名、38–45 字�
 ---
 
 *本文由統整 session 產出，依據三份評估 + 對 `prayer-coin` 的程式碼驗證。所有數字（20,973 行 CSS／265 色／8 個 `:root`／3,767 行死碼／105 處用語）皆為實測。*
+
+---
+
+# 施工狀態（Phase 0 已完成）
+
+分支 `design/phase0-foundation`，三個 commit，production build 通過。
+
+## 已完成
+
+| # | 項目 | 實測結果 |
+|---|---|---|
+| 0-1 | `src/styles/tokens.css` 成為唯一 token 來源 | **8 個競爭的 `:root` → 1 個檔案**。night 是 `<html data-surface>` scope，由 `layout.js` 依路徑決定 |
+| 0-1b | 收編層把舊變數名接上語意 token | 舊選擇器自動跟著 surface 走，不必改完 17,000 行。白方塊那一類 bug 從源頭消失 |
+| 0-2 | `src/components/PrayerCard.js` | 禱告牆與詳情頁「其他代禱」共用一份。首頁 hero 刻意不併（滿版沉浸卡 ≠ 格狀卡） |
+| 0-3 | 用語統一 | **105 處、5 種說法 → 代禱**，量詞 張 → 則 |
+| 0-4 | 死碼清除 | **−3,992 行**：5 個零 import 的 CSS 檔 + 整個 `v3-wireframe` route 樹 + `<body class="admin-layout">` no-op |
+| — | `admin.css`（734 行）移出公開頁 | 只在 `src/app/admin/layout.js` 載入 |
+| — | 單一 accent | 四套主色（藍紫漸層／淡金／藍青／青綠）→ 一個實心暖金 `#fbbf24` |
+| — | 單一 header 高度 | `.site-header` 曾寫死 72px 而 body 只留 56/64px，**每一頁的頁首都壓著內容 8–16px**。現由 token 決定 |
+| — | 對比修正 | 13 處 `color:#fff` 壓在 accent 上（換成暖金後只有 1.8:1）→ `--text-on-accent`，實測 **10.8:1** |
+
+## 已修掉的版面缺陷（皆為三份評估點名、且已在 375×812 實測）
+
+- `.home-card__prayer-badge` 在全站 CSS 中**沒有任何規則**，是裸 `<span>`；`.home-card__tag-row` 沒有 `gap` 也沒有 `flex-wrap` → 「13 人正在代禱」壓在分類標籤上。**實測重疊數 0**
+- 封面圖沒有遮罩 → 加上兩端壓暗的 scrim（標題在上緣、metadata 在下緣，單向漸層保不住其中一邊）
+- 卡片 metadata 是有框有底的膠囊，看起來像 disabled input → 降為低對比純文字 + 分隔點
+- 行動版留言工具列殘留 `#fffdf8`（舊淺色版的奶白）→ 那塊包住「送出文字禱告」的白方塊
+- 建立頁**完全沒有標題**：整段 hero 被 `--editor-only` 用 `display:none` 蓋掉，卻仍在 DOM 裡。換成一行真正的頁首，死碼（JSX、`HERO_POINTS`、兩份 CSS）清掉
+- 詳情頁「立即禱告」與「為這件事禱告」導向同一處 → 前者降為次級外框，一屏一顆主按鈕
+- 文案去「光點化」：「定義這個禱告光點」→「你想為什麼事禱告？」
+
+## 與原計畫的兩處修正
+
+**1. `--header-h` 定為 72px，不是 64px。** 原本計畫取 64，實測發現 `.site-header` 一直是 72px，只是 body 少留了空間。以實際渲染值為準才不會全站位移。
+
+**2. `customer-portal` 與 `overcomer` 暫時標成 night，不是 day。** 裁決 1 說它們屬於 day，這個判斷沒變。但它們的樣式整套寫死深色（`theme-customer.css` + 各頁 styled-jsx），現在改 day 會得到一個半深半淺的頁面 —— 比統一深色更糟。`layout.js` 的 `NIGHT_PREFIXES` 留了 TODO，**這是 A 的 Phase 1 工作**，機制已經在，屆時是「改一行 + 重寫那些樣式」。
+
+---
+
+# 交接
+
+## 給 A（會員中心）— 可以開工
+
+擁有 `src/app/customer-portal/**`、`src/styles/theme-customer.css`、`src/components/site-chrome.js`
+
+1. **把帳號流程轉成 day。** 從 `NIGHT_PREFIXES` 移除 `/customer-portal` 與 `/overcomer`，把 `theme-customer.css` 與各頁 styled-jsx 的寫死深色換成語意 token。做完之後 `/signup → /customer-portal` 不再有溫暖白色跨進冰冷深藍的斷層 —— 那是你原本最在意的一點。
+   - 同時要處理 `.auth-page`：body 已經是 day 了，但它自己畫了一層深色底。
+2. **第一屏翻轉成禱告優先**（你的 P0）。大頭貼縮成 48px、email 不顯示、兩個 0 的統計卡在新用戶隱藏。
+3. **空狀態與錯誤態**：`Failed to load responses.` 要中文，而且「還沒有人回應」不該長得像錯誤框。註冊頁條款錯誤訊息顯示兩次。
+4. 卡片請用 `<PrayerCard>`，不要再寫第四種。
+5. **不要碰** `globals.css` 的 token、`tokens.css`、`PrayerCard.js` 內部。
+
+## 給 B（首頁滑動）— 可以開工
+
+擁有 `HomePrayerHero.js`、`HomeLandingPage.js`、`src/lib/homeCards.js`、`api/home-cards/**`
+
+1. **階段 1（deck API）與階段 2（pointer 拖曳 + snap）現在就能做** —— 純資料層與互動層，不碰 token。
+2. **階段 3（ambient 背景 + 露肩）現在也解除封鎖了**，`PrayerCard` 已經落地。但 hero 卡刻意沒有併進 `PrayerCard`，露肩的鄰卡如果要用格狀卡，直接用 `<PrayerCard>`。
+3. ambient 層的 `opacity` 上限 0.20 + 遮罩，文字對比要驗 ≥ 4.5:1 —— 站上現在有這條線了（accent 按鈕實測 10.8:1）。
+4. 錄音器與 hero 佔同一位置的問題（你自己標記的第 1 點）還在，改動時一併處理。
+5. **不要碰** `tokens.css`、`globals.css` 的 `:root`。
+
+## 給 C（詳情頁與可信度）— 剩下 P0-3、P0-5 與 P2
+
+你的 P0-1／P0-2／P0-4 與 P1-1／P1-2／P1-3／P1-4 已經在這個分支做完了。剩下：
+
+1. **P0-3 封面 fallback 是純黑方塊**（`src/app/api/card-thumbnail/route.js:54-58`）—— 看起來像載入失敗。改成以標題 hash 取品牌色的低飽和漸層底，字型別再用 `Arial`。
+2. **P0-5 播放器關不掉**，且播的與當前頁面無關。加關閉鍵、預設不顯示、`has-global-player` class 跟著條件掛載。
+3. **P2-2 文案與數字互相打臉**：hero 寫「此刻，有人正等待著你的一句代禱」，下方卻是「0 人已禱告」。移除首頁統計數字區。
+4. **P2-4 種子回應**（見下）。
+5. **P2-5 留言卡閱讀順序**：操作鈕排在名字下、內文上。
+
+---
+
+# 仍需你決定的一件事
+
+**種子回應的可信度。** 25 則裡 20 則是生成的（同頭像、同名、38–45 字、同句式），旁邊真人的「You will be fine」「加油希望你快點好起來」一眼可辨。
+
+- (a) 減量到 3–5 則，長度拉開到 8–120 字，不同匿名色塊與代號
+- (b) 全部隱藏，改成「還沒有人回應，你可以是第一個」
+- (c) 保留但標註來源
+
+我仍傾向 **(b)** —— 這是可信度不是 UI。**不論選哪個都不會刪資料**：依「只增不減」原則，作法是把那些回應標成不公開，不是從 DB 移除。
+
+---
+
+# 一個實務上的風險
+
+三個 session 共用同一個 checkout，**不是各自的 worktree**。這個分支切換會影響所有 session 看到的檔案。開工前請確認彼此不在同一時間編輯，或改用 `git worktree` 各開一份。
