@@ -1284,10 +1284,9 @@
   min-height: 44px;
   padding: 0.5rem 1rem;
   border-radius: 999px;
-  border: 1px solid rgba(125, 211, 252, 0.55);
-  background: var(--accent);
-  color: var(--text-on-accent);
-  color: #f8fbff;
+  border: 1px solid var(--line-2);
+  background: transparent;
+  color: var(--text-1);
   font-weight: 600;
   font-size: 0.85rem;
   line-height: 1;
@@ -1435,11 +1434,8 @@
 .pdv2-meta-row span {
   display: block;
   font-size: 0.82rem;
-  color: rgba(203, 213, 225, 0.95);
-  background: rgba(15, 23, 42, 0.72);
-  border: 1px solid rgba(148, 163, 184, 0.24);
-  border-radius: 10px;
-  padding: 0.45rem 0.65rem;
+  color: var(--text-2);
+  padding: 0.2rem 0;
 }
 
 .pdv2-content-card,
@@ -1565,7 +1561,6 @@
 .pdv2-sticky-actions a:first-child {
   background: var(--accent);
   color: var(--text-on-accent);
-  color: #fff;
 }
 
 .pdv2-content-card {

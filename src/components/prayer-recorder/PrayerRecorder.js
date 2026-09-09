@@ -559,7 +559,7 @@ const PrayerRecorder = forwardRef(function PrayerRecorder({ text, prayerId, onEx
 
         .prayer-recorder__btn--primary {
           background: var(--accent);
-          color: #fff;
+          color: var(--text-on-accent);
         }
 
         .prayer-recorder__btn--ghost {

@@ -187,7 +187,7 @@ main.home-page {
 }
 .btn-primary {
   background: var(--accent);
-  color: #ffffff;
+  color: var(--text-on-accent);
 }
 .btn-primary:hover {
   background: var(--accent-dark);
@@ -526,7 +526,7 @@ main.home-page {
 }
 .detail-nav a.active {
   background: var(--accent);
-  color: #ffffff;
+  color: var(--text-on-accent);
   border-color: var(--accent);
 }
 .detail-wrapper {
@@ -1375,7 +1375,7 @@ textarea.form-control.is-invalid:focus {
 }
 .btn-secondary:hover {
   background: var(--accent);
-  color: #ffffff;
+  color: var(--text-on-accent);
 }
 .hero-split {
   display: grid;
@@ -1547,7 +1547,7 @@ textarea.form-control.is-invalid:focus {
   border-radius: 0.9rem;
   border: none;
   background: var(--accent);
-  color: #fff;
+  color: var(--text-on-accent);
   font-weight: 600;
   cursor: pointer;
 }
@@ -1609,7 +1609,7 @@ textarea.form-control.is-invalid:focus {
   border-radius: 0.9rem;
   border: none;
   background: var(--accent);
-  color: #fff;
+  color: var(--text-on-accent);
   font-weight: 600;
   cursor: pointer;
   margin-left: 2rem;
@@ -1662,7 +1662,7 @@ textarea.form-control.is-invalid:focus {
 .pagination .active {
   border-color: var(--accent);
   background: var(--accent);
-  color: #fff;
+  color: var(--text-on-accent);
   font-weight: 600;
 }
 @media (max-width: 640px) {
@@ -1777,7 +1777,7 @@ textarea.form-control.is-invalid:focus {
   border-radius: 999px;
   font-weight: 600;
   background: var(--accent);
-  color: #fff;
+  color: var(--text-on-accent);
   border: 1px solid var(--accent);
   transition:
     transform 0.2s ease,
@@ -6639,7 +6639,7 @@ header .menu-toggle:focus-visible {
 header .menu-toggle.is-open {
   background: var(--accent);
   border-color: rgba(37, 99, 235, 0.4);
-  color: #ffffff;
+  color: var(--text-on-accent);
 }
 
 header .menu-toggle__icon {
@@ -6754,7 +6754,7 @@ header .nav-actions {
 
 header .nav-link--primary {
   background: var(--accent);
-  color: #ffffff;
+  color: var(--text-on-accent);
   padding-left: 1.1rem;
   padding-right: 1.1rem;
   box-shadow: 0 14px 28px -18px rgba(37, 99, 235, 0.8);
@@ -6964,7 +6964,7 @@ header .nav-actions .btn-glass {
   padding: 0.45rem 1.1rem;
   background: var(--accent);
   color: var(--text-on-accent);
-  color: #fff;
+  color: var(--text-on-accent);
   cursor: pointer;
   font-size: 0.85rem;
   font-weight: 600;

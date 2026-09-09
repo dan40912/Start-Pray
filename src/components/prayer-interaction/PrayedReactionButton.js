@@ -68,7 +68,7 @@ export default function PrayedReactionButton({ prayerId, text }) {
 
         .prayed-reaction__btn[aria-pressed="true"] {
           background: var(--accent);
-          color: #fff;
+          color: var(--text-on-accent);
         }
 
         .prayed-reaction__btn:disabled {

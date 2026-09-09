@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import Comments from "@/components/Comments";
 import DetailAudioQueueBootstrap from "@/components/prayer-detail/DetailAudioQueueBootstrap";
 import DetailPrayerInteractionPanel from "@/components/prayer-detail/DetailPrayerInteractionPanel";
+import PrayerCard from "@/components/PrayerCard";
 import PrayerRequestActions from "@/components/PrayerRequestActions";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { parseCardMeta } from "@/lib/card-meta";
@@ -306,33 +307,17 @@ export default async function PrayerDetailPage({ params, locale: localeProp = "z
                   const relatedAuthor = getAuthorName(item, text);
                   const relatedCount = item?._count?.responses ?? item?.responsesCount ?? 0;
                   return (
-                    <article key={item.id} className="home-card">
-                      <Link
-                        href={localizePath(`/prayfor/${item.id}`, locale)}
-                        prefetch={false}
-                        className="home-card__cover-link"
-                        aria-label={`${text.viewMore} ${item.title}`}
-                      />
-
-                      <div
-                        className="home-card__bg"
-                        style={item.image ? { backgroundImage: `url(${item.image})` } : undefined}
-                        aria-hidden="true"
-                      />
-
-                      <div className="home-card__content">
-                        <h4 className="home-card__title">{item.title}</h4>
-                        <div className="home-card__tag-row">
-                          <span className="home-card__category">{item.category?.name || text.prayerCategoryFallback}</span>
-                        </div>
-                        <div className="home-card__meta home-card__meta--bottom">
-                          <span className="home-card__author" title={`${text.author}: ${relatedAuthor}`}>
-                            {text.author}: {relatedAuthor}
-                          </span>
-                          <span className="home-card__responses">{formatResponseCount(relatedCount)} {text.responsesSuffix}</span>
-                        </div>
-                      </div>
-                    </article>
+                    <PrayerCard
+                      key={item.id}
+                      card={item}
+                      href={localizePath(`/prayfor/${item.id}`, locale)}
+                      responseCount={relatedCount}
+                      coverLabel={`${text.viewMore} ${item.title}`}
+                      categoryName={item.category?.name || text.prayerCategoryFallback}
+                      authorLabel={`${text.author}:`}
+                      authorName={relatedAuthor}
+                      responsesLabel={`${formatResponseCount(relatedCount)} ${text.responsesSuffix}`}
+                    />
                   );
                 })}
               </div>

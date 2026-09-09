@@ -89,7 +89,7 @@ export default function DetailPrayerInteractionPanel({ prayerId, locale: localeP
 
         .detail-interaction__cta {
           background: var(--accent);
-          color: #fff;
+          color: var(--text-on-accent);
         }
 
         .detail-interaction__companion-cta {

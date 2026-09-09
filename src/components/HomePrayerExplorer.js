@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useAudio } from "@/context/AudioContext";
 import { getDictionary, localizePath, normalizeLocale } from "@/lib/i18n";
+import PrayerCard from "@/components/PrayerCard";
 
 const POPULAR_SLUG = "popular";
 // Pseudo-category like POPULAR_SLUG: it isn't a real HomeCategory row, it just
@@ -562,56 +563,24 @@ export default function HomePrayerExplorer({
             const authorName = getAuthorName(card, text);
 
             return (
-              <article key={card.id} className="home-card">
-                <Link
-                  href={detailHref}
-                  className="home-card__cover-link"
-                  aria-label={`${text.viewCard} "${card.title}"`}
-                  prefetch={false}
-                />
-                <div
-                  className="home-card__bg"
-                  style={card.image ? { backgroundImage: `url(${card.image})` } : undefined}
-                  aria-hidden="true"
-                />
-                <div className="home-card__content">
-                  <h4 className="home-card__title">{card.title}</h4>
-                  <div className="home-card__tag-row">
-                    <span className="home-card__category">{card.category?.name || text.categoryFallback}</span>
-                    {card.voiceHref ? (
-                      <span className="home-card__category home-card__category--voice">
-                        {text.hasVoice}
-                      </span>
-                    ) : null}
-                    <span
-                      className={`home-card__prayer-badge${responseCount === 0 ? " is-empty" : ""}`}
-                    >
-                      {responseCount === 0
-                        ? text.noResponseYet
-                        : `${formatResponseCount(responseCount)} ${text.respondingCount}`}
-                    </span>
-                  </div>
-                  {card.voiceHref ? (
-                    <div className="home-card__actions">
-                      <button
-                        type="button"
-                        className="home-card__action home-card__action--primary"
-                        onClick={(event) => handlePlayCard(event, card)}
-                        aria-label={`${text.playAudio} "${card.title}"`}
-                      >
-                        <i className="fa-solid fa-play" aria-hidden="true" />
-                        {text.playAudio}
-                      </button>
-                    </div>
-                  ) : null}
-                  <div className="home-card__meta home-card__meta--bottom">
-                    <span className="home-card__author" title={`${text.author} ${authorName}`}>
-                      {text.author} {authorName}
-                    </span>
-                    <span className="home-card__responses">{formatResponseCount(responseCount)} {text.responsesSuffix}</span>
-                  </div>
-                </div>
-              </article>
+              <PrayerCard
+                key={card.id}
+                card={card}
+                href={detailHref}
+                responseCount={responseCount}
+                coverLabel={`${text.viewCard} "${card.title}"`}
+                categoryName={card.category?.name || text.categoryFallback}
+                voiceLabel={text.hasVoice}
+                prayingLabel={
+                  responseCount === 0
+                    ? text.noResponseYet
+                    : `${formatResponseCount(responseCount)} ${text.respondingCount}`
+                }
+                authorLabel={text.author}
+                authorName={authorName}
+                playLabel={text.playAudio}
+                onPlay={handlePlayCard}
+              />
             );
           })}
 
