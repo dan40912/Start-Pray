@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import PrayerRecorder from "@/components/prayer-recorder/PrayerRecorder";
 import CompanionOverlay from "@/components/home-companion/CompanionOverlay";
 import PrayedReactionButton from "@/components/prayer-interaction/PrayedReactionButton";
-import { resolveArrowKeyDirection, resolveSwipeDirection } from "@/components/home-companion/swipe-utils";
+import { resolveArrowKeyDirection } from "@/components/home-companion/swipe-utils";
 import { usePrayerInteraction } from "@/components/prayer-interaction/usePrayerInteraction";
 import GainAudio from "@/components/GainAudio";
 import { isPlayableVoiceHref } from "@/lib/voice";

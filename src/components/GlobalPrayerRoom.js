@@ -5298,6 +5298,13 @@ export function GlobalPrayerRoomPageExperience({ prayers = [] }) {
           gap: 0.45rem;
           flex-wrap: wrap;
           justify-content: flex-end;
+          /* 沒有這兩行，換行後的按鈕會被拉伸成 211px 高的長條，蓋住地球。
+             flex 的預設 align-items / align-content 是 stretch。 */
+          align-items: flex-start;
+          align-content: flex-start;
+          /* 這個容器原本高達 647px：一片透明的覆蓋層擋在地球前面，
+             連拖曳轉動地球都會被它吃掉。 */
+          height: fit-content;
         }
 
         .gpr-page__map-controls button {
