@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import PrayerRecorder from "@/components/prayer-recorder/PrayerRecorder";
 import CompanionOverlay from "@/components/home-companion/CompanionOverlay";
@@ -26,14 +27,28 @@ function toPlainText(value) {
 
 const BLOCKING_RECORDER_PHASES = new Set(["requesting-permission", "countdown", "recording"]);
 
-export default function HomePrayerHero({ text, prayer }) {
+export default function HomePrayerHero({ text, prayers }) {
   const copy = text.prayerHero;
   const companionText = text.companion;
 
-  const [currentPrayer, setCurrentPrayer] = useState(prayer || null);
-  const [adjacent, setAdjacent] = useState({ prev: null, next: null });
+  // 一整副牌，不是一張卡。索引移動就是換卡，零網路。
+  const deck = useMemo(() => (Array.isArray(prayers) ? prayers.filter(Boolean) : []), [prayers]);
+  const [index, setIndex] = useState(0);
   const [switchConfirm, setSwitchConfirm] = useState(null); // { direction } | null
   const [blockedMessage, setBlockedMessage] = useState("");
+
+  const currentPrayer = deck[index] || null;
+  const hasPrev = index > 0;
+  const hasNext = index < deck.length - 1;
+
+  // 連續快滑時，每一張都去打一次互動 API 等於一次滑五張就發五組請求。
+  // 等停下來之後才把 id 交給那些 hook。
+  const [settledId, setSettledId] = useState(currentPrayer?.id ?? null);
+  useEffect(() => {
+    const id = deck[index]?.id ?? null;
+    const timeoutId = window.setTimeout(() => setSettledId(id), 180);
+    return () => window.clearTimeout(timeoutId);
+  }, [deck, index]);
 
   const {
     recorderRef,
@@ -48,35 +63,39 @@ export default function HomePrayerHero({ text, prayer }) {
     closeCompanion,
     playableResponses,
     hasCompanionEntry,
-  } = usePrayerInteraction(currentPrayer?.id);
+  } = usePrayerInteraction(settledId);
 
-  const adjacentGenerationRef = useRef(0);
   const heroRef = useRef(null);
-  const touchStartRef = useRef(null);
+  const trackRef = useRef(null);
+  const viewportRef = useRef(null);
+  const dragRef = useRef(null);
+  const [drag, setDrag] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+
+  // 位移在 JS 裡算好、直接寫成 transform，而不是把 --i 塞進 CSS 的 calc()：
+  // 只改自訂屬性時，transform 的過渡不會可靠地重新啟動，卡片會停在原地。
+  const [metrics, setMetrics] = useState({ step: 0, offset: 0 });
+  const measure = useCallback(() => {
+    const viewport = viewportRef.current;
+    const slide = trackRef.current?.firstElementChild;
+    if (!viewport || !slide) return;
+    const slideWidth = slide.getBoundingClientRect().width;
+    const gap = parseFloat(getComputedStyle(trackRef.current).columnGap || "0") || 0;
+    setMetrics({
+      step: slideWidth + gap,
+      offset: (viewport.getBoundingClientRect().width - slideWidth) / 2,
+    });
+  }, []);
 
   useEffect(() => {
-    setCurrentPrayer(prayer || null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prayer?.id]);
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [measure, deck.length]);
 
   useEffect(() => {
-    if (!currentPrayer?.id) {
-      setAdjacent({ prev: null, next: null });
-      return;
-    }
-    const generation = ++adjacentGenerationRef.current;
-
-    fetch(`/api/home-cards/${currentPrayer.id}/adjacent`)
-      .then((res) => (res.ok ? res.json() : { prev: null, next: null }))
-      .then((data) => {
-        if (generation !== adjacentGenerationRef.current) return;
-        setAdjacent(data || { prev: null, next: null });
-      })
-      .catch(() => {
-        if (generation !== adjacentGenerationRef.current) return;
-        setAdjacent({ prev: null, next: null });
-      });
-  }, [currentPrayer?.id]);
+    setIndex(0);
+  }, [deck]);
 
   useEffect(() => {
     if (!blockedMessage) return;
@@ -107,17 +126,17 @@ export default function HomePrayerHero({ text, prayer }) {
     return companionText.switchBlockedGeneric;
   };
 
+  const canGo = (direction) => (direction === "next" ? hasNext : hasPrev);
+
   const performSwitch = (direction) => {
-    const target = direction === "next" ? adjacent.next : adjacent.prev;
-    if (!target) return;
+    if (!canGo(direction)) return;
     discardRecorder();
     setSwitchConfirm(null);
-    setCurrentPrayer(target);
+    setIndex((prev) => prev + (direction === "next" ? 1 : -1));
   };
 
   const attemptSwitch = (direction) => {
-    const target = direction === "next" ? adjacent.next : adjacent.prev;
-    if (!target) return;
+    if (!canGo(direction)) return;
     if (!canSwitchNow()) {
       setBlockedMessage(blockedMessageForState());
       return;
@@ -129,20 +148,76 @@ export default function HomePrayerHero({ text, prayer }) {
     performSwitch(direction);
   };
 
-  const handleTouchStart = (event) => {
-    const touch = event.touches?.[0];
-    if (!touch) return;
-    touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+  // 手指跟隨。之前只綁 touchstart / touchend，中間完全不動，放開手才瞬間
+  // 抽換 DOM —— 那是一個手勢偵測器，不是拖曳，體感上這是「不流暢」的主因。
+  const handlePointerDown = (event) => {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    if (deck.length <= 1) return;
+    // 錄音中根本不進入拖曳狀態，而不是讓人拖到一半才被彈回去。
+    if (!canSwitchNow()) return;
+    dragRef.current = {
+      id: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+      startedAt: event.timeStamp,
+      axis: null,
+      moved: 0,
+    };
   };
 
-  const handleTouchEnd = (event) => {
-    const start = touchStartRef.current;
-    touchStartRef.current = null;
-    if (!start) return;
-    const touch = event.changedTouches?.[0];
-    if (!touch) return;
-    const direction = resolveSwipeDirection(touch.clientX - start.x, touch.clientY - start.y);
-    if (direction) attemptSwitch(direction);
+  const handlePointerMove = (event) => {
+    const state = dragRef.current;
+    if (!state || state.id !== event.pointerId) return;
+    const dx = event.clientX - state.x;
+    const dy = event.clientY - state.y;
+    state.moved = Math.hypot(dx, dy);
+
+    // 軸向鎖定：前 10px 內決定這是水平滑卡還是垂直捲頁。沒有這個，
+    // 手機上會變成整頁滑不動。
+    if (!state.axis) {
+      if (state.moved < 10) return;
+      state.axis = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
+      if (state.axis === "x") {
+        setIsDragging(true);
+        try {
+          // 手指滑出容器時不要斷掉。指標已經消失的情況會丟例外，不影響拖曳。
+          event.currentTarget.setPointerCapture?.(event.pointerId);
+        } catch {
+          // noop
+        }
+      }
+    }
+    if (state.axis !== "x") return;
+
+    // 到底了就給阻尼，讓人感覺到邊界而不是卡死。
+    const atEdge = (dx > 0 && !hasPrev) || (dx < 0 && !hasNext);
+    setDrag(atEdge ? dx * 0.22 : dx);
+  };
+
+  const endDrag = (event) => {
+    const state = dragRef.current;
+    dragRef.current = null;
+    setIsDragging(false);
+    setDrag(0);
+    if (!state || state.axis !== "x") return;
+
+    const dx = event.clientX - state.x;
+    const elapsed = Math.max(1, event.timeStamp - state.startedAt);
+    const velocity = dx / elapsed; // px/ms
+    const width = trackRef.current?.getBoundingClientRect().width || 320;
+
+    // 只看距離的話，快速的輕彈會被判成「沒滑動」而彈回去，手感很鈍。
+    const shouldSwitch = Math.abs(dx) > width * 0.25 || Math.abs(velocity) > 0.45;
+    if (!shouldSwitch) return;
+    attemptSwitch(dx < 0 ? "next" : "prev");
+  };
+
+  // 拖過就不算點擊，免得滑動時誤觸標題連結。
+  const handleClickCapture = (event) => {
+    if (dragRef.current?.moved > 8) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
   };
 
   useEffect(() => {
@@ -156,24 +231,21 @@ export default function HomePrayerHero({ text, prayer }) {
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [adjacent, canSwitchNow, companionOpen, needsDiscardConfirm]);
+  }, [index, deck, canSwitchNow, companionOpen, needsDiscardConfirm]);
 
-  const description = toPlainText(currentPrayer?.description);
-  const playableVoiceHref = isPlayableVoiceHref(currentPrayer?.voiceHref) ? currentPrayer.voiceHref : null;
-  // Cards submitted anonymously have no owner at all, which is the common case
-  // on this wall — falling back to the anonymous label keeps the line present
-  // rather than collapsing the card's layout for half the prayers.
-  const uploaderName =
-    currentPrayer?.owner?.name || currentPrayer?.owner?.username || copy.uploaderAnonymous;
 
   return (
-    <section
-      className="prayer-hero"
-      aria-labelledby="prayer-hero-title"
-      ref={heroRef}
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-    >
+    <section className="prayer-hero" aria-labelledby="prayer-hero-title" ref={heroRef}>
+      {/* 氛圍層：目前這張卡的照片，重度模糊、壓暗，活在內容後面，
+          佔 0px 版面。純 CSS 漸層是 AI 模板的指紋，真實照片不是。 */}
+      {currentPrayer?.image ? (
+        <div
+          className="prayer-hero__ambient"
+          style={{ backgroundImage: `url(${currentPrayer.image})` }}
+          aria-hidden="true"
+        />
+      ) : null}
+
       <div className="prayer-hero__inner">
         {recorderActive ? (
           <PrayerRecorder
@@ -187,26 +259,72 @@ export default function HomePrayerHero({ text, prayer }) {
           <>
             <h1 id="prayer-hero-title">{copy.headline}</h1>
 
-            <article className="prayer-hero__card" aria-label={copy.cardLabel}>
-              <h2>{currentPrayer.title}</h2>
-              <p className="prayer-hero__uploader">
-                {copy.uploaderLabel}
-                <span className="prayer-hero__uploader-name">{uploaderName}</span>
-              </p>
-              {description ? <p>{description}</p> : null}
-              {playableVoiceHref ? (
-                <div className="prayer-hero__voice">
-                  <span className="prayer-hero__voice-label">{copy.voiceLabel}</span>
-                  {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-                  <GainAudio
-                    controls
-                    preload="metadata"
-                    src={playableVoiceHref}
-                    className="prayer-hero__card-audio"
-                  />
-                </div>
-              ) : null}
-            </article>
+            <div
+              className="prayer-hero__viewport"
+              ref={viewportRef}
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={endDrag}
+              onPointerCancel={endDrag}
+              onClickCapture={handleClickCapture}
+            >
+              <ul
+                className="prayer-hero__track"
+                ref={trackRef}
+                data-dragging={isDragging ? "true" : "false"}
+                style={{
+                  transform: `translate3d(${metrics.offset - index * metrics.step + drag}px, 0, 0)`,
+                }}
+              >
+                {deck.map((item, itemIndex) => {
+                  const isCurrent = itemIndex === index;
+                  const itemVoice = isPlayableVoiceHref(item.voiceHref) ? item.voiceHref : null;
+                  const itemUploader =
+                    item?.owner?.name || item?.owner?.username || copy.uploaderAnonymous;
+                  return (
+                    <li
+                      key={item.id}
+                      className="prayer-hero__slide"
+                      aria-hidden={!isCurrent}
+                      onClick={isCurrent ? undefined : () => attemptSwitch(itemIndex > index ? "next" : "prev")}
+                    >
+                      <article
+                        className="prayer-hero__card"
+                        aria-label={copy.cardLabel}
+                        // 非當前卡的內容移出 tab 順序，否則 Tab 會跑進看不見的卡裡。
+                        // inert 掛在內層而不是 li，這樣點露出來的鄰卡仍然可以把它
+                        // 切到中間 —— 使用者點旁邊的卡，期待的是「移過來」，不是跳頁。
+                        inert={isCurrent ? undefined : ""}
+                      >
+                        <h2>
+                          {/* 只有標題是連結。整張卡包成 <a> 會讓每次滑動都誤觸導航。 */}
+                          <Link href={`/prayfor/${item.id}`} prefetch={isCurrent}>
+                            {item.title}
+                          </Link>
+                        </h2>
+                        <p className="prayer-hero__uploader">
+                          {copy.uploaderLabel}
+                          <span className="prayer-hero__uploader-name">{itemUploader}</span>
+                        </p>
+                        {toPlainText(item.description) ? <p>{toPlainText(item.description)}</p> : null}
+                        {itemVoice && isCurrent ? (
+                          <div className="prayer-hero__voice">
+                            <span className="prayer-hero__voice-label">{copy.voiceLabel}</span>
+                            {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+                            <GainAudio
+                              controls
+                              preload="metadata"
+                              src={itemVoice}
+                              className="prayer-hero__card-audio"
+                            />
+                          </div>
+                        ) : null}
+                      </article>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
 
             <div className="prayer-hero__actions">
               <button type="button" className="prayer-hero__cta" onClick={openRecorder}>
@@ -223,17 +341,17 @@ export default function HomePrayerHero({ text, prayer }) {
               ) : null}
             </div>
 
-            <PrayedReactionButton prayerId={currentPrayer?.id} text={text.prayed} />
+            <PrayedReactionButton prayerId={settledId} text={text.prayed} />
 
             <p className="prayer-hero__anonymous-note">{text.recorder.anonymousNote}</p>
 
-            {adjacent.prev || adjacent.next ? (
+            {deck.length > 1 ? (
               <div className="prayer-hero__nav">
                 <button
                   type="button"
                   className="prayer-hero__nav-btn"
                   onClick={() => attemptSwitch("prev")}
-                  disabled={!adjacent.prev}
+                  disabled={!hasPrev}
                   aria-label={copy.prevPrayer}
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -245,7 +363,7 @@ export default function HomePrayerHero({ text, prayer }) {
                   type="button"
                   className="prayer-hero__nav-btn"
                   onClick={() => attemptSwitch("next")}
-                  disabled={!adjacent.next}
+                  disabled={!hasNext}
                   aria-label={copy.nextPrayer}
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -374,11 +492,125 @@ export default function HomePrayerHero({ text, prayer }) {
           color: var(--nv-mist);
         }
 
+        /* 氛圍層：目前卡片的照片鋪成整個 hero 的背景，重度模糊 + 壓暗。
+           它活在內容後面，不佔任何版面高度。opacity 是關鍵，超過 0.20 就
+           會開始吃字的對比。 */
+        .prayer-hero__ambient {
+          position: absolute;
+          inset: -10%;
+          z-index: 0;
+          background-position: center;
+          background-size: cover;
+          filter: blur(44px) saturate(1.12);
+          opacity: 0.17;
+          transition: opacity 500ms ease;
+          pointer-events: none;
+        }
+
+        .prayer-hero__ambient::after {
+          content: "";
+          position: absolute;
+          inset: 0;
+          background:
+            radial-gradient(ellipse 70% 55% at 50% 45%, transparent, var(--nv-night) 78%),
+            linear-gradient(180deg, rgba(5, 7, 12, 0.55), rgba(10, 18, 31, 0.9));
+        }
+
+        /* 三層結構：viewport 滿版負責裁切，track 只動 transform，
+           slide 收在 560px。之前 .prayer-hero__inner 的 max-width 會把露肩
+           夾死，所以 viewport 必須自己撐出畫面寬度。 */
+        .prayer-hero__viewport {
+          position: relative;
+          width: 100vw;
+          max-width: 100vw;
+          margin-inline: calc(50% - 50vw);
+          overflow: hidden;
+          touch-action: pan-y;
+        }
+
+        .prayer-hero__track {
+          --slide: min(560px, 82vw);
+          --gap: 20px;
+          --step: calc(var(--slide) + var(--gap));
+
+          display: flex;
+          gap: var(--gap);
+          margin: 0;
+          padding: 0.75rem 0 0.25rem;
+          list-style: none;
+          /* 位移由 JS 寫進 inline transform。只動 transform，交給 GPU 合成，
+             不觸發 layout / paint。 */
+          transition: transform 420ms cubic-bezier(0.22, 0.61, 0.36, 1);
+        }
+
+        .prayer-hero__track[data-dragging="true"] {
+          transition: none;
+          will-change: transform;
+        }
+
+        .prayer-hero__slide {
+          flex: 0 0 var(--slide);
+          display: flex;
+          /* 鄰卡露肩：它就是「還有更多」的視覺證據，比一行小字有效得多，
+             而且只吃水平邊緣，垂直高度增加 0px。 */
+          /* scale 會把鄰卡的左緣往中間縮，露出來的那一條就沒了 —— 用比較
+             淺的縮放，並讓它往畫面外側縮，露肩才留得住。 */
+          opacity: 0.42;
+          transform: scale(0.95);
+          filter: blur(1.5px);
+          transition:
+            opacity 420ms ease,
+            transform 420ms cubic-bezier(0.22, 0.61, 0.36, 1),
+            filter 420ms ease;
+          cursor: pointer;
+        }
+
+        .prayer-hero__slide:not([aria-hidden="false"]) {
+          transform-origin: center;
+        }
+
+        .prayer-hero__slide[aria-hidden="false"] {
+          opacity: 1;
+          transform: none;
+          filter: none;
+          cursor: default;
+        }
+
+        .prayer-hero__card h2 :global(a) {
+          color: inherit;
+          text-decoration: none;
+        }
+
+        .prayer-hero__card h2 :global(a:hover),
+        .prayer-hero__card h2 :global(a:focus-visible) {
+          text-decoration: underline;
+          text-underline-offset: 0.2em;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .prayer-hero__track {
+            transition: opacity 120ms ease;
+          }
+
+          .prayer-hero__slide {
+            transition: opacity 120ms ease;
+            transform: none;
+            filter: none;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .prayer-hero__track {
+            /* 手機上主卡不能太窄，但仍要露出一小條鄰卡當「還有更多」的證據。 */
+            --slide: 78vw;
+            --gap: 12px;
+          }
+        }
+
         .prayer-hero__card {
           position: relative;
           width: 100%;
-          max-width: 560px;
-          margin-top: 0.75rem;
+          margin-top: 0;
           padding: 1.75rem 1.85rem;
           border-radius: 20px;
           border: 1px solid var(--nv-line);
@@ -389,6 +621,7 @@ export default function HomePrayerHero({ text, prayer }) {
             inset 0 1px 0 rgba(255, 255, 255, 0.03);
           text-align: left;
           display: flex;
+          flex: 1 1 auto;
           flex-direction: column;
           gap: 0.7rem;
         }

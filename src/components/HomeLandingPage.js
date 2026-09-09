@@ -242,7 +242,11 @@ export default async function HomeLandingPage({ locale: localeProp = "zh-TW" } =
         _count: { select: { responses: true } },
       },
     }),
-    readHomeCards({ sort: "needsPrayer", limit: 1 }),
+    // Hero 一次帶一整副牌。過去只送一張，之後每滑一次都要先打一次
+    // /api/home-cards/:id/adjacent 才知道下一張是誰 —— 每一次滑動都在
+    // 等一趟往返。首頁本來就已經跑了 12 筆與 100 筆的查詢，多帶 9 張
+    // 幾乎沒有成本。
+    readHomeCards({ sort: "needsPrayer", limit: 10 }),
   ]);
 
   const globalPrayers = globalPrayerCards.map((card) => toGlobalPrayerPayload(card, locale));
@@ -252,7 +256,7 @@ export default async function HomeLandingPage({ locale: localeProp = "zh-TW" } =
   // HomeGlobeHero is a client component, so Date/Decimal values from Prisma
   // have to be flattened the same way the other client props are.
   const clientGlobalPrayers = toClientValue(globalPrayers);
-  const featuredPrayer = toClientValue(featuredPrayerCards[0] || null);
+  const featuredPrayers = toClientValue(featuredPrayerCards || []);
 
   return (
     <>
@@ -260,7 +264,7 @@ export default async function HomeLandingPage({ locale: localeProp = "zh-TW" } =
 
       <main className="home-page">
         <HomeStructuredData stats={heroStats} globalPrayerCount={globalPrayers.length} text={text} locale={locale} />
-        <HomePrayerHero text={text} prayer={featuredPrayer} />
+        <HomePrayerHero text={text} prayers={featuredPrayers} />
 
         <HomeProofSection text={text} locale={locale} />
 
