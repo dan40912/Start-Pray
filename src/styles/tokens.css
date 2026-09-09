@@ -65,7 +65,9 @@
     "Inter", system-ui, "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", sans-serif;
 
   /* ---- 尺度：全站一個 header 高度 -------------------------------- */
-  --header-h: 64px;
+  /* 頁首實際就是 72px（theme-modern 寫死的），但 body 只保留 56/64px。
+     以實際渲染高度為準，讓保留空間與頁首一致。 */
+  --header-h: 72px;
   --gutter: 1.25rem;
   --maxw-read: 680px;
   --maxw-page: 1120px;

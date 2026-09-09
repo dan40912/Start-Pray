@@ -305,7 +305,7 @@ export default function AdminDashboardPage() {
 
       rows.push([]);
       rows.push(["高風險回應 Top 5"]);
-      rows.push(["訊息", "回覆者", "代禱卡", "檢舉次數", "狀態"]);
+      rows.push(["訊息", "回覆者", "代禱", "檢舉次數", "狀態"]);
       if (highRiskResponses.length === 0) {
         rows.push(["無資料", "", "", "", ""]);
       } else {
@@ -396,7 +396,7 @@ export default function AdminDashboardPage() {
         ) : metricsError ? (
           <article className="dashboard-card dashboard-card--wide">
             <p className="error">{metricsError}</p>
-            <button type="button" className="link-button" onClick={loadMetrics} data-admin-hint="重新載入使用者、代禱卡與回應統計。">
+            <button type="button" className="link-button" onClick={loadMetrics} data-admin-hint="重新載入使用者、代禱與回應統計。">
               重新載入
             </button>
           </article>
@@ -517,7 +517,7 @@ export default function AdminDashboardPage() {
                           className="link-button"
                           onClick={() => handleBlockPrayer(item.id)}
                           disabled={prayerActionId === item.id}
-                          data-admin-hint="封鎖後，這張代禱卡會從公開頁面與公開 API 移除。"
+                          data-admin-hint="封鎖後，這則代禱會從公開頁面與公開 API 移除。"
                         >
                           {prayerActionId === item.id ? "處理中..." : "封鎖"}
                         </button>

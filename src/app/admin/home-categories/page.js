@@ -143,7 +143,7 @@ export default function AdminHomeCategoriesPage() {
           <header className="admin-section__card-header">
             <div>
               <h2>新增分類</h2>
-              <p>新增後即可在祈禱卡片的建立與編輯頁面中套用。</p>
+              <p>新增後即可在代禱的建立與編輯頁面中套用。</p>
             </div>
           </header>
           <form className="dashboard-form" onSubmit={handleCreate}>

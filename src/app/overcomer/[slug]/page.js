@@ -38,7 +38,7 @@ export async function generateMetadata({ params }) {
   if (!parsed?.username) {
     return buildPageMetadata({
       title: "得勝者",
-      description: "查看 Start Pray 得勝者公開分享的信仰故事、代禱事項與回應紀錄。",
+      description: "查看 Start Pray 得勝者公開分享的信仰故事、代禱與回應紀錄。",
       path: "/overcomer",
     });
   }
@@ -47,7 +47,7 @@ export async function generateMetadata({ params }) {
   if (!profile) {
     return buildPageMetadata({
       title: "得勝者",
-      description: "查看 Start Pray 得勝者公開分享的信仰故事、代禱事項與回應紀錄。",
+      description: "查看 Start Pray 得勝者公開分享的信仰故事、代禱與回應紀錄。",
       path: "/overcomer",
     });
   }
@@ -55,7 +55,7 @@ export async function generateMetadata({ params }) {
   const displayName = profile.name || profile.username || "得勝者";
   const description =
     plainText(profile.bio, 150) ||
-    `認識 ${displayName} 在 Start Pray 的信仰故事、代禱事項與禱告回應。`;
+    `認識 ${displayName} 在 Start Pray 的信仰故事、代禱與禱告回應。`;
 
   return buildPageMetadata({
     title: `${displayName} 的得勝者故事`,
@@ -109,7 +109,7 @@ export default async function OvercomerProfilePage({ params }) {
             <div className="cp-card__meta">
               <span>加入時間：{formatDateTime(profile.createdAt)}</span>
               <span>最近更新：{formatDateTime(profile.updatedAt)}</span>
-              <span>公開代禱事項：{totalCards}</span>
+              <span>公開代禱：{totalCards}</span>
               <span>公開回應：{totalResponses}</span>
             </div>
             <div className="cp-profile__actions">
@@ -171,17 +171,17 @@ export default async function OvercomerProfilePage({ params }) {
         <section className="cp-section cp-section--cards">
           <div className="cp-section__head">
             <div>
-              <h2>已發佈的代禱事項</h2>
+              <h2>已發佈的代禱</h2>
               <p>瀏覽 {profile.name || profile.username || "這位帶禱者"} 分享的最新禱告內容。</p>
             </div>
           </div>
           {cards.length === 0 ? (
-            <p className="cp-helper">尚未發佈任何代禱事項。</p>
+            <p className="cp-helper">尚未發佈任何代禱。</p>
           ) : (
             <div className="cp-cards">
               {cards.map((card) => {
                 const link = buildOvercomerCardPath(card);
-                const coverAlt = card.alt || `${card.title || "祈禱卡片"} 封面`;
+                const coverAlt = card.alt || `${card.title || "代禱"} 封面`;
                 return (
                   <article key={card.id} className="cp-card">
                     <div className="cp-card__layout">
@@ -202,7 +202,7 @@ export default async function OvercomerProfilePage({ params }) {
                       </div>
                       <div className="cp-card__content">
                         <div className="cp-card__title">
-                          <h3>{card.title || "暫未命名的祈禱卡"}</h3>
+                          <h3>{card.title || "暫未命名的代禱"}</h3>
                           {card.description ? (
                             <p className="cp-card__description">{card.description}</p>
                           ) : (
@@ -239,7 +239,7 @@ export default async function OvercomerProfilePage({ params }) {
           ) : (
             <div className="cp-replies">
               {responses.map((reply) => {
-                const cardTitle = reply.homeCard?.title || "祈禱卡片";
+                const cardTitle = reply.homeCard?.title || "代禱";
                 const cardAlt = reply.homeCard?.alt || `${cardTitle} 封面`;
                 const cardImage = reply.homeCard?.image || null;
                 const cardLink = buildOvercomerResponsePath(reply);
@@ -268,7 +268,7 @@ export default async function OvercomerProfilePage({ params }) {
                           <h3>{cardTitle}</h3>
                           {cardLink ? (
                             <Link href={cardLink} prefetch={false} className="cp-link">
-                              查看代禱事項
+                              查看代禱
                             </Link>
                           ) : null}
                         </div>

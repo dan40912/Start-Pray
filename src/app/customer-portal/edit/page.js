@@ -138,7 +138,7 @@ export default function CustomerPortalEditPage() {
           <p className="customer-edit__eyebrow">Customer Portal</p>
           <h1>首頁卡片管理</h1>
           <p>
-            調整首頁祈禱卡片的圖片、文案與分類。所有變更將即時同步至公開首頁，請確認內容完整與連結正確。
+            調整首頁代禱的圖片、文案與分類。所有變更將即時同步至公開首頁，請確認內容完整與連結正確。
           </p>
         </div>
         <div className="customer-edit__header-meta">

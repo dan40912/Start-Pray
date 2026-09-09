@@ -12,12 +12,12 @@ const TEXT = {
   subheadline: "每一個光點，都是一個人、一座城市，或一個正在被主記念的需要。",
   primaryCta: "分享代禱需要",
   roomCta: "進入全球禱告室",
-  totalPrayers: "代禱事項",
+  totalPrayers: "代禱",
   locationLights: "地點光點",
   todayNew: "24 小時內新增",
   audioPrayers: "語音禱告",
   emptyTitle: "還沒有可顯示的禱告光點",
-  emptyCopy: "分享第一個代禱事項，讓世界地圖亮起來。",
+  emptyCopy: "分享第一個代禱，讓世界地圖亮起來。",
 };
 
 function isMappablePrayer(prayer) {

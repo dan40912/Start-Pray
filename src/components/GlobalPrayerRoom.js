@@ -2285,7 +2285,7 @@ function usePrayerClusters(prayers) {
 export function GlobalPrayerRoomEmbed({
   prayers = [],
   title = "全球禱告室",
-  subtitle = "拖曳旋轉地球，查看世界各地正在被守望的代禱事項。",
+  subtitle = "拖曳旋轉地球，查看世界各地正在被守望的代禱。",
   ctaHref = "/global-prayer-room",
   ctaLabel = "進入全球禱告室",
   isHero = false,
@@ -3038,7 +3038,7 @@ export default function GlobalPrayerRoom({ prayers = [] }) {
             <p>
               {selectedPrayer
                 ? getPrayerDescription(selectedPrayer)
-                : "得勝者建立代禱事項並選擇大概城市後，光點會在地球上亮起。"}
+                : "得勝者建立代禱並選擇大概城市後，光點會在地球上亮起。"}
             </p>
             <div className="global-room__selected-meta">
               <span>{selectedCluster?.totalCount ?? 0} 筆代禱</span>
@@ -3088,7 +3088,7 @@ export default function GlobalPrayerRoom({ prayers = [] }) {
               </div>
             ) : (
               <p className="global-room__empty">
-                目前還沒有選擇城市的代禱事項。地球預設停在台北，等待第一個光點被點亮。
+                目前還沒有選擇城市的代禱。地球預設停在台北，等待第一個光點被點亮。
               </p>
             )}
           </section>
@@ -3148,11 +3148,11 @@ export default function GlobalPrayerRoom({ prayers = [] }) {
             <h2 id="global-prayer-modal-title">
               {modalCluster.isDefaultFocus
                 ? "台北預設視角"
-                : `${modalCluster.cityLabel} 的代禱事項`}
+                : `${modalCluster.cityLabel} 的代禱`}
             </h2>
             {modalCluster.isDefaultFocus ? (
               <p>
-                目前沒有任何城市代禱光點。得勝者建立代禱事項並選擇大概城市後，光點會出現在這裡。
+                目前沒有任何城市代禱光點。得勝者建立代禱並選擇大概城市後，光點會出現在這裡。
               </p>
             ) : (
               <>
@@ -4471,7 +4471,7 @@ export function GlobalPrayerRoomPageExperience({ prayers = [] }) {
       setQueue(queue, 0);
       playTrack(queue[0]);
       setIsExpanded?.(true);
-      setReplyNotice("正在播放這個代禱事項的語音。");
+      setReplyNotice("正在播放這個代禱的語音。");
     } catch {
       setReplyNotice("語音暫時無法載入，請稍後再試。");
     }
@@ -4579,7 +4579,7 @@ export function GlobalPrayerRoomPageExperience({ prayers = [] }) {
                     setSearchQuery(event.target.value);
                     setCountrySearchMessage("");
                   }}
-                  placeholder="搜尋國家、城市或代禱事項"
+                  placeholder="搜尋國家、城市或代禱"
                   autoComplete="off"
                 />
                 <button type="submit">前往</button>
@@ -4763,7 +4763,7 @@ export function GlobalPrayerRoomPageExperience({ prayers = [] }) {
             )}
             {replyNotice ? <p className="gpr-drawer__notice" role="status">{replyNotice}</p> : null}
             <div className="gpr-drawer__footnote">
-              <span>登入用戶可建立新代禱事項。</span>
+              <span>登入用戶可建立新代禱。</span>
               <span>訪客目前可瀏覽與分享；語音上傳沿用既有回覆 API 權限。</span>
             </div>
           </article>

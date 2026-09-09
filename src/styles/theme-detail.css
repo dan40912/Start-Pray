@@ -1285,7 +1285,8 @@
   padding: 0.5rem 1rem;
   border-radius: 999px;
   border: 1px solid rgba(125, 211, 252, 0.55);
-  background: linear-gradient(135deg, #1d4ed8, #0ea5e9);
+  background: var(--accent);
+  color: var(--text-on-accent);
   color: #f8fbff;
   font-weight: 600;
   font-size: 0.85rem;
@@ -1562,7 +1563,8 @@
 }
 
 .pdv2-sticky-actions a:first-child {
-  background: linear-gradient(135deg, #1d4ed8, #0ea5e9);
+  background: var(--accent);
+  color: var(--text-on-accent);
   color: #fff;
 }
 
@@ -1930,7 +1932,7 @@
 .pdv2-player__progress-fill {
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #38bdf8, #1d4ed8);
+  background: var(--accent);
 }
 
 .pdv2-player__time {
@@ -2670,7 +2672,9 @@
     z-index: 5;
     margin: 0.75rem -0.25rem -0.25rem;
     padding: 0.35rem;
-    background: linear-gradient(to bottom, rgba(255, 253, 248, 0.86), #fffdf8 35%);
+    /* 這裡原本是 #fffdf8 —— 舊淺色版留下的奶白，在深色頁上就是那塊
+       包住「送出文字禱告」的白方塊。改成跟留言卡同色的上緣淡出。 */
+    background: linear-gradient(to bottom, rgba(17, 29, 51, 0), var(--surface-1) 35%);
   }
 
   .pdv2-comments-card .record-toolbar .btn {

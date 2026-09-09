@@ -12,7 +12,7 @@ function escapeXml(value) {
 }
 
 function normalizeTitle(value) {
-  const title = typeof value === "string" && value.trim() ? value.trim() : "代禱事項";
+  const title = typeof value === "string" && value.trim() ? value.trim() : "代禱";
   return title.replace(/\s+/g, " ").slice(0, MAX_TITLE_LENGTH);
 }
 

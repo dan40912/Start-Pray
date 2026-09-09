@@ -467,13 +467,13 @@ export default function CustomerPortalPage() {
       const data = await res.json().catch(() => null);
 
       if (!res.ok) {
-        throw new Error(data?.message || "無法取得祈禱卡");
+        throw new Error(data?.message || "無法取得代禱");
       }
 
       setCards(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error("載入祈禱卡發生錯誤:", error);
-      setCardsError(error.message || "無法取得祈禱卡");
+      console.error("載入代禱發生錯誤:", error);
+      setCardsError(error.message || "無法取得代禱");
     } finally {
       setCardsLoading(false);
     }
@@ -911,7 +911,7 @@ export default function CustomerPortalPage() {
     try {
       if (typeof navigator !== "undefined") {
         if (navigator.share) {
-          await navigator.share({ title: card.title || "祈禱卡", url });
+          await navigator.share({ title: card.title || "代禱", url });
           setToast({ type: "success", message: "已成功分享" });
           return;
         }
@@ -928,7 +928,7 @@ export default function CustomerPortalPage() {
         message: "裝置不支援自動分享，請手動複製連結",
       });
     } catch (error) {
-      console.error("分享祈禱卡發生錯誤:", error);
+      console.error("分享代禱發生錯誤:", error);
       setToast({ type: "error", message: "分享失敗，請稍後再試" });
     }
   };
@@ -942,7 +942,7 @@ export default function CustomerPortalPage() {
     }
 
     if (card.isBlocked) {
-      setToast({ type: "error", message: "祈禱卡已被封存，無法刪除" });
+      setToast({ type: "error", message: "代禱已被封存，無法刪除" });
       return;
     }
 
@@ -955,13 +955,13 @@ export default function CustomerPortalPage() {
 
       if (!res.ok) {
         const payload = await res.json().catch(() => null);
-        throw new Error(payload?.message || "刪除祈禱卡失敗");
+        throw new Error(payload?.message || "刪除代禱失敗");
       }
 
       setCards((prev) => prev.filter((item) => item.id !== card.id));
-      setToast({ type: "success", message: "祈禱卡已刪除" });
+      setToast({ type: "success", message: "代禱已刪除" });
     } catch (error) {
-      console.error("刪除祈禱卡發生錯誤:", error);
+      console.error("刪除代禱發生錯誤:", error);
       setToast({ type: "error", message: error.message || "刪除失敗" });
     } finally {
       setCardAction(null);
@@ -972,7 +972,7 @@ export default function CustomerPortalPage() {
 
   const handleToggleVisibility = async (card) => {
     if (card.isBlocked) {
-      setToast({ type: "error", message: "祈禱卡已被封存，無法變更顯示" });
+      setToast({ type: "error", message: "代禱已被封存，無法變更顯示" });
       return;
     }
 
@@ -998,7 +998,7 @@ export default function CustomerPortalPage() {
       setCards((prev) => prev.map((item) => (item.id === data.id ? data : item)));
       setToast({
         type: "success",
-        message: data.isPrivate ? "祈禱卡已設為不公開" : "祈禱卡已重新公開",
+        message: data.isPrivate ? "代禱已設為不公開" : "代禱已重新公開",
       });
     } catch (error) {
       console.error("更新顯示狀態發生錯誤:", error);
@@ -1051,7 +1051,7 @@ export default function CustomerPortalPage() {
 
   const renderCards = () => {
     if (cardsLoading) {
-      return <p className="cp-helper">祈禱卡載入中...</p>;
+      return <p className="cp-helper">代禱載入中...</p>;
     }
 
     if (cardsError) {
@@ -1061,9 +1061,9 @@ export default function CustomerPortalPage() {
     if (!cards.length) {
       return (
         <div className="cp-empty">
-          <p>目前尚未建立祈禱卡。</p>
+          <p>目前尚未建立代禱。</p>
           <Link href="/customer-portal/create" className="cp-link">
-            點我立即建立祈禱卡
+            點我立即建立代禱
           </Link>
         </div>
       );
@@ -1079,7 +1079,7 @@ export default function CustomerPortalPage() {
             cardAction?.id === card.id && cardAction?.type === "visibility";
           const canManage = !card.isBlocked;
           const statusLabel = card.isBlocked ? "已封存" : card.isPrivate ? "不公開" : "已公開";
-          const coverAlt = card.alt || `${card.title || "祈禱卡"} 封面`;
+          const coverAlt = card.alt || `${card.title || "代禱"} 封面`;
           const shareHref = buildCardHref(card);
           const shareDisabled = !shareHref;
 
@@ -1113,7 +1113,7 @@ export default function CustomerPortalPage() {
                 <div className="cp-card__content">
                   <div className="cp-card__header">
                     <div className="cp-card__title">
-                      <h3>{card.title || "未命名的祈禱卡片"}</h3>
+                      <h3>{card.title || "未命名的代禱"}</h3>
                       {card.description ? (
                         <p className="cp-card__description">{card.description}</p>
                       ) : (
@@ -1209,7 +1209,7 @@ export default function CustomerPortalPage() {
     return (
       <div className="cp-replies">
         {responses.map((reply) => {
-          const cardTitle = reply?.homeCard?.title || "祈禱卡片";
+          const cardTitle = reply?.homeCard?.title || "代禱";
           const shareHref = reply?.homeCard?.id ? buildCardHref(reply.homeCard) : "";
           const showShareLink = Boolean(shareHref);
           const isToggling =
@@ -1235,7 +1235,7 @@ export default function CustomerPortalPage() {
                     <h3>{cardTitle}</h3>
                     {showShareLink ? (
                       <Link href={shareHref} prefetch={false} className="cp-link">
-                        查看代禱事項
+                        查看代禱
                       </Link>
                     ) : null}
                   </div>
@@ -1359,7 +1359,7 @@ export default function CustomerPortalPage() {
 
             <h2>帳號已被暫時停權</h2>
 
-            <p>您的帳號目前無法建立或管理祈禱卡片。請聯絡系統管理員。</p>
+            <p>您的帳號目前無法建立或管理代禱。請聯絡系統管理員。</p>
 
           </div>
 
@@ -1404,7 +1404,7 @@ export default function CustomerPortalPage() {
                 <div className="cp-profile__visibility">
                   <strong>{isPublicProfileEnabled ? "公開個人頁已開啟" : "公開個人頁已關閉"}</strong>
                   <p className="cp-helper">
-                    開啟後，其他人可以在得勝者專區看到你的暱稱、大頭貼、個人簡介、公開代禱事項與未被隱藏的回應。
+                    開啟後，其他人可以在得勝者專區看到你的暱稱、大頭貼、個人簡介、公開代禱與未被隱藏的回應。
                   </p>
                   {isPublicProfileEnabled && publicProfilePath ? (
                     <Link className="cp-link" href={publicProfilePath} prefetch={false}>
@@ -1430,7 +1430,7 @@ export default function CustomerPortalPage() {
                     href="/customer-portal/create"
                     prefetch={false}
                   >
-                    新增代禱事項
+                    新增代禱
                   </Link>
                 </div>
               </div>
@@ -1448,9 +1448,9 @@ export default function CustomerPortalPage() {
                 </article> */}
                 <article className="home-stats__item">
                   <span className="home-stats__icon" aria-hidden="true">🙏</span>
-                  <span className="home-stats__label">代禱事項</span>
+                  <span className="home-stats__label">代禱</span>
                   <strong className="home-stats__value">{renderUserStatValue(userStats.totalCards)}</strong>
-                  <p className="home-stats__hint">您曾建立的代禱事項總數</p>
+                  <p className="home-stats__hint">您曾建立的代禱總數</p>
                 </article>
                 <article className="home-stats__item">
                   <span className="home-stats__icon" aria-hidden="true">🎧</span>
@@ -1475,7 +1475,7 @@ export default function CustomerPortalPage() {
 
                   <h2>我的禱告</h2>
 
-                  <p>管理所有禱告需求，為每一則內容新增 1–3 張相簿圖片，這些照片會出現在詳情頁的「代禱相簿」。</p>
+                  <p>管理所有代禱，為每一則內容新增 1–3 張相簿圖片，這些照片會出現在詳情頁的「代禱相簿」。</p>
 
                 </div>
 
@@ -1560,7 +1560,7 @@ export default function CustomerPortalPage() {
 
               <small className="cp-helper">
 
-                這個名稱會顯示在你的代禱卡與公開見證頁。
+                這個名稱會顯示在你的代禱與公開見證頁。
 
               </small>
 

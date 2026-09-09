@@ -2,7 +2,7 @@ export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://startpray.o
 export const SITE_NAME = "Start Pray";
 export const DEFAULT_OG_IMAGE = "/img/logo.png";
 export const DEFAULT_DESCRIPTION =
-  "Start Pray 是一個讓人分享代禱事項、用文字與語音彼此回應，並在全球禱告地圖上看見需要被守望的平台。";
+  "Start Pray 是一個讓人分享代禱、用文字與語音彼此回應，並在全球禱告地圖上看見需要被守望的平台。";
 
 function stripEnglishPrefix(path = "/") {
   if (path === "/en") return "/";

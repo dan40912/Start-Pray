@@ -152,7 +152,8 @@
 .cp-button {
   border-radius: var(--radius-full);
   padding: 0.75rem 1.6rem;
-  background: linear-gradient(120deg, #60a5fa, #c084fc);
+  background: var(--accent);
+  color: var(--text-on-accent);
   color: #050505;
   border: none;
   transition: transform var(--transition-fast), box-shadow var(--transition-fast);
@@ -718,12 +719,8 @@ footer .footer-social--disabled {
   color: var(--text-main);
 }
 
-.customer-create.customer-create--editor-only {
+.customer-create {
   max-width: none;
-}
-
-.customer-create.customer-create--editor-only .customer-create__hero {
-  display: none;
 }
 
 .customer-create__hero,
@@ -877,4 +874,24 @@ footer .footer-social--disabled {
   .customer-create {
     padding: 5rem 1.25rem 7rem;
   }
+}
+
+/* 這一頁過去沒有任何標題：整段 hero 被 --editor-only 用 display:none 蓋掉，
+   使用者直接落在「01 …」，頁頂還留著約 170px 空白。改成一行真正的頁首。 */
+.customer-create__header-band {
+  display: grid;
+  gap: 0.4rem;
+  margin-bottom: 1.4rem;
+}
+
+.customer-create__header-band h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 4.5vw, 2rem);
+  color: var(--text-1);
+}
+
+.customer-create__header-band p {
+  margin: 0;
+  color: var(--text-2);
 }

@@ -5,7 +5,7 @@ import { logAdminAction, logSystemError } from "@/lib/logger";
 import { requireAdmin } from "@/lib/admin-route-auth";
 import { toAdminPrayerCard } from "@/lib/admin-visibility";
 
-// 取得禱告卡片列表，支援搜尋、狀態篩選與排序
+// 取得代禱列表，支援搜尋、狀態篩選與排序
 export async function GET(request) {
   const { error } = requireAdmin(request);
   if (error) return error;

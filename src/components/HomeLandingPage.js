@@ -94,7 +94,7 @@ function toClientValue(value) {
 export const metadata = buildPageMetadata({
   title: "Start Pray 一起禱告吧",
   description:
-    "Start Pray 讓你看見全球正在被守望的禱告需要，建立代禱事項，並透過文字與語音禱告彼此陪伴。",
+    "Start Pray 讓你看見全球正在被守望的禱告需要，建立代禱，並透過文字與語音禱告彼此陪伴。",
   path: "/",
   image: "/img/categories/popular.jpg",
   keywords: ["Start Pray", "一起禱告", "代禱平台", "語音禱告", "全球禱告地圖", "基督徒禱告"],

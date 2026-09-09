@@ -1,6 +1,5 @@
 import "./globals.css";
 import "@/styles/theme-modern.css";
-import "@/styles/admin.css";
 import "@/styles/fontawesome-lite.css";
 // tokens.css 必須最後載入：它收編前面各檔散落的變數名，讓舊規則跟著
 // surface 走。詳見 src/styles/tokens.css 開頭的規則。
@@ -44,7 +43,7 @@ export const metadata = {
       template: `%s | ${SITE_NAME}`,
     },
     description:
-      "Start Pray 讓人分享代禱事項、用文字與語音彼此回應，並透過全球禱告地圖看見正在被守望的需要。",
+      "Start Pray 讓人分享代禱、用文字與語音彼此回應，並透過全球禱告地圖看見正在被守望的需要。",
     path: "/",
     keywords: ["Start Pray", "禱告", "代禱", "基督信仰", "見證", "得勝者", "語音禱告", "全球禱告室"],
   }),
@@ -103,7 +102,16 @@ function extractPathFromHeaders(requestHeaders) {
 //   night 沉浸情境 — 夜色是內容的一部分：世界此刻在禱告
 //   day   閱讀與書寫 — 要讀字、要填表、要建立信任
 // 沒有列到的路徑一律 day，因為表單與長文預設就該是淺色。
-const NIGHT_PREFIXES = ["/global-prayer-room", "/prayfor"];
+const NIGHT_PREFIXES = [
+  "/global-prayer-room",
+  "/prayfor",
+  // TODO(Phase 1, 會員中心): customer-portal 與 overcomer 的樣式目前整套寫死
+  // 深色（theme-customer.css + 各頁 styled-jsx）。設計上它們屬於 day —— 是
+  // 閱讀與書寫的場合，而且使用者剛從淺色的 /signup 過來，落差很明顯。改成
+  // day 需要一併重寫那些樣式，所以先誠實標成 night，不要留一個半深半淺的頁。
+  "/customer-portal",
+  "/overcomer",
+];
 
 function resolveSurface(pathname) {
   const path = (pathname || "/").replace(/^\/en(?=\/|$)/, "") || "/";

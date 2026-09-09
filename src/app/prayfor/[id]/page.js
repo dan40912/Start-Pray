@@ -293,7 +293,7 @@ export default async function PrayerDetailPage({ params, locale: localeProp = "z
           </section>
 
           {relatedCards?.length ? (
-            <section className="pdv2-related-section" aria-label="其他代禱事項">
+            <section className="pdv2-related-section" aria-label="其他代禱">
               <div className="pdv2-related-head">
                 <h2>{text.relatedTitle}</h2>
                 <Link href={localizePath("/prayfor", locale)} prefetch={false}>

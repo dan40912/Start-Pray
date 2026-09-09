@@ -104,7 +104,7 @@ export default function CustomerPortalEditCardPage() {
 
     const loadInitial = async () => {
       if (!cardId) {
-        setStatus({ type: "error", message: "找不到祈禱卡片編號" });
+        setStatus({ type: "error", message: "找不到代禱編號" });
         setLoading(false);
         return;
       }
@@ -118,7 +118,7 @@ export default function CustomerPortalEditCardPage() {
 
         if (!cardRes.ok) {
           const payload = await cardRes.json().catch(() => null);
-          throw new Error(payload?.message || "無法載入祈禱卡片");
+          throw new Error(payload?.message || "無法載入代禱");
         }
         const cardData = await cardRes.json();
 
@@ -293,7 +293,7 @@ export default function CustomerPortalEditCardPage() {
 
       if (!response.ok) {
         const data = await response.json().catch(() => null);
-        throw new Error(data?.message || "更新祈禱卡片失敗");
+        throw new Error(data?.message || "更新代禱失敗");
       }
 
       const updated = await response.json();
@@ -310,7 +310,7 @@ export default function CustomerPortalEditCardPage() {
       setGalleryImages(preparedGallery);
       setStatus({
         type: "success",
-        message: "祈禱卡片已更新，大致位置可顯示在全球禱告室。",
+        message: "代禱已更新，大致位置可顯示在全球禱告室。",
       });
     } catch (error) {
       setStatus({ type: "error", message: error.message || "更新失敗" });
@@ -330,7 +330,7 @@ export default function CustomerPortalEditCardPage() {
         <section className="cp-section cp-section--form">
           <div className="cp-section__head">
             <div>
-              <h2>編輯祈禱卡片</h2>
+              <h2>編輯代禱</h2>
               <p>更新內容、分享資訊與分類，讓社群更了解這項代禱。</p>
             </div>
             <button type="button" className="cp-button cp-button--ghost" onClick={handleBack}>
@@ -452,9 +452,9 @@ export default function CustomerPortalEditCardPage() {
                     onChange={updateField("isPrivate")}
                   />
                   <span>
-                    <strong>內容不公開，只顯示匿名大致位置光點</strong>
+                    <strong>不公開內容，地圖上只顯示大概位置</strong>
                     <small>
-                      勾選後，前台不顯示標題、內文、圖片、上傳者與詳情頁；全球禱告室只保留大致位置光點。
+                      勾選後，前台不顯示標題、內文、圖片、上傳者與詳情頁；全球禱告室只保留大概位置。
                     </small>
                   </span>
                 </label>
@@ -512,7 +512,7 @@ export default function CustomerPortalEditCardPage() {
               </div>
             </form>
           ) : (
-            <div className="cp-alert cp-alert--error">找不到這張祈禱卡片</div>
+            <div className="cp-alert cp-alert--error">找不到這則代禱</div>
           )}
         </section>
       </main>

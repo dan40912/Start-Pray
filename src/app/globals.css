@@ -4023,14 +4023,10 @@ details.terms-card summary {
     linear-gradient(180deg, #f5f7ff 0%, #ffffff 100%);
 }
 
-.customer-create.customer-create--editor-only {
+.customer-create {
   width: 100%;
   max-width: none;
   grid-template-columns: minmax(0, 1fr);
-}
-
-.customer-create.customer-create--editor-only .customer-create__hero {
-  display: none;
 }
 
 .customer-create__hero,
@@ -4315,7 +4311,7 @@ details.terms-card summary {
     gap: clamp(2.2rem, 3vw, 3.4rem);
   }
 
-  .customer-create.customer-create--editor-only {
+  .customer-create {
     grid-template-columns: minmax(0, 1fr);
   }
 }
@@ -6966,7 +6962,8 @@ header .nav-actions .btn-glass {
   border: none;
   border-radius: 0.85rem;
   padding: 0.45rem 1.1rem;
-  background: linear-gradient(135deg, rgba(37, 99, 235, 0.95), rgba(59, 130, 246, 0.85));
+  background: var(--accent);
+  color: var(--text-on-accent);
   color: #fff;
   cursor: pointer;
   font-size: 0.85rem;
@@ -9029,7 +9026,7 @@ header .nav-actions .btn-glass {
     min-height: 44px;
   }
 
-  /* 建立代禱卡表單欄位全寬,避免溢出 */
+  /* 建立代禱表單欄位全寬，避免溢出 */
   .theme-create input,
   .theme-create textarea,
   .theme-create select {
