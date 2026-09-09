@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useAudio } from "@/context/AudioContext";
 import { getDictionary, localizePath, normalizeLocale } from "@/lib/i18n";
 import PrayerCard from "@/components/PrayerCard";
+import { isPlayableVoiceHref } from "@/lib/voice";
 
 const POPULAR_SLUG = "popular";
 // Pseudo-category like POPULAR_SLUG: it isn't a real HomeCategory row, it just
@@ -62,7 +63,7 @@ function getAuthorName(card, text) {
 }
 
 function buildPrimaryTrack(card, text) {
-  if (!card?.voiceHref) return null;
+  if (!isPlayableVoiceHref(card?.voiceHref)) return null;
   return {
     id: `card-${card.id}-primary`,
     voiceUrl: card.voiceHref,

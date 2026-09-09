@@ -8,17 +8,7 @@ import PrayedReactionButton from "@/components/prayer-interaction/PrayedReaction
 import { resolveArrowKeyDirection, resolveSwipeDirection } from "@/components/home-companion/swipe-utils";
 import { usePrayerInteraction } from "@/components/prayer-interaction/usePrayerInteraction";
 import GainAudio from "@/components/GainAudio";
-
-// HomePrayerCard.voiceHref sometimes points at a legacy HTML page
-// (e.g. "/legacy/prayfor/details.html?prayer=pc-509#voice") rather than a
-// playable audio file. Only render a native <audio> element when the href
-// looks like a real media asset, so we never silently show a broken player.
-const AUDIO_EXTENSION_PATTERN = /\.(mp3|wav|webm|m4a|aac|ogg)$/i;
-function isPlayableVoiceHref(href) {
-  if (typeof href !== "string" || !href) return false;
-  if (href.startsWith("/voices/") || href.startsWith("/uploads/")) return true;
-  return AUDIO_EXTENSION_PATTERN.test(href);
-}
+import { isPlayableVoiceHref } from "@/lib/voice";
 
 function toPlainText(value) {
   if (!value) return "";

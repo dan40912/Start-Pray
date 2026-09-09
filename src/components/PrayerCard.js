@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { isPlayableVoiceHref } from "@/lib/voice";
+
 /**
  * 代禱卡（grid 版）。
  *
@@ -28,7 +30,8 @@ export default function PrayerCard({
   playLabel,
   onPlay,
 }) {
-  const hasVoice = Boolean(card.voiceHref);
+  // 播不動的舊路徑不算有語音 —— 標了「有語音」卻按不出聲音，比沒有更糟。
+  const hasVoice = isPlayableVoiceHref(card.voiceHref);
   const showsCountInBadge = Boolean(prayingLabel);
 
   return (

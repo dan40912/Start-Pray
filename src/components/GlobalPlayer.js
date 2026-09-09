@@ -82,7 +82,7 @@ function getTrackIdentity(track) {
   return null;
 }
 
-export default function GlobalPlayer() {
+export default function GlobalPlayer({ onClose }) {
   const pathname = usePathname() || "";
   const prayerId = useMemo(() => parsePrayerId(pathname), [pathname]);
   const isPrayerDetailPage = Boolean(prayerId);
@@ -609,6 +609,17 @@ export default function GlobalPlayer() {
           showCompanionOverlay ? " is-overlay-active" : ""
         }`}
       >
+        {onClose && !showCompanionOverlay ? (
+          <button
+            type="button"
+            className="global-player__close"
+            onClick={onClose}
+            aria-label="關閉播放器"
+            title="關閉播放器"
+          >
+            <i className="fa-solid fa-xmark" aria-hidden="true" />
+          </button>
+        ) : null}
         {!showCompanionOverlay ? (
           <div className="player-progress">
             <div

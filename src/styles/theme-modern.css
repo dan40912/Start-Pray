@@ -3444,3 +3444,34 @@ body.has-global-player {
     min-height: 44px !important;
   }
 }
+
+/* 播放列的關閉鈕。之前整條播放列沒有任何關閉控制：它固定佔住行動版約 13%
+   的視窗高度、蓋住留言，而使用者第一個念頭就是把它關掉。 */
+.global-player__close {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+  color: var(--text-2);
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.global-player__close:hover {
+  background: var(--surface-2);
+  color: var(--text-1);
+}
+
+.global-player__close:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
