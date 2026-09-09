@@ -65,6 +65,8 @@ const FOOTER_COLUMNS = [
   },
 ];
 
+const LOCALE_REDIRECT_ONLY_PATHS = ["/customer-portal"];
+
 const SOCIAL_LINKS = [
   {
     href: "https://github.com/dan40912/Start-Pray",
@@ -169,6 +171,13 @@ export function SiteHeader({ activePath, hideAuthActions = false, locale: locale
     [siteText, isAuthenticated],
   );
   const languageHref = localizePath(stripLocalePrefix(pathname || current || "/"), nextLocale);
+  // /en/customer-portal 與 /en/customer-portal/create 只是 redirect 回中文版
+  // （見那兩個 page.js）。在這些頁面上顯示語言切換，是給一個兌現不了的承諾：
+  // 使用者按下 English，整頁還是中文。有真英文版的頁面照常顯示。
+  const hasEnglishVersion = !LOCALE_REDIRECT_ONLY_PATHS.some((prefix) => {
+    const path = stripLocalePrefix(pathname || current || "/");
+    return path === prefix || path.startsWith(`${prefix}/`);
+  });
 
   const closeMenu = useCallback(() => {
     setMenuOpen(false);
@@ -232,16 +241,18 @@ export function SiteHeader({ activePath, hideAuthActions = false, locale: locale
             );
           })}
 
-          <Link
-            href={languageHref}
-            prefetch={false}
-            className="nav-language-switch"
-            onClick={closeMenu}
-            aria-label={siteText.language.label}
-            title={siteText.language.current}
-          >
-            {siteText.language.switchTo}
-          </Link>
+          {hasEnglishVersion ? (
+            <Link
+              href={languageHref}
+              prefetch={false}
+              className="nav-language-switch"
+              onClick={closeMenu}
+              aria-label={siteText.language.label}
+              title={siteText.language.current}
+            >
+              {siteText.language.switchTo}
+            </Link>
+          ) : null}
 
           {!hideAuthActions ? (
             <div className="nav-actions">
@@ -294,6 +305,9 @@ export function SiteFooter({ locale: localeProp }) {
   const locale = normalizeLocale(localeProp || localeFromPathname(pathname));
   const dictionary = getDictionary(locale);
   const siteText = dictionary.site;
+  // 這一欄過去是靜態陣列，不看 session，所以登入之後頁尾還在請你「登入 / 註冊」。
+  const authUser = useAuthSession();
+  const isAuthenticated = Boolean(authUser);
   const footerColumns = [
     {
       title: "Start Pray",
@@ -315,9 +329,13 @@ export function SiteFooter({ locale: localeProp }) {
     {
       title: siteText.footer.accountHelp,
       links: [
-        { href: "/login", label: siteText.nav.login },
-        { href: "/signup", label: siteText.nav.signup },
-        { href: "/forgot-password", label: siteText.footer.forgotPassword },
+        ...(isAuthenticated
+          ? [{ href: "/customer-portal", label: siteText.nav.portal }]
+          : [
+              { href: "/login", label: siteText.nav.login },
+              { href: "/signup", label: siteText.nav.signup },
+              { href: "/forgot-password", label: siteText.footer.forgotPassword },
+            ]),
         { href: "mailto:startpraynow@gmail.com", label: siteText.footer.contact },
       ],
     },

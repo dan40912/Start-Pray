@@ -105,12 +105,6 @@ function extractPathFromHeaders(requestHeaders) {
 const NIGHT_PREFIXES = [
   "/global-prayer-room",
   "/prayfor",
-  // TODO(Phase 1, 會員中心): customer-portal 與 overcomer 的樣式目前整套寫死
-  // 深色（theme-customer.css + 各頁 styled-jsx）。設計上它們屬於 day —— 是
-  // 閱讀與書寫的場合，而且使用者剛從淺色的 /signup 過來，落差很明顯。改成
-  // day 需要一併重寫那些樣式，所以先誠實標成 night，不要留一個半深半淺的頁。
-  "/customer-portal",
-  "/overcomer",
 ];
 
 function resolveSurface(pathname) {

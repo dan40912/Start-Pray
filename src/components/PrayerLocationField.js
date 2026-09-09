@@ -461,7 +461,7 @@ export default function PrayerLocationField({ disabled = false, onChange, value 
           gap: 0.75rem;
           border-radius: 16px;
           border: 1px solid rgba(125, 211, 252, 0.16);
-          background: rgba(2, 10, 24, 0.28);
+          background: var(--surface-3);
           padding: 0.7rem;
           box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
         }
@@ -474,14 +474,14 @@ export default function PrayerLocationField({ disabled = false, onChange, value 
         }
 
         .prayer-location__header strong {
-          color: #f8fafc;
+          color: var(--text-1);
           font-size: 1rem;
         }
 
         .prayer-location__header p,
         .prayer-location__helper {
           margin: 0.2rem 0 0;
-          color: rgba(226, 232, 240, 0.76);
+          color: var(--text-2);
           font-size: 0.88rem;
           line-height: 1.5;
         }
@@ -493,8 +493,8 @@ export default function PrayerLocationField({ disabled = false, onChange, value 
           min-height: 40px;
           border-radius: 11px;
           border: 1px solid rgba(148, 163, 184, 0.3);
-          background: rgba(15, 23, 42, 0.72);
-          color: #e2e8f0;
+          background: var(--surface-2);
+          color: var(--text-1);
           cursor: pointer;
           font: inherit;
           font-weight: 800;
@@ -506,12 +506,12 @@ export default function PrayerLocationField({ disabled = false, onChange, value 
           gap: 0.45rem;
           border: 1px solid rgba(125, 211, 252, 0.14);
           border-radius: 14px;
-          background: rgba(2, 6, 23, 0.22);
+          background: var(--surface-3);
           padding: 0.7rem;
         }
 
         .prayer-location__search label {
-          color: #bae6fd;
+          color: var(--text-2);
           font-size: 0.78rem;
           font-weight: 900;
           text-transform: uppercase;
@@ -528,8 +528,8 @@ export default function PrayerLocationField({ disabled = false, onChange, value 
           min-height: 40px;
           border: 1px solid rgba(148, 163, 184, 0.3);
           border-radius: 11px;
-          background: rgba(15, 23, 42, 0.72);
-          color: #f8fafc;
+          background: var(--surface-2);
+          color: var(--text-1);
           font: inherit;
           padding: 0 0.8rem;
         }
@@ -541,7 +541,7 @@ export default function PrayerLocationField({ disabled = false, onChange, value 
 
         .prayer-location__search p {
           margin: 0;
-          color: #bae6fd;
+          color: var(--text-2);
           font-size: 0.82rem;
           font-weight: 700;
           line-height: 1.55;
@@ -602,8 +602,8 @@ export default function PrayerLocationField({ disabled = false, onChange, value 
           margin: 0;
           border-radius: 999px;
           padding: 0.38rem 0.68rem;
-          color: rgba(240, 249, 255, 0.92);
-          background: rgba(2, 6, 23, 0.7);
+          color: var(--text-1);
+          background: var(--surface-2);
           font-size: 0.78rem;
           pointer-events: none;
         }
@@ -622,8 +622,8 @@ export default function PrayerLocationField({ disabled = false, onChange, value 
           min-height: 42px;
           border: 1px solid rgba(186, 230, 253, 0.32);
           border-radius: 50%;
-          color: #f8fafc;
-          background: rgba(2, 6, 23, 0.76);
+          color: var(--text-1);
+          background: var(--surface-2);
           font-size: 1.15rem;
           cursor: pointer;
         }
@@ -632,8 +632,8 @@ export default function PrayerLocationField({ disabled = false, onChange, value 
           border: 1px solid rgba(125, 211, 252, 0.14);
           border-radius: 14px;
           padding: 0.65rem;
-          color: rgba(226, 232, 240, 0.88);
-          background: rgba(2, 6, 23, 0.22);
+          color: var(--text-2);
+          background: var(--surface-3);
         }
 
         .prayer-location__precision-map summary {
@@ -750,8 +750,8 @@ export default function PrayerLocationField({ disabled = false, onChange, value 
           right: 0.45rem;
           bottom: 0.35rem;
           border-radius: 999px;
-          background: rgba(2, 6, 23, 0.62);
-          color: rgba(226, 232, 240, 0.8);
+          background: var(--surface-2);
+          color: var(--text-2);
           font-size: 0.68rem;
           line-height: 1;
           padding: 0.25rem 0.42rem;

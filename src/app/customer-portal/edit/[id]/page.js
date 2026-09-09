@@ -553,7 +553,7 @@ export default function CustomerPortalEditCardPage() {
           gap: 0.85rem;
           border: 1px solid rgba(148, 163, 184, 0.28);
           border-radius: 14px;
-          background: rgba(15, 23, 42, 0.46);
+          background: var(--surface-3);
           padding: 0.95rem;
         }
 
@@ -563,13 +563,13 @@ export default function CustomerPortalEditCardPage() {
         }
 
         .cp-edit-gallery__upload span {
-          color: #f8fafc;
+          color: var(--text-1);
           font-weight: 700;
         }
 
         .cp-edit-gallery__upload input[type="file"] {
           width: 100%;
-          color: #e2e8f0;
+          color: var(--text-1);
         }
 
         .cp-edit-gallery__upload input[type="file"]:disabled {
@@ -629,8 +629,8 @@ export default function CustomerPortalEditCardPage() {
           left: 0.45rem;
           bottom: 0.45rem;
           border-radius: 999px;
-          background: rgba(15, 23, 42, 0.9);
-          color: #f8fafc;
+          background: var(--surface-2);
+          color: var(--text-1);
           padding: 0.24rem 0.55rem;
           font-size: 0.75rem;
           font-weight: 800;

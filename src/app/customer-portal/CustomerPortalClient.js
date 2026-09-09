@@ -446,7 +446,7 @@ export default function CustomerPortalPage() {
       const data = await res.json().catch(() => null);
 
       if (!res.ok) {
-        throw new Error(data?.message || "無法載入個人檔案");
+        throw new Error("無法載入個人檔案", { cause: data?.message });
       }
 
       setProfile(data);
@@ -467,7 +467,7 @@ export default function CustomerPortalPage() {
       const data = await res.json().catch(() => null);
 
       if (!res.ok) {
-        throw new Error(data?.message || "無法取得代禱");
+        throw new Error("無法取得代禱", { cause: data?.message });
       }
 
       setCards(Array.isArray(data) ? data : []);
@@ -488,7 +488,7 @@ export default function CustomerPortalPage() {
       const data = await res.json().catch(() => null);
 
       if (!res.ok) {
-        throw new Error(data?.message || "無法載入個人回應。");
+        throw new Error("無法載入個人回應。", { cause: data?.message });
       }
 
       if (Array.isArray(data)) {
@@ -851,7 +851,7 @@ export default function CustomerPortalPage() {
       const data = await res.json().catch(() => null);
 
       if (!res.ok) {
-        throw new Error(data?.message || "更新個人檔案失敗");
+        throw new Error("更新個人檔案失敗", { cause: data?.message });
       }
 
       const savedAvatar = data?.avatarUrl?.trim() || nextAvatarUrl || defaultAvatarUrl;
@@ -992,7 +992,7 @@ export default function CustomerPortalPage() {
       const data = await res.json().catch(() => null);
 
       if (!res.ok) {
-        throw new Error(data?.message || "更新顯示狀態失敗");
+        throw new Error("更新顯示狀態失敗", { cause: data?.message });
       }
 
       setCards((prev) => prev.map((item) => (item.id === data.id ? data : item)));
@@ -1028,7 +1028,7 @@ export default function CustomerPortalPage() {
       const data = await res.json().catch(() => null);
 
       if (!res.ok) {
-        throw new Error(data?.message || "無法更新回應顯示狀態。");
+        throw new Error("無法更新回應顯示狀態。", { cause: data?.message });
       }
 
       setResponses((prev) =>
@@ -1199,7 +1199,14 @@ export default function CustomerPortalPage() {
     }
 
     if (responsesError) {
-      return <p className="cp-alert cp-alert--error">{responsesError}</p>;
+      return (
+        <div className="cp-alert cp-alert--error" role="alert">
+          <p>{responsesError}</p>
+          <button type="button" className="cp-alert__retry" onClick={loadResponses}>
+            重新載入
+          </button>
+        </div>
+      );
     }
 
     if (!responses.length) {
@@ -1314,6 +1321,12 @@ export default function CustomerPortalPage() {
     return { totalCards, totalResponses, totalReports };
   }, [cards]);
 
+  // 第一天的新用戶不需要看到兩個 0。統計只有在真的有東西可算時才出現。
+  const hasAnyActivity =
+    !cardsLoading &&
+    !cardsError &&
+    (userStats.totalCards > 0 || userStats.totalResponses > 0);
+
   const renderUserStatValue = (value) => {
     if (cardsError) {
       return "載入失敗";
@@ -1367,77 +1380,60 @@ export default function CustomerPortalPage() {
 
           <>
 
-            <section className="cp-profile">
-              <div className="cp-profile__avatar">
+            {/* 註冊完成後的第一屏原本是一張 180px 的大頭貼、email，和一個
+                「尚未撰寫個人介紹」的空框 —— 一個人帶著「我有件事想被代禱」
+                的心情按下註冊，落地卻是一張要他填個人資料的表格，動機就在
+                這裡斷掉。主要動作移到第一屏，個人檔案收到下面。 */}
+            <section className="cp-welcome" aria-label="今天想做什麼">
+              <div className="cp-welcome__head">
                 <img
+                  className="cp-welcome__avatar"
                   src={resolvedAvatar}
-                  alt={`${resolvedName} 的大頭貼`}
+                  alt=""
+                  aria-hidden="true"
                   loading="lazy"
                 />
+                <h1 className="cp-welcome__greeting">你好，{resolvedName}</h1>
                 <button
                   type="button"
-                  className="cp-profile__edit"
+                  className="cp-welcome__profile-link"
                   onClick={handleOpenProfileModal}
                 >
-                  更新自我介紹
+                  編輯個人檔案
                 </button>
               </div>
 
-              <div className="cp-profile__info">
-                <div className="cp-profile__meta">
-                  <h1>{resolvedName}</h1>
-                  <span>{resolvedEmail}</span>
-                </div>
-
-                <div className="cp-profile__bio">
-                  {profileLoading ? (
-                    <p className="cp-helper">資料載入中...</p>
-                  ) : profileError ? (
-                    <p className="cp-alert cp-alert--error">{profileError}</p>
-                  ) : profile?.bio ? (
-                    <p>{profile.bio}</p>
-                  ) : (
-                    <p className="cp-helper">尚未撰寫個人介紹，快來更新讓大家更了解你。</p>
-                  )}
-                </div>
-
-                <div className="cp-profile__visibility">
-                  <strong>{isPublicProfileEnabled ? "公開個人頁已開啟" : "公開個人頁已關閉"}</strong>
-                  <p className="cp-helper">
-                    開啟後，其他人可以在得勝者專區看到你的暱稱、大頭貼、個人簡介、公開代禱與未被隱藏的回應。
-                  </p>
-                  {isPublicProfileEnabled && publicProfilePath ? (
-                    <Link className="cp-link" href={publicProfilePath} prefetch={false}>
-                      查看我的公開頁
-                    </Link>
-                  ) : publicProfilePath ? (
-                    <p className="cp-helper">開啟公開個人頁後，網址會是：{publicProfilePath}</p>
-                  ) : (
-                    <p className="cp-helper">請先設定 Username，才能產生公開頁網址。</p>
-                  )}
-                </div>
-
-                <div className="cp-profile__actions">
-                  <button
-                    type="button"
-                    className="cp-button"
-                    onClick={handleOpenProfileModal}
-                  >
-                    編輯個人檔案
-                  </button>
+              <div className="cp-welcome__prompt">
+                <p className="cp-welcome__question">今天想為什麼禱告？</p>
+                <div className="cp-welcome__actions">
                   <Link
-                    className="cp-button cp-button--ghost"
+                    className="cp-button"
                     href="/customer-portal/create"
                     prefetch={false}
                   >
-                    新增代禱
+                    寫下我的代禱
+                  </Link>
+                  <Link
+                    className="cp-button cp-button--ghost"
+                    href="/prayfor"
+                    prefetch={false}
+                  >
+                    為別人禱告
                   </Link>
                 </div>
               </div>
+
+              {profileError ? (
+                <div className="cp-alert cp-alert--error" role="alert">
+                  <p>{profileError}</p>
+                  <button type="button" className="cp-alert__retry" onClick={loadProfile}>
+                    重新載入
+                  </button>
+                </div>
+              ) : null}
             </section>
 
-
-
+            {hasAnyActivity ? (
             <section className="section home-stats" aria-label="我的平台統計數據">
               <div className="home-stats__container">
                 {/* <article className="home-stats__item">
@@ -1466,6 +1462,7 @@ export default function CustomerPortalPage() {
                 </article> */}
               </div>
             </section>
+            ) : null}
 
             <section className="cp-section cp-section--cards">
 

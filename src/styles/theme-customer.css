@@ -19,7 +19,7 @@
 .cp-card,
 .cp-reply,
 .cp-modal__card {
-  background: rgba(8, 11, 19, 0.92);
+  background: var(--surface-1);
   border: var(--border-glass);
   border-radius: 24px;
   box-shadow: var(--shadow-glass);
@@ -38,7 +38,7 @@
   height: 180px;
   border-radius: 32px;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--line-1);
   box-shadow: var(--shadow-glass);
 }
 
@@ -54,9 +54,11 @@
   inset: auto 12px 12px 12px;
   border-radius: 999px;
   padding: 0.5rem 1rem;
+  /* 這一顆疊在大頭貼照片上，所以維持深色遮罩＋白字：它的底不是頁面表面，
+     是使用者自己上傳的圖。 */
   background: rgba(0, 0, 0, 0.6);
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.24);
   transition: background var(--transition-fast);
 }
 
@@ -80,11 +82,11 @@
 }
 
 .cp-profile__bio {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface-3);
   padding: var(--space-md);
   border-radius: var(--radius-lg);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  color: rgba(255, 255, 255, 0.78);
+  border: 1px solid var(--line-1);
+  color: var(--text-2);
   min-height: 120px;
 }
 
@@ -99,12 +101,12 @@
   gap: 0.45rem;
   padding: var(--space-md);
   border-radius: var(--radius-lg);
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--surface-3);
+  border: 1px solid var(--line-1);
 }
 
 .cp-profile__visibility strong {
-  color: #f8fafc;
+  color: var(--text-1);
 }
 
 .cp-story-media {
@@ -131,7 +133,7 @@
   aspect-ratio: 16 / 9;
   overflow: hidden;
   border-radius: var(--radius-lg);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--line-1);
   background: #05070d;
 }
 
@@ -165,9 +167,9 @@
 }
 
 .cp-button--ghost {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--surface-3);
   color: var(--text-main);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--line-1);
 }
 
 .cp-section {
@@ -210,8 +212,8 @@
 .cp-card__cover {
   border-radius: 24px;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--line-1);
+  background: var(--surface-3);
 }
 
 .cp-card__cover img {
@@ -245,7 +247,7 @@
 }
 
 .cp-card__description {
-  color: rgba(255, 255, 255, 0.78);
+  color: var(--text-2);
 }
 
 .cp-card__meta {
@@ -307,7 +309,7 @@
 }
 
 .cp-link--disabled {
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--text-2);
   pointer-events: none;
 }
 
@@ -329,20 +331,20 @@
   height: 72px;
   border-radius: 20px;
   object-fit: cover;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--line-1);
   flex-shrink: 0;
 }
 
 .cp-reply__thumb--placeholder {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px dashed rgba(255, 255, 255, 0.15);
+  background: var(--surface-3);
+  border: 1px dashed var(--line-1);
   display: grid;
   place-items: center;
   color: var(--text-muted);
 }
 
 .cp-reply__content {
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--text-1);
 }
 
 .cp-reply__meta {
@@ -356,17 +358,17 @@
 .cp-empty {
   padding: var(--space-xl);
   border-radius: 24px;
-  border: 1px dashed rgba(255, 255, 255, 0.2);
+  border: 1px dashed var(--line-2);
   text-align: center;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--surface-3);
   color: var(--text-muted);
 }
 
 .cp-alert {
   border-radius: var(--radius-lg);
   padding: 1rem 1.25rem;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--line-1);
+  background: var(--surface-3);
 }
 
 .cp-alert--error {
@@ -394,8 +396,8 @@
 
 .cp-modal__field input,
 .cp-modal__field textarea {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: var(--surface-3);
+  border: 1px solid var(--line-1);
   border-radius: var(--radius-lg);
   color: var(--text-main);
 }
@@ -415,7 +417,7 @@
 .cp-modal__preview {
   border-radius: var(--radius-lg);
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--line-1);
 }
 
 .cp-modal__audio {
@@ -432,9 +434,9 @@
   display: grid;
   gap: 0.75rem;
   padding: 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--line-1);
   border-radius: var(--radius-lg);
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--surface-3);
 }
 
 .cp-story-recorder__panel {
@@ -482,11 +484,11 @@
 .cp-button--danger {
   background: #dc2626;
   border-color: #dc2626;
-  color: #fff;
+  color: var(--text-1);
 }
 
 .cp-modal__placeholder {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--surface-3);
   padding: 2rem;
   text-align: center;
   color: var(--text-muted);
@@ -517,8 +519,8 @@
 }
 
 .cp-withdraw__card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--surface-3);
+  border: 1px solid var(--line-1);
   border-radius: 20px;
   padding: var(--space-lg);
   display: grid;
@@ -537,8 +539,8 @@
 .cp-withdraw__address-row input,
 .cp-withdraw__form input {
   width: 100%;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: var(--surface-3);
+  border: 1px solid var(--line-2);
   border-radius: var(--radius-lg);
   color: var(--text-main);
   padding: 0.78rem 0.9rem;
@@ -556,7 +558,7 @@
 
 .cp-withdraw__form label span {
   font-size: 0.92rem;
-  color: rgba(255, 255, 255, 0.82);
+  color: var(--text-2);
 }
 
 .cp-withdraw__table-wrap {
@@ -573,17 +575,17 @@
 .cp-withdraw__table td {
   text-align: left;
   padding: 0.72rem 0.6rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid var(--line-1);
   font-size: 0.9rem;
 }
 
 .cp-withdraw__table th {
-  color: rgba(255, 255, 255, 0.78);
+  color: var(--text-2);
   font-weight: 600;
 }
 
 .cp-withdraw__table td {
-  color: rgba(255, 255, 255, 0.88);
+  color: var(--text-1);
 }
 
 .cp-overcomer-card__avatar {
@@ -592,8 +594,8 @@
   height: 160px;
   border-radius: 24px;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--line-1);
+  background: var(--surface-3);
 }
 
 .cp-overcomer-card__avatar img {
@@ -633,8 +635,8 @@ footer .footer-social {
   padding: 0.7rem 0.95rem;
   border-radius: 999px;
   border: 1px solid rgba(148, 163, 184, 0.22);
-  background: rgba(15, 23, 42, 0.4);
-  color: #e2e8f0;
+  background: var(--surface-1);
+  color: var(--text-1);
   text-decoration: none;
   transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
 }
@@ -647,7 +649,7 @@ footer .footer-social svg {
 
 footer .footer-social:hover {
   transform: translateY(-1px);
-  color: #f8fbff;
+  color: var(--text-1);
   border-color: rgba(140, 195, 255, 0.48);
   background: rgba(30, 41, 59, 0.72);
 }
@@ -680,7 +682,7 @@ footer .footer-social--disabled {
 .cp-main--overcomer .cp-profile__info > h1 {
   margin: 0;
   font-size: clamp(1.8rem, 3vw, 2.4rem);
-  color: #f8fafc;
+  color: var(--text-1);
 }
 
 .cp-main--overcomer .cp-helper,
@@ -690,13 +692,13 @@ footer .footer-social--disabled {
 .cp-main--overcomer .cp-reply__content,
 .cp-main--overcomer .cp-reply__meta span,
 .cp-main--overcomer .cp-card__meta span {
-  color: rgba(226, 232, 240, 0.92);
+  color: var(--text-1);
 }
 
 .cp-main--overcomer .cp-section__head h2,
 .cp-main--overcomer .cp-card__title h3,
 .cp-main--overcomer .cp-reply__card-info h3 {
-  color: #f8fafc;
+  color: var(--text-1);
 }
 
 .cp-main--overcomer .cp-link {
@@ -725,7 +727,7 @@ footer .footer-social--disabled {
 
 .customer-create__hero,
 .customer-create__form {
-  background: rgba(6, 10, 18, 0.95);
+  background: var(--surface-1);
   border-radius: 24px;
   border: var(--border-glass);
   box-shadow: var(--shadow-glass);
@@ -755,8 +757,8 @@ footer .footer-social--disabled {
 .customer-create__row input,
 .customer-create__row textarea,
 .customer-create__form select {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: var(--surface-3);
+  border: 1px solid var(--line-1);
   color: var(--text-main);
   border-radius: var(--radius-lg);
   padding: 0.85rem 1rem;
@@ -769,8 +771,8 @@ footer .footer-social--disabled {
 }
 
 .customer-create__gallery-item {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--surface-3);
+  border: 1px solid var(--line-1);
   border-radius: 1rem;
 }
 
@@ -781,8 +783,8 @@ footer .footer-social--disabled {
 
 .customer-create__preview {
   border-radius: 24px;
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--surface-1);
+  border: 1px solid var(--line-1);
   min-height: 220px;
   display: grid;
   place-items: center;
@@ -797,7 +799,7 @@ footer .footer-social--disabled {
 
 .customer-create__status {
   border-radius: var(--radius-lg);
-  color: #fff;
+  color: var(--text-1);
   font-weight: 600;
 }
 
@@ -812,7 +814,7 @@ footer .footer-social--disabled {
 }
 
 .customer-create__modal-card {
-  background: rgba(8, 11, 19, 0.95);
+  background: var(--surface-1);
   border: var(--border-glass);
   box-shadow: var(--shadow-glass);
 }
@@ -879,6 +881,7 @@ footer .footer-social--disabled {
 /* 這一頁過去沒有任何標題：整段 hero 被 --editor-only 用 display:none 蓋掉，
    使用者直接落在「01 …」，頁頂還留著約 170px 空白。改成一行真正的頁首。 */
 .customer-create__header-band {
+  position: static;
   display: grid;
   gap: 0.4rem;
   margin-bottom: 1.4rem;
@@ -894,4 +897,103 @@ footer .footer-social--disabled {
 .customer-create__header-band p {
   margin: 0;
   color: var(--text-2);
+}
+
+/* 錯誤是可以再試一次的事，不是死路。 */
+.cp-alert--error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.cp-alert__retry {
+  padding: 0.35rem 0.85rem;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+/* ---------------------------------------------------------------
+   會員中心第一屏 —— 禱告優先
+   之前這裡是一張 180px 的預設人像、email，和一個空的自我介紹框：
+   帶著「我有件事想被代禱」的心情註冊完，落地卻是一張個人資料表格。
+   --------------------------------------------------------------- */
+.cp-welcome {
+  display: grid;
+  gap: 1.1rem;
+}
+
+.cp-welcome__head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.cp-welcome__avatar {
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+  border-radius: var(--radius-pill);
+  object-fit: cover;
+  border: 1px solid var(--line-1);
+}
+
+.cp-welcome__greeting {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.15rem, 4vw, 1.5rem);
+  color: var(--text-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cp-welcome__profile-link {
+  flex: 0 0 auto;
+  padding: 0.4rem 0.8rem;
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-2);
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.cp-welcome__profile-link:hover {
+  background: var(--surface-3);
+  color: var(--text-1);
+}
+
+.cp-welcome__prompt {
+  display: grid;
+  gap: 0.9rem;
+  padding: clamp(1.1rem, 4vw, 1.6rem);
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-lg);
+  background: var(--surface-1);
+}
+
+.cp-welcome__question {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.25rem, 5vw, 1.7rem);
+  color: var(--text-1);
+}
+
+.cp-welcome__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.cp-welcome__actions .cp-button {
+  flex: 1 1 12rem;
+  justify-content: center;
 }

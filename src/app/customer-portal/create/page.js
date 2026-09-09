@@ -438,10 +438,10 @@ export default function CustomerPortalCreatePage() {
     <>
       <SiteHeader activePath="/customer-portal" />
       <main className="customer-create">
-        <header className="customer-create__header-band">
+        <div className="customer-create__header-band">
           <h1>寫下一件需要被守望的事</h1>
           <p>把現在的處境說清楚就好，不需要寫得漂亮。</p>
-        </header>
+        </div>
 
         <form className="customer-create__form" onSubmit={handleSubmit}>
           {status ? (
@@ -698,9 +698,9 @@ export default function CustomerPortalCreatePage() {
           margin: 0.75rem auto 0;
           padding: clamp(0.78rem, 2vw, 1.1rem);
           border-radius: 14px;
-          border: 1px solid rgba(148, 163, 184, 0.2);
-          background: linear-gradient(160deg, rgba(7, 16, 34, 0.92), rgba(10, 21, 41, 0.88));
-          box-shadow: 0 20px 42px -34px rgba(2, 6, 23, 0.86);
+          border: 1px solid var(--line-1);
+          background: var(--surface-1);
+          box-shadow: var(--elev-2);
         }
 
         .customer-create__step {
@@ -709,7 +709,7 @@ export default function CustomerPortalCreatePage() {
           border: 1px solid rgba(148, 163, 184, 0.16);
           border-radius: 12px;
           padding: clamp(0.78rem, 2vw, 1rem);
-          background: rgba(2, 6, 23, 0.18);
+          background: var(--surface-3);
         }
 
         .customer-create__step + .customer-create__step {
@@ -742,20 +742,20 @@ export default function CustomerPortalCreatePage() {
         }
 
         .customer-create__step-head h2 {
-          color: #f8fafc;
+          color: var(--text-1);
           font-size: 1.05rem;
           line-height: 1.25;
         }
 
         .customer-create__step-head p {
           margin-top: 0.22rem;
-          color: rgba(203, 213, 225, 0.74);
+          color: var(--text-2);
           font-size: 0.84rem;
           line-height: 1.5;
         }
 
         .customer-create__step--map {
-          background: rgba(2, 6, 23, 0.14);
+          background: var(--surface-3);
         }
 
         .customer-create__row label {
@@ -764,7 +764,7 @@ export default function CustomerPortalCreatePage() {
         }
 
         .customer-create__row label > span {
-          color: rgba(226, 232, 240, 0.95);
+          color: var(--text-1);
           font-size: 0.84rem;
           font-weight: 700;
           letter-spacing: 0.01em;
@@ -775,8 +775,8 @@ export default function CustomerPortalCreatePage() {
         .customer-create__row textarea {
           border-radius: 12px;
           border: 1px solid rgba(148, 163, 184, 0.36);
-          background: rgba(15, 23, 42, 0.66);
-          color: #f8fbff;
+          background: var(--surface-2);
+          color: var(--text-1);
           min-height: 44px;
           padding: 0.7rem 0.78rem;
         }
@@ -795,13 +795,12 @@ export default function CustomerPortalCreatePage() {
         }
 
         .customer-create__preview {
-          border: 1px dashed rgba(125, 211, 252, 0.36);
+          border: 1px dashed var(--line-2);
           border-radius: 12px;
           min-height: 180px;
           display: grid;
           place-items: center;
-          background:
-            linear-gradient(180deg, rgba(15, 23, 42, 0.58), rgba(2, 6, 23, 0.42));
+          background: var(--surface-2);
         }
 
         .customer-create__preview-block {
@@ -810,7 +809,7 @@ export default function CustomerPortalCreatePage() {
         }
 
         .customer-create__preview-block > span {
-          color: rgba(226, 232, 240, 0.95);
+          color: var(--text-1);
           font-size: 0.84rem;
           font-weight: 800;
         }
@@ -826,7 +825,7 @@ export default function CustomerPortalCreatePage() {
           display: flex;
           align-items: flex-start;
           gap: 0.75rem;
-          color: #e2f6ff;
+          color: var(--text-1);
         }
 
         .customer-create__privacy-card input {
@@ -842,11 +841,11 @@ export default function CustomerPortalCreatePage() {
         }
 
         .customer-create__privacy-card strong {
-          color: #ffffff;
+          color: var(--text-1);
         }
 
         .customer-create__privacy-card small {
-          color: rgba(226, 232, 240, 0.76);
+          color: var(--text-2);
           line-height: 1.55;
         }
 
@@ -859,14 +858,14 @@ export default function CustomerPortalCreatePage() {
         }
 
         .customer-create__placeholder {
-          color: rgba(226, 232, 240, 0.82);
+          color: var(--text-2);
           font-size: 0.9rem;
         }
 
         .customer-create__status {
           border-radius: 12px;
           border: 1px solid rgba(148, 163, 184, 0.34);
-          background: rgba(15, 23, 42, 0.5);
+          background: var(--surface-2);
           padding: 0.65rem 0.78rem;
         }
 
@@ -879,7 +878,7 @@ export default function CustomerPortalCreatePage() {
           border: 1px solid rgba(125, 211, 252, 0.2);
           border-radius: 16px;
           padding: 0.9rem;
-          background: rgba(2, 6, 23, 0.32);
+          background: var(--surface-3);
         }
 
         .customer-create__mode span,
@@ -888,13 +887,13 @@ export default function CustomerPortalCreatePage() {
         }
 
         .customer-create__mode span {
-          color: #f8fafc;
+          color: var(--text-1);
           font-weight: 900;
         }
 
         .customer-create__mode p {
           margin-top: 0.25rem;
-          color: rgba(226, 232, 240, 0.7);
+          color: var(--text-2);
           font-size: 0.85rem;
         }
 
@@ -910,14 +909,14 @@ export default function CustomerPortalCreatePage() {
           border-radius: 999px;
           padding: 0 0.8rem;
           color: #cbd5e1;
-          background: rgba(15, 23, 42, 0.72);
+          background: var(--surface-2);
           cursor: pointer;
           font-weight: 900;
         }
 
         .customer-create__mode-actions button.is-active {
           border-color: rgba(125, 211, 252, 0.62);
-          color: #f8fafc;
+          color: var(--text-1);
           background: rgba(14, 165, 233, 0.22);
         }
 
@@ -947,8 +946,8 @@ export default function CustomerPortalCreatePage() {
 
         .customer-create__actions :global(.button--ghost) {
           border-color: rgba(148, 163, 184, 0.45);
-          color: #e2e8f0;
-          background: rgba(15, 23, 42, 0.4);
+          color: var(--text-1);
+          background: var(--surface-3);
         }
 
         .customer-create__row--description textarea {
@@ -1008,7 +1007,7 @@ export default function CustomerPortalCreatePage() {
             z-index: 20;
             border: 1px solid rgba(148, 163, 184, 0.28);
             border-radius: 16px;
-            background: rgba(2, 6, 23, 0.86);
+            background: var(--surface-2);
             padding: 0.65rem;
             backdrop-filter: blur(14px);
           }
@@ -1026,7 +1025,7 @@ export default function CustomerPortalCreatePage() {
         .customer-create__advanced {
           border: 1px solid rgba(148, 163, 184, 0.14);
           border-radius: 12px;
-          background: rgba(15, 23, 42, 0.2);
+          background: var(--surface-3);
           overflow: hidden;
         }
 
@@ -1035,7 +1034,7 @@ export default function CustomerPortalCreatePage() {
           display: flex;
           align-items: center;
           padding: 0 0.85rem;
-          color: #dbeafe;
+          color: var(--text-1);
           cursor: pointer;
           font-weight: 900;
         }

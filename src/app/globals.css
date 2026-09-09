@@ -265,7 +265,7 @@ main.home-page {
 }
 .not-found-copy p {
   max-width: 58ch;
-  color: #334155;
+  color: var(--text-2);
   font-size: 1rem;
   line-height: 1.8;
 }
@@ -917,7 +917,7 @@ footer {
   padding: 0.15rem 0.55rem;
   border-radius: 999px;
   background: rgba(148, 163, 184, 0.2);
-  color: #334155;
+  color: var(--text-2);
   font-size: 0.75rem;
   font-weight: 600;
 }
@@ -993,10 +993,11 @@ footer {
   padding: 3rem 1.5rem 4rem;
 }
 .auth-page {
-  min-height: calc(100dvh - var(--site-header-height));
-  background:
-    radial-gradient(circle at 12% 8%, rgba(96, 165, 250, 0.16), transparent 34%),
-    linear-gradient(150deg, #0d1c33 0%, #071225 58%, #050c18 100%);
+  min-height: calc(100dvh - var(--header-h));
+  /* 這一層曾經自己畫一片深藍夜色，蓋在已經是 day 的 body 上：於是白色的表單卡
+     浮在深藍上，而使用者按下註冊之後又落到另一種深藍的會員中心。頁面自己不再
+     決定明暗，交給 surface。 */
+  background: var(--surface-page);
 }
 .auth-page--login .auth-wrapper {
   max-width: 760px;
@@ -1017,9 +1018,9 @@ footer {
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
 }
 .auth-card {
-  background: rgba(255, 255, 255, 0.98);
-  border: 1px solid var(--border-soft);
-  border-radius: 1.35rem;
+  background: var(--surface-1);
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
   padding: 2.25rem;
   display: grid;
@@ -1043,7 +1044,7 @@ footer {
 .auth-card h1 {
   margin: 0;
   font-size: 1.85rem;
-  color: #0b1220;
+  color: var(--text-1);
 }
 .auth-card--login h1 {
   font-size: clamp(1.75rem, 4vw, 2.15rem);
@@ -1051,7 +1052,7 @@ footer {
 }
 .auth-card p {
   margin: 0;
-  color: #334155;
+  color: var(--text-2);
   font-weight: 500;
 }
 .auth-card--login .auth-card__intro p {
@@ -1141,7 +1142,7 @@ textarea.form-control.is-invalid:focus {
   border: 1px solid rgba(37, 99, 235, 0.22);
   border-radius: 999px;
   padding: 0.35rem 0.75rem;
-  color: #1d4ed8;
+  color: var(--link);
   background: rgba(37, 99, 235, 0.08);
   font-size: 0.82rem;
   font-weight: 800;
@@ -1226,10 +1227,10 @@ textarea.form-control.is-invalid:focus {
   display: grid;
   gap: 0.6rem;
   font-size: 0.9rem;
-  color: #334155;
+  color: var(--text-2);
 }
 .auth-footer a {
-  color: #1d4ed8;
+  color: var(--link);
   font-weight: 700;
   text-decoration: underline;
   text-underline-offset: 2px;
@@ -3135,7 +3136,7 @@ textarea.form-control.is-invalid:focus {
 .terms-hero > div:first-child > p:not(.terms-hero__eyebrow) {
   max-width: 680px;
   margin: 1rem 0 0;
-  color: #334155;
+  color: var(--text-2);
   font-size: clamp(1rem, 1.6vw, 1.16rem);
   font-weight: 500;
   line-height: 1.8;
@@ -3212,7 +3213,7 @@ textarea.form-control.is-invalid:focus {
 .legal-card p,
 .terms-card p {
   margin: 0;
-  color: #334155;
+  color: var(--text-2);
   line-height: 1.65;
 }
 
@@ -3249,7 +3250,7 @@ textarea.form-control.is-invalid:focus {
 .terms-card ul {
   margin: 0;
   padding-left: 1.1rem;
-  color: #334155;
+  color: var(--text-2);
   display: grid;
   gap: 0.5rem;
 }
@@ -6830,15 +6831,17 @@ header .nav-actions .btn-glass {
     width: 40px;
     height: 40px;
     flex: 0 0 40px;
-    color: #ffffff;
-    border-color: rgba(148, 163, 184, 0.46);
-    background: rgba(255, 255, 255, 0.08);
+    /* 這裡曾經寫死白色圖示 —— 頁首跟著 surface 走之後，在 day 的頁面上就是
+       白底白圖示，整顆按鈕看不見。 */
+    color: var(--text-1);
+    border-color: var(--line-2);
+    background: var(--surface-3);
   }
 
   header .menu-toggle.is-open {
-    background: #ffffff;
-    color: var(--accent);
-    border-color: rgba(37, 99, 235, 0.35);
+    background: var(--accent);
+    color: var(--text-on-accent);
+    border-color: transparent;
   }
 
   header .nav-links {
@@ -7066,7 +7069,7 @@ header .nav-actions .btn-glass {
 .home-explorer__suggestion-tag {
   border: 1px solid rgba(37, 99, 235, 0.28);
   background: rgba(37, 99, 235, 0.08);
-  color: #1d4ed8;
+  color: var(--link);
   border-radius: 999px;
   padding: 0.38rem 0.72rem;
   font-size: 0.8rem;
@@ -7670,7 +7673,7 @@ header .nav-actions .btn-glass {
 .howto-page .section h2,
 .howto-page .section h3,
 .howto-page .section strong {
-  color: #0b1220;
+  color: var(--text-1);
 }
 
 .about-page .section p,

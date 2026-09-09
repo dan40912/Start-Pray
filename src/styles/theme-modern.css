@@ -2810,24 +2810,23 @@ body {
 }
 
 .site-header {
-  background:
-    linear-gradient(110deg, rgba(6, 12, 26, 0.95), rgba(14, 26, 47, 0.9));
-  border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+  background: var(--surface-1);
+  border-bottom: 1px solid var(--line-1);
   box-shadow: 0 18px 38px -28px rgba(2, 6, 23, 0.95);
 }
 
 .site-header .logo {
-  color: #f8fbff;
+  color: var(--text-1);
 }
 
 .site-header .nav-links a {
-  color: rgba(199, 213, 232, 0.9);
+  color: var(--text-2);
 }
 
 .site-header .nav-links a:hover,
 .site-header .nav-links a.active {
-  background: rgba(59, 130, 246, 0.16);
-  color: #8cc3ff;
+  background: var(--surface-3);
+  color: var(--text-1);
 }
 
 .site-header .btn-primary {
@@ -2839,9 +2838,9 @@ body {
 }
 
 .site-header .btn-glass {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(148, 163, 184, 0.3);
-  color: #e6f0ff;
+  background: var(--surface-3);
+  border-color: var(--line-1);
+  color: var(--text-1);
 }
 
 /* The header is dark, but .btn-quiet / .btn-outline in globals.css are defined
@@ -2852,24 +2851,24 @@ body {
 .site-header .nav-links a.nav-account__login {
   background: transparent;
   border: 1px solid transparent;
-  color: rgba(226, 232, 240, 0.82);
+  color: var(--text-2);
 }
 
 .site-header .nav-links a.nav-account__login:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #f8fafc;
+  background: var(--surface-3);
+  color: var(--text-1);
 }
 
 .site-header .nav-links a.nav-account__signup {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(125, 183, 255, 0.55);
-  color: #dbeafe;
+  background: var(--surface-3);
+  border: 1px solid var(--line-2);
+  color: var(--text-1);
 }
 
 .site-header .nav-links a.nav-account__signup:hover {
-  background: rgba(125, 183, 255, 0.18);
-  border-color: rgba(125, 183, 255, 0.8);
-  color: #ffffff;
+  background: var(--surface-2);
+  border-color: var(--line-2);
+  color: var(--text-1);
 }
 
 .site-header .nav-account__hint {
@@ -3170,7 +3169,7 @@ footer .footer-bottom a:hover {
 .site-header {
   min-height: var(--site-header-height, 56px);
   border-bottom: 1px solid rgba(148, 163, 184, 0.1);
-  background: rgba(2, 6, 23, 0.76);
+  background: var(--surface-1);
   box-shadow: 0 12px 38px rgba(2, 6, 23, 0.16);
   backdrop-filter: blur(18px);
 }
