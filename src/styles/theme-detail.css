@@ -1,6 +1,4 @@
-:root {
-  --site-header-height: 72px;
-}
+/* :root 已收斂到 src/styles/tokens.css —— 全站唯一的 token 來源。 */
 
 /* ------------------------------------------
    DETAIL PAGE SPECIFIC STYLES

@@ -1,29 +1,4 @@
-﻿:root {
-  --bg: #f3f4f6;
-  --surface: #ffffff;
-  --surface-dark: rgba(17, 24, 39, 0.82);
-  --border: #d1d5db;
-  --border-soft: rgba(17, 24, 39, 0.08);
-  --accent: #2563eb;
-  --accent-soft: rgba(37, 99, 235, 0.12);
-  --accent-dark: #1d4ed8;
-  --accent-strong: #1d4ed8;
-  --text-primary: #111827;
-  --text-secondary: #4b5563;
-  --text-muted: #9ca3af;
-  --text: var(--text-primary);
-  --text-soft: rgba(17, 24, 39, 0.76);
-  --muted: rgba(55, 65, 81, 0.6);
-  --shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
-  --header-height: 56px;
-  --site-header-height: 56px;
-}
-@media (max-width: 768px) {
-  :root {
-    --header-height: 64px;
-    --site-header-height: 64px;
-  }
-}
+/* :root 已收斂到 src/styles/tokens.css —— 全站唯一的 token 來源。 */
 * {
   box-sizing: border-box;
 }
@@ -7400,13 +7375,6 @@ header .nav-actions .btn-glass {
 }
 /* Start Pray base values */
 
-:root {
-  --color-primary: #1e3a8a; /* primary blue */
-  --color-highlight: #fbbf24; /* highlight gold */
-  --color-text: #374151; /* body text */
-  --color-light-bg: #f9fafb; /* light background */
-  --color-card-bg: #ffffff;
-}
 
 #tech-roadmap {
   font-family: "Inter", sans-serif;
@@ -7902,9 +7870,6 @@ header .nav-actions .btn-glass {
 /* Mobile UX override layer (global)                                */
 /* --------------------------------------------------------------- */
 @media (max-width: 768px) {
-  :root {
-    --mobile-gutter: 0.9rem;
-  }
 
   html,
   body {
@@ -8126,9 +8091,6 @@ header .nav-actions .btn-glass {
 }
 
 @media (max-width: 540px) {
-  :root {
-    --mobile-gutter: 0.75rem;
-  }
 
   main {
     padding-bottom: 4rem;

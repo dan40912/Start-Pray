@@ -1,65 +1,7 @@
+/* :root 已收斂到 src/styles/tokens.css —— 全站唯一的 token 來源。 */
 /* ------------------------------------------
    BASE VARIABLES & DESIGN SYSTEM
 ------------------------------------------ */
-:root {
-  /* Colors - Original Theme Based */
-  --bg-primary: #0a0a0a;
-  --bg-secondary: #141414;
-  --bg-card: rgba(20, 20, 20, 0.85);
-  --bg-card-hover: rgba(40, 40, 40, 0.9);
-
-  /* Accents & Glows */
-  --accent-gold: #60a5fa; /* Original --gp-accent */
-  --accent-purple: #3b82f6;
-  --accent-cyan: #93c5fd;
-  --accent-rose: #FF6B6B;
-  
-  /* Text Colors */
-  --text-main: #F8F9FA;
-  --text-muted: #A0AEC0;
-  --text-dark: #2D3748;
-
-  /* Typography */
-  --font-heading: 'Outfit', 'Inter', system-ui, sans-serif;
-  --font-body: 'Inter', system-ui, sans-serif;
-
-  /* Spacing */
-  --space-xs: 0.25rem;
-  --space-sm: 0.5rem;
-  --space-md: 1rem;
-  --space-lg: 1.5rem;
-  --space-xl: 2rem;
-  --space-2xl: 3rem;
-  --space-3xl: 4rem;
-
-  /* Borders & Shadows */
-  --radius-sm: 8px;
-  --radius-md: 16px;
-  --radius-lg: 24px;
-  --radius-full: 9999px;
-  --border-glass: 1px solid rgba(255, 255, 255, 0.08);
-  --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
-  --glow-gold: 0 0 20px rgba(96, 165, 250, 0.5); /* Based on --gp-glow */
-  --glow-cyan: 0 0 20px rgba(147, 197, 253, 0.3);
-
-  /* Transitions */
-  --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-slow: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-
-  /* Player productized tokens */
-  --player-w: clamp(640px, 72vw, 920px);
-  --player-r: 20px;
-  --player-surface-1: rgba(10, 18, 34, 0.9);
-  --player-surface-2: rgba(16, 27, 48, 0.84);
-  --player-surface-3: rgba(255, 255, 255, 0.045);
-  --player-text-main: #f4f8ff;
-  --player-text-sub: rgba(217, 227, 243, 0.72);
-  --player-accent: #7ec3ff;
-  --player-accent-strong: #f6cf6a;
-  --player-danger: #ff7f8f;
-  --player-shadow: 0 20px 46px -28px rgba(0, 0, 0, 0.7);
-}
 
 /* ------------------------------------------
    RESET & GLOBAL
@@ -2804,9 +2746,6 @@ body.companion-mode-active .pdv2-comments-card .comment-item.is-companion-active
 /* ------------------------------------------
    Unified Public Theme (Header / Footer / Home Sections)
 ------------------------------------------ */
-:root {
-  --text-light: #dbeafe;
-}
 
 body {
   background:

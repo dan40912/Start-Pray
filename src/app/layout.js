@@ -2,6 +2,9 @@ import "./globals.css";
 import "@/styles/theme-modern.css";
 import "@/styles/admin.css";
 import "@/styles/fontawesome-lite.css";
+// tokens.css 必須最後載入：它收編前面各檔散落的變數名，讓舊規則跟著
+// surface 走。詳見 src/styles/tokens.css 開頭的規則。
+import "@/styles/tokens.css";
 import { headers } from "next/headers";
 import { Noto_Serif_TC } from "next/font/google";
 
@@ -96,6 +99,20 @@ function extractPathFromHeaders(requestHeaders) {
   return "/";
 }
 
+// 兩種表面、一套 token（見 src/styles/tokens.css）。
+//   night 沉浸情境 — 夜色是內容的一部分：世界此刻在禱告
+//   day   閱讀與書寫 — 要讀字、要填表、要建立信任
+// 沒有列到的路徑一律 day，因為表單與長文預設就該是淺色。
+const NIGHT_PREFIXES = ["/global-prayer-room", "/prayfor"];
+
+function resolveSurface(pathname) {
+  const path = (pathname || "/").replace(/^\/en(?=\/|$)/, "") || "/";
+  if (path === "/") return "night";
+  return NIGHT_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))
+    ? "night"
+    : "day";
+}
+
 function shouldBypassMaintenance(pathname) {
   if (!pathname) return false;
   return (
@@ -153,11 +170,12 @@ export default async function RootLayout({ children }) {
         <html
           lang={dictionary.htmlLang}
           className={notoSerifTC.variable}
+          data-surface="day"
         >
           <head>
             <meta name="robots" content="noindex,nofollow" />
           </head>
-          <body className="admin-layout">
+          <body>
             <SiteHeader locale={locale} />
             <div
               style={{
@@ -236,8 +254,12 @@ export default async function RootLayout({ children }) {
   }
 
   return (
-    <html lang={dictionary.htmlLang} className={notoSerifTC.variable}>
-      <body className="admin-layout">
+    <html
+      lang={dictionary.htmlLang}
+      className={notoSerifTC.variable}
+      data-surface={resolveSurface(requestPath)}
+    >
+      <body>
         <StructuredData />
         <AudioProvider>
           {children}

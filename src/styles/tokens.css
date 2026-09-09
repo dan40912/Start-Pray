@@ -1,0 +1,231 @@
+/* =====================================================================
+   tokens.css — 全站唯一的設計 token 來源
+   ---------------------------------------------------------------------
+   規則（違反就是 bug）：
+   1. 這是全站唯一允許出現 `:root` 的檔案。
+   2. 元件 CSS 只使用語意 token，不寫 hex。
+   3. 深色不是另一個 theme 檔，是 `[data-surface="night"]` scope。
+      每個 route 由 layout.js 依路徑宣告自己的 surface。
+
+   兩種表面的分工：
+     day   閱讀與書寫 — 註冊/登入、我的代禱、建立代禱、admin
+     night 沉浸情境   — 首頁 hero/globe、全球禱告室、代禱詳情、語音播放
+
+   檔案載入順序（layout.js）：globals → theme-modern → theme-detail…
+   → tokens.css 必須放在最後，才能收編既有的變數名。
+   ===================================================================== */
+
+:root {
+  /* ---- 表面（day 為預設） ---------------------------------------- */
+  --surface-page: #f6f7fb;
+  --surface-1: #ffffff; /* 卡片 */
+  --surface-2: #eef1f7; /* 內凹、次級區塊 */
+  --surface-3: rgba(15, 23, 42, 0.04); /* hover、極淡填色 */
+
+  /* ---- 文字 ------------------------------------------------------- */
+  --text-1: #101828; /* 標題、主要內容 */
+  --text-2: #475467; /* 次要說明 */
+  --text-3: #98a2b3; /* metadata、placeholder */
+  --text-on-accent: #1f1503;
+
+  /* ---- 線條 ------------------------------------------------------- */
+  --line-1: rgba(16, 24, 40, 0.1);
+  --line-2: rgba(16, 24, 40, 0.18);
+
+  /* ---- 主色：暖金，全站唯一 accent，實心不做漸層 ------------------ */
+  --accent: #fbbf24; /* 填色（配 --text-on-accent） */
+  --accent-hover: #f0ad06;
+  --accent-text: #92610a; /* accent 當文字/邊框時（day 需壓深才有對比） */
+  --accent-soft: rgba(251, 191, 36, 0.14);
+
+  /* ---- 連結（冷色降級為連結與背景層，不再當主按鈕） --------------- */
+  --link: #1d4ed8;
+  --link-hover: #1e3a8a;
+
+  /* ---- 狀態 ------------------------------------------------------- */
+  --danger: #b42318;
+  --danger-soft: rgba(180, 35, 24, 0.1);
+  --success: #067647;
+  --success-soft: rgba(6, 118, 71, 0.1);
+
+  /* ---- 圓角：24px 是 AI 模板指紋，收斂到 14 -------------------- */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 14px;
+  --radius-pill: 999px;
+
+  /* ---- 陰影：實色卡片 + 極淡邊框，不做 glow ---------------------- */
+  --elev-1: 0 1px 2px rgba(16, 24, 40, 0.06);
+  --elev-2: 0 8px 24px -12px rgba(16, 24, 40, 0.22);
+  --elev-3: 0 18px 40px -20px rgba(16, 24, 40, 0.28);
+
+  /* ---- 字體：標題一律襯線（Noto Serif TC 已在 layout 載入） ------- */
+  --font-display: var(--font-serif-tc), "Noto Serif TC", "Songti TC", serif;
+  --font-body:
+    "Inter", system-ui, "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", sans-serif;
+
+  /* ---- 尺度：全站一個 header 高度 -------------------------------- */
+  --header-h: 64px;
+  --gutter: 1.25rem;
+  --maxw-read: 680px;
+  --maxw-page: 1120px;
+
+  /* ---- 間距 ------------------------------------------------------- */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+  --space-3xl: 4rem;
+
+  /* ---- 動態 ------------------------------------------------------- */
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --dur-fast: 160ms;
+  --dur: 260ms;
+  --transition-fast: var(--dur-fast) var(--ease);
+  --transition-normal: var(--dur) var(--ease);
+  --transition-slow: 420ms var(--ease);
+}
+
+/* =====================================================================
+   night — 沉浸情境
+   ===================================================================== */
+[data-surface="night"] {
+  --surface-page: #0b1424;
+  --surface-1: #111d33; /* 卡片：實色，不是 glass */
+  --surface-2: #16243d;
+  --surface-3: rgba(255, 255, 255, 0.05);
+
+  --text-1: #f2f6ff;
+  --text-2: rgba(226, 236, 255, 0.74);
+  --text-3: rgba(200, 214, 238, 0.5);
+
+  --line-1: rgba(255, 255, 255, 0.1);
+  --line-2: rgba(255, 255, 255, 0.18);
+
+  --accent-text: #fbbf24; /* 深底上金色可直接當文字 */
+  --accent-soft: rgba(251, 191, 36, 0.16);
+
+  --link: #8cc3ff;
+  --link-hover: #b9dcff;
+
+  --danger: #ff8a80;
+  --danger-soft: rgba(255, 138, 128, 0.14);
+  --success: #6ee7b7;
+  --success-soft: rgba(110, 231, 183, 0.14);
+
+  --elev-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --elev-2: 0 10px 28px -16px rgba(0, 0, 0, 0.7);
+  --elev-3: 0 20px 46px -24px rgba(0, 0, 0, 0.8);
+}
+
+@media (max-width: 768px) {
+  :root {
+    --gutter: 0.9rem;
+  }
+}
+
+@media (max-width: 540px) {
+  :root {
+    --gutter: 0.75rem;
+  }
+}
+
+/* =====================================================================
+   收編層 — 把散落各檔的舊變數名接到上面的語意 token。
+   ---------------------------------------------------------------------
+   目的是讓既有規則自動跟著 surface 走，而不必一次改完 17,000 行。
+   舊名不再持有自己的顏色，只是別名。遷移完成後整段可以刪掉。
+
+   這一段同時修掉一整類 bug：舊的 `--surface:#ffffff` 是寫死的淺色，
+   在深色頁面上就是那塊突兀的白方塊。接上 token 後它跟著 surface 走。
+   ===================================================================== */
+:root,
+[data-surface="night"] {
+  /* globals.css */
+  --bg: var(--surface-page);
+  --surface: var(--surface-1);
+  --surface-dark: var(--surface-2);
+  --border: var(--line-1);
+  --border-soft: var(--line-1);
+  --text-primary: var(--text-1);
+  --text-secondary: var(--text-2);
+  --text-muted: var(--text-3);
+  --text: var(--text-1);
+  --text-soft: var(--text-2);
+  --muted: var(--text-3);
+  --shadow: var(--elev-2);
+  --header-height: var(--header-h);
+  --site-header-height: var(--header-h);
+  --mobile-gutter: var(--gutter);
+
+  /* globals.css roadmap 區塊 */
+  --color-primary: var(--text-1);
+  --color-highlight: var(--accent);
+  --color-text: var(--text-2);
+  --color-light-bg: var(--surface-page);
+  --color-card-bg: var(--surface-1);
+
+  /* theme-modern.css */
+  --bg-primary: var(--surface-page);
+  --bg-secondary: var(--surface-2);
+  --bg-card: var(--surface-1);
+  --bg-card-hover: var(--surface-2);
+  --text-main: var(--text-1);
+  --text-light: var(--text-2);
+  --text-dark: var(--text-1);
+  --font-heading: var(--font-display);
+
+  /* 名不副實的舊 accent 組：--accent-gold 的值其實是藍色 #60a5fa。
+     全部收斂到單一 accent，漸層改實色。 */
+  --accent-dark: var(--accent-hover);
+  --accent-strong: var(--accent-hover);
+  --accent-gold: var(--accent);
+  --accent-purple: var(--accent);
+  --accent-cyan: var(--link);
+  --accent-rose: var(--danger);
+
+  --radius-full: var(--radius-pill);
+
+  /* glass / glow 是「太 AI」的主要視覺指紋 —— 就地中和，
+     不必逐一找出 200 多處使用點。 */
+  --border-glass: 1px solid var(--line-1);
+  --shadow-glass: var(--elev-2);
+  --glow-gold: none;
+  --glow-cyan: none;
+
+  /* GlobalPlayer：原本自帶一整套顏色（青綠 accent），是第四套主色的來源。
+     接回語意 token 後，播放器不再是視覺上的孤島。 */
+  --player-w: clamp(640px, 72vw, 920px);
+  --player-r: var(--radius-lg);
+  --player-surface-1: var(--surface-1);
+  --player-surface-2: var(--surface-2);
+  --player-surface-3: var(--surface-3);
+  --player-text-main: var(--text-1);
+  --player-text-sub: var(--text-2);
+  --player-accent: var(--accent);
+  --player-accent-strong: var(--accent-hover);
+  --player-danger: var(--danger);
+  --player-shadow: var(--elev-3);
+}
+
+/* accent 是實心色，不是漸層。舊規則若寫 linear-gradient 需在 Phase 2 收掉。 */
+
+/* =====================================================================
+   基礎排版 — 標題一律襯線，全站一種聲音
+   ===================================================================== */
+body {
+  background: var(--surface-page);
+  color: var(--text-1);
+  font-family: var(--font-body);
+}
+
+h1,
+h2,
+h3,
+.h-display {
+  font-family: var(--font-display);
+  color: var(--text-1);
+  letter-spacing: 0.01em;
+}
