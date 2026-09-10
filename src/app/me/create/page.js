@@ -732,10 +732,10 @@ export default function CustomerPortalCreatePage() {
           height: 2rem;
           border: 1px solid rgba(125, 211, 252, 0.34);
           border-radius: 999px;
-          color: #67e8f9;
+          color: var(--accent-text);
           font-size: 0.78rem;
           font-weight: 900;
-          background: rgba(14, 165, 233, 0.12);
+          background: var(--accent-soft);
         }
 
         .customer-create__step-head h2,
@@ -935,7 +935,8 @@ export default function CustomerPortalCreatePage() {
         }
 
         .customer-create__actions :global(.button--primary) {
-          background: linear-gradient(135deg, #3b82f6, #0ea5e9);
+          background: var(--accent);
+          color: var(--text-on-accent);
           border-color: transparent;
         }
 

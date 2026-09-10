@@ -158,7 +158,7 @@ button {
 }
 
 .logo-icon {
-  color: var(--accent-gold);
+  color: var(--accent-text);
   font-size: 1.2em;
 }
 
@@ -230,7 +230,7 @@ button {
   font-family: var(--font-heading);
   font-size: 2rem;
   font-weight: 700;
-  color: var(--accent-gold);
+  color: var(--accent-text);
 }
 
 .stat-label {
@@ -637,7 +637,7 @@ button {
 
 .home-entry__card span {
   align-self: end;
-  color: #fde68a;
+  color: var(--accent-text);
   font-size: 0.86rem;
   font-weight: 900;
 }
@@ -716,9 +716,9 @@ button {
 
 .home-proof__action--primary,
 .home-final-cta__button--primary {
-  border-color: rgba(253, 230, 138, 0.72);
-  background: #f7d77a;
-  color: #241a05;
+  border-color: transparent;
+  background: var(--accent);
+  color: var(--text-on-accent);
 }
 
 .home-proof__stats {
@@ -894,16 +894,16 @@ button {
 }
 
 .home-explorer__intro-action--primary {
-  border-color: rgba(253, 230, 138, 0.72);
-  background: #f7d77a;
-  color: #241a05;
+  border-color: transparent;
+  background: var(--accent);
+  color: var(--text-on-accent);
 }
 
 .home-explorer__intro-action--primary:hover,
 .home-explorer__intro-action--primary:focus-visible {
-  border-color: rgba(253, 230, 138, 0.92);
-  background: #fde68a;
-  color: #241a05;
+  border-color: transparent;
+  background: var(--accent-hover);
+  color: var(--text-on-accent);
 }
 
 .home-explorer__search-card {
@@ -1003,7 +1003,7 @@ button {
   min-width: 5.4rem;
   background: var(--accent);
   color: var(--text-on-accent);
-  color: #241a05;
+  color: var(--text-on-accent);
   font-size: 0.84rem;
   font-weight: 760;
   letter-spacing: 0;
@@ -1251,7 +1251,7 @@ button {
 }
 
 .home-card__prayer-badge.is-empty {
-  color: var(--text-3);
+  color: var(--text-2);
 }
 
 .home-card__meta--bottom {
@@ -1760,7 +1760,7 @@ img.track-avatar {
 }
 
 .player-now__chip.is-secondary {
-  color: #e2e8f0;
+  color: var(--text-2);
   border-color: rgba(148, 163, 184, 0.36);
   background: rgba(255, 255, 255, 0.06);
 }
@@ -1772,7 +1772,7 @@ img.track-avatar {
 }
 
 .player-now__chip.is-recovering {
-  color: #fde68a;
+  color: var(--accent-text);
   border-color: rgba(245, 158, 11, 0.4);
   background: rgba(245, 158, 11, 0.16);
 }
@@ -2147,7 +2147,7 @@ img.track-avatar {
 .companion-overlay__btn--play {
   background: rgba(246, 207, 106, 0.2);
   border-color: rgba(246, 207, 106, 0.52);
-  color: #fde68a;
+  color: var(--accent-text);
 }
 
 .companion-overlay__btn--loop {
@@ -2280,7 +2280,7 @@ body.companion-mode-active .pdv2-comments-card .comment-item.is-companion-active
 }
 
 .player-notice--warning {
-  color: #fde68a;
+  color: var(--accent-text);
 }
 
 .player-notice__text {
@@ -2872,24 +2872,25 @@ body {
 }
 
 .site-header .nav-account__hint {
-  color: rgba(203, 213, 225, 0.75);
+  color: var(--text-3);
 }
 
+/* 頁尾和頁首一樣是站台外框，要跟著 surface 走。它原本鎖死深藍：day 的頁面
+   上，連結文字用的是 day 的深色 token，壓在深藍底上只有 2.6:1，「註冊」更只有
+   1.14:1 —— 幾乎看不見。 */
 footer {
   margin-top: 4rem;
-  background:
-    radial-gradient(circle at 15% 20%, rgba(59, 130, 246, 0.22), transparent 42%),
-    linear-gradient(135deg, #071225 0%, #0b1830 55%, #0a1530 100%);
-  border-top: 1px solid rgba(148, 163, 184, 0.22);
-  color: rgba(226, 232, 240, 0.9);
+  background: var(--surface-2);
+  border-top: 1px solid var(--line-1);
+  color: var(--text-2);
 }
 
 footer .footer-title {
-  color: rgba(191, 219, 254, 0.72);
+  color: var(--text-2);
 }
 
 footer .footer-brand strong {
-  color: #f8fbff;
+  color: var(--text-1);
 }
 
 footer .footer-brand > a {
@@ -2912,7 +2913,7 @@ footer .footer-brand p,
 footer .footer-column a,
 footer .footer-bottom,
 footer .footer-bottom a {
-  color: rgba(203, 213, 225, 0.88);
+  color: var(--text-2);
 }
 
 footer .footer-socials {
@@ -2928,9 +2929,9 @@ footer .footer-social {
   gap: 0.5rem;
   padding: 0.7rem 0.95rem;
   border-radius: 999px;
-  border: 1px solid rgba(148, 163, 184, 0.22);
-  background: rgba(15, 23, 42, 0.4);
-  color: #e2e8f0;
+  border: 1px solid var(--line-1);
+  background: var(--surface-3);
+  color: var(--text-2);
   text-decoration: none;
   transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
 }
@@ -2943,9 +2944,9 @@ footer .footer-social svg {
 
 footer .footer-social:hover {
   transform: translateY(-1px);
-  color: #f8fbff;
-  border-color: rgba(140, 195, 255, 0.48);
-  background: rgba(30, 41, 59, 0.72);
+  color: var(--text-1);
+  border-color: var(--line-2);
+  background: var(--surface-1);
 }
 
 footer .footer-social--disabled {
@@ -2955,7 +2956,7 @@ footer .footer-social--disabled {
 
 footer .footer-column a:hover,
 footer .footer-bottom a:hover {
-  color: #8cc3ff;
+  color: var(--link);
 }
 
 @media (max-width: 640px) {
@@ -3217,8 +3218,8 @@ header .nav-links .nav-link {
 header .nav-links > a:hover,
 header .nav-links > a.active,
 header .nav-links .nav-link:hover {
-  background: rgba(14, 165, 233, 0.12);
-  color: #dff7ff;
+  background: var(--surface-3);
+  color: var(--text-1);
   transform: none;
 }
 

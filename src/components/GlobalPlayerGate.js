@@ -17,13 +17,16 @@ export default function GlobalPlayerGate() {
   const { playlist, currentTrack, isPlaying, pause } = useAudio();
 
   const hasQueue = Array.isArray(playlist) && playlist.length > 0;
-  // 播放列以前只要「佇列非空」就出現，而首頁與詳情頁一載入就會用
-  // setQueue(tracks, -1) 預先鋪好佇列 —— 所以第一次進站、什麼都還沒按，
-  // 螢幕底部就已經被一個關不掉的播放列佔掉約 13%，播的還是別張卡的語音。
-  // 改成看 currentTrack：預鋪佇列的 index 是 -1，currentTrack 為 null，
-  // 要等使用者真的選了一首才會有值。
-  const hasPlaybackState = Boolean(currentTrack);
   const inPrayerList = isPath(pathname, "/prayfor");
+  // 單則代禱的詳情頁。這一頁的佇列是 DetailAudioQueueBootstrap 為「這一則代禱」
+  // 鋪的，不會是別張卡片留下來的殘留。
+  const inPrayerDetail = /^\/(?:en\/)?prayfor\/[^/]+$/.test(pathname);
+  // 播放列以前只要「佇列非空」就出現，而首頁一載入就用 setQueue(tracks, -1)
+  // 預先鋪好佇列 —— 於是第一次進站、什麼都還沒按，螢幕底部就被一個播放列佔掉，
+  // 播的還是別張卡的語音。改看 currentTrack 修掉了那個，但也連帶把詳情頁的語音
+  // 藏了起來：明明有人留了聲音，畫面上什麼都看不到。
+  // 詳情頁的佇列既然是這一則自己的，就讓它有東西可播時直接顯示。
+  const hasPlaybackState = Boolean(currentTrack) || (inPrayerDetail && hasQueue);
   const inOvercomer = isPath(pathname, "/overcomer");
   const inCustomerPortal = pathname === "/me";
   const inGlobalPrayerRoom = isPath(pathname, "/global-prayer-room");

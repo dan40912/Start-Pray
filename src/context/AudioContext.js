@@ -92,6 +92,10 @@ export function AudioProvider({ children }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isQueueEnded, setIsQueueEnded] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  // 陪伴模式：使用者是從「聆聽大家的禱告」進來的，不是順手播一則。
+  // 這個旗標決定 GlobalPlayer 要用沉浸的整頁樣子，還是底部那條播放列 ——
+  // 兩者是同一個播放器的兩種呈現，不是兩個播放器。
+  const [isCompanion, setIsCompanion] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isLoop, setIsLoop] = useState(false);
@@ -1365,6 +1369,7 @@ export function AudioProvider({ children }) {
     isQueueEnded,
     isAdvancingQueue,
     isExpanded,
+    isCompanion,
     progress,
     duration,
     queueProgress,
@@ -1376,6 +1381,7 @@ export function AudioProvider({ children }) {
     failedTrackKeys,
     lastSkippedTrack,
     setIsExpanded,
+    setIsCompanion,
     clearPlaybackNotice,
     playTrack,
     setQueue,

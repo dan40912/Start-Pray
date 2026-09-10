@@ -63,7 +63,7 @@ export default function PrayedReactionButton({ prayerId, text }) {
           border: none;
           border-radius: 999px;
           background: var(--accent-soft);
-          color: var(--accent);
+          color: var(--accent-text);
           font-size: 0.95rem;
           font-weight: 600;
           cursor: pointer;

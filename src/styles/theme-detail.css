@@ -400,7 +400,7 @@
 .player-hint {
   margin-top: 0.5rem;
   font-size: 0.8rem;
-  color: var(--accent-gold);
+  color: var(--accent-text);
 }
 
 @media (max-width: 768px) {
@@ -994,7 +994,7 @@
   box-shadow: var(--glow-gold);
 }
 
-.play-icon { font-size: 1.2rem; color: var(--accent-gold); }
+.play-icon { font-size: 1.2rem; color: var(--accent-text); }
 
 .waveform-bars {
   display: flex;
@@ -2653,13 +2653,15 @@
   white-space: nowrap;
 }
 
+/* 這一塊原本是 #edf6f3 薄荷底 + #365b5e 綠字 —— 又一個舊淺色版的殘留，
+   在深色的詳情頁上是一塊突兀的淺色方塊。 */
 .comments__guest-note {
   margin: 0 0 0.9rem;
-  border: 1px solid rgba(47, 111, 115, 0.24);
-  border-radius: 10px;
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-md);
   padding: 0.75rem 0.85rem;
-  color: #365b5e;
-  background: #edf6f3;
+  color: var(--text-2);
+  background: var(--surface-3);
   font-size: 0.92rem;
   line-height: 1.55;
 }

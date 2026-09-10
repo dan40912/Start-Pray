@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 
 import { useAudio } from "@/context/AudioContext";
+import { PRAYER_RESPONSE_CREATED } from "@/lib/events";
 import { getDictionary, localeFromPathname } from "@/lib/i18n";
 import usePlaybackWellbeing from "@/lib/usePlaybackWellbeing";
 import WellbeingNudge from "@/components/WellbeingNudge";
@@ -99,6 +100,8 @@ export default function GlobalPlayer({ onClose }) {
     clearPlaybackNotice,
     isExpanded,
     setIsExpanded,
+    isCompanion,
+    setIsCompanion,
     togglePlay,
     pause,
     duration,
@@ -114,8 +117,12 @@ export default function GlobalPlayer({ onClose }) {
     setAutoAdvanceDelay,
   } = useAudio();
 
-  const wellbeingLocale = localeFromPathname(pathname);
-  const wellbeingText = getDictionary(wellbeingLocale).wellbeing;
+  const locale = localeFromPathname(pathname);
+  const dictionary = getDictionary(locale);
+  const wellbeingText = dictionary.wellbeing;
+  // 陪伴模式的文案原本住在 CompanionOverlay 裡。那個元件被拿掉之後（它是第二個
+  // 播放器），文案跟著搬過來，播放器才是唯一講這些話的地方。
+  const companionText = dictionary.home.companion;
   const {
     shouldPrompt: showWellbeingNudge,
     dismiss: dismissWellbeing,
@@ -123,12 +130,14 @@ export default function GlobalPlayer({ onClose }) {
   } = usePlaybackWellbeing();
 
   const progressBarRef = useRef(null);
-  const [isOverlayDismissed, setIsOverlayDismissed] = useState(false);
   const [overlayBackground, setOverlayBackground] = useState("");
+  // 每則回應的「⋯ → 檢舉」。這原本只存在於陪伴模式自己的清單，現在跟著清單一起
+  // 收進播放器，底部播放列與沉浸畫面共用同一份。
+  const [openMenuTrackId, setOpenMenuTrackId] = useState(null);
+  const [reportState, setReportState] = useState({});
+  const [reportSuccessMessage, setReportSuccessMessage] = useState("");
   const [typedMessage, setTypedMessage] = useState("");
   const typewriterIntervalRef = useRef(null);
-  const previousTrackIdentityRef = useRef(null);
-  const previousPhaseRef = useRef(playerPhase);
 
   useEffect(() => {
     if (typeof document === "undefined") return undefined;
@@ -142,24 +151,6 @@ export default function GlobalPlayer({ onClose }) {
   const hasQueue = playlist.length > 0;
   const hasStartedPlayback = hasTrack;
   const currentTrackIdentity = useMemo(() => getTrackIdentity(currentTrack), [currentTrack]);
-
-  useEffect(() => {
-    const previousTrackIdentity = previousTrackIdentityRef.current;
-    const previousPhase = previousPhaseRef.current;
-    const hasTrackChanged =
-      Boolean(currentTrackIdentity) && currentTrackIdentity !== previousTrackIdentity;
-    const shouldReopenOverlay =
-      hasStartedPlayback &&
-      playerPhase === "playing" &&
-      (hasTrackChanged || previousPhase === "ready" || previousPhase === "ended");
-
-    if (shouldReopenOverlay) {
-      setIsOverlayDismissed(false);
-    }
-
-    previousTrackIdentityRef.current = currentTrackIdentity;
-    previousPhaseRef.current = playerPhase;
-  }, [currentTrackIdentity, hasStartedPlayback, playerPhase]);
 
   const displayTrack = hasStartedPlayback
     ? currentTrack
@@ -276,16 +267,12 @@ export default function GlobalPlayer({ onClose }) {
   const safeDuration = effectiveDuration > 0 ? effectiveDuration : 1;
   const progressPercent = Math.min(Math.max((effectiveProgress / safeDuration) * 100, 0), 100);
 
-  // "advancing" is the brief, silent gap between one track finishing and the next
-  // one starting (see COMPANION_AUTO_ADVANCE_DELAY_MS below) — the overlay should
-  // stay open and keep showing the just-finished card through that gap instead of
-  // disappearing and popping back in.
-  const showCompanionOverlay =
-    isPrayerDetailPage &&
-    hasStartedPlayback &&
-    (playerPhase === "playing" || playerPhase === "advancing") &&
-    !isQueueEnded &&
-    !isOverlayDismissed;
+  // 陪伴模式是「使用者按了聆聽大家的禱告」，不是「剛好在詳情頁播放」——
+  // 首頁與 /prayfor/[id] 走同一個旗標，於是兩邊拿到同一個沉浸畫面。
+  //
+  // 這裡刻意不再看 playerPhase：舊版只在 playing/advancing 時顯示，所以按下暫停
+  // 的瞬間整個沉浸畫面就消失、把人丟回底部播放列。暫停只是暫停，畫面該留著。
+  const showCompanionOverlay = isCompanion && hasQueue;
 
   // Ask the shared audio queue to pause for a few seconds of silence between prayer
   // cards while the companion overlay is open, instead of jumping to the next voice
@@ -342,7 +329,7 @@ export default function GlobalPlayer({ onClose }) {
   }, [currentTrackIdentity, overlayMessage, showCompanionOverlay]);
 
   useEffect(() => {
-    if (!isPrayerDetailPage) {
+    if (!isCompanion) {
       setOverlayBackground("");
       return;
     }
@@ -363,7 +350,7 @@ export default function GlobalPlayer({ onClose }) {
     const fallbackImage =
       heroImage?.currentSrc?.trim() || heroImage?.getAttribute?.("src")?.trim() || "";
     setOverlayBackground(fallbackImage);
-  }, [currentTrack?.coverImage, isPrayerDetailPage, playlist]);
+  }, [currentTrack?.coverImage, isCompanion, playlist]);
 
   useEffect(() => {
     if (typeof document === "undefined") return undefined;
@@ -451,13 +438,15 @@ export default function GlobalPlayer({ onClose }) {
     ]
   );
 
+  // 離開沉浸畫面 = 收回底部播放列，佇列留著。想再聽就按播放，不必重進一次。
   const handleOverlayClose = useCallback(
     (event) => {
       event?.stopPropagation?.();
-      setIsOverlayDismissed(true);
       pause();
+      setIsCompanion(false);
+      setIsExpanded(false);
     },
-    [pause]
+    [pause, setIsCompanion, setIsExpanded]
   );
 
   const handleLoopToggle = useCallback(
@@ -491,6 +480,54 @@ export default function GlobalPlayer({ onClose }) {
     [currentTrack?.id, hasQueue, isLoop, isQueueEnded, playlist.length, restartQueue, setIsLoop]
   );
   const handleQueueToggle = () => setIsExpanded(!isExpanded);
+
+  useEffect(() => {
+    if (!reportSuccessMessage) return undefined;
+    const timeoutId = window.setTimeout(() => setReportSuccessMessage(""), 3000);
+    return () => window.clearTimeout(timeoutId);
+  }, [reportSuccessMessage]);
+
+  // 點清單以外的地方就把「⋯」選單收起來。只在選單真的開著時才掛監聽。
+  useEffect(() => {
+    if (!openMenuTrackId) return undefined;
+    const handlePointerDown = (event) => {
+      const menuEl = document.querySelector(`[data-player-menu="${openMenuTrackId}"]`);
+      if (menuEl && !menuEl.contains(event.target)) {
+        setOpenMenuTrackId(null);
+      }
+    };
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("touchstart", handlePointerDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("touchstart", handlePointerDown);
+    };
+  }, [openMenuTrackId]);
+
+  const handleReportConfirm = async (trackId) => {
+    setReportState((prev) => ({ ...prev, [trackId]: "sending" }));
+    try {
+      // 檢舉人的身分一律由伺服器從 session 或訪客 cookie 判定，前端不送 id
+      // （見 docs/obsidian/26-Anonymous-Reporting-Design.md）。
+      const response = await fetch("/api/prayer-response/report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ responseId: trackId, reason: "other" }),
+      });
+      if (!response.ok) throw new Error("report failed");
+      setReportState((prev) => ({ ...prev, [trackId]: "sent" }));
+      // 後端已經把這則藏起來了；removeTrack 只是讓眼前的佇列立刻跟上。
+      removeTrack(trackId);
+      setOpenMenuTrackId(null);
+      setReportSuccessMessage(companionText.reportSuccess);
+      // 底下的頁面（首頁的聆聽入口數、詳情頁的留言區）也要知道少了一則。
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent(PRAYER_RESPONSE_CREATED));
+      }
+    } catch {
+      setReportState((prev) => ({ ...prev, [trackId]: "failed" }));
+    }
+  };
 
   const handleRestartFromBeginning = () => {
     if (!hasQueue) return;

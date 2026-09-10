@@ -564,7 +564,7 @@ const PrayerRecorder = forwardRef(function PrayerRecorder({ text, prayerId, onEx
 
         .prayer-recorder__btn--ghost {
           background: var(--accent-soft);
-          color: var(--accent);
+          color: var(--accent-text);
         }
 
         .prayer-recorder__btn:focus-visible {
@@ -575,7 +575,7 @@ const PrayerRecorder = forwardRef(function PrayerRecorder({ text, prayerId, onEx
         .prayer-recorder__countdown {
           font-size: 4rem;
           font-weight: 700;
-          color: var(--accent);
+          color: var(--accent-text);
         }
 
         .prayer-recorder__choices {
