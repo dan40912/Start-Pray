@@ -61,8 +61,7 @@
 
   /* ---- 字體：標題一律襯線（Noto Serif TC 已在 layout 載入） ------- */
   --font-display: var(--font-serif-tc), "Noto Serif TC", "Songti TC", serif;
-  --font-body:
-    "Inter", system-ui, "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", sans-serif;
+  --font-body: "Inter", system-ui, "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", sans-serif;
 
   /* ---- 尺度：全站一個 header 高度 -------------------------------- */
   /* 頁首實際就是 72px（theme-modern 寫死的），但 body 只保留 56/64px。

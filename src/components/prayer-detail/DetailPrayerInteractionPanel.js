@@ -2,7 +2,6 @@
 
 import PrayerRecorder from "@/components/prayer-recorder/PrayerRecorder";
 import CompanionOverlay from "@/components/home-companion/CompanionOverlay";
-import PrayedReactionButton from "@/components/prayer-interaction/PrayedReactionButton";
 import { usePrayerInteraction } from "@/components/prayer-interaction/usePrayerInteraction";
 import { getDictionary, normalizeLocale } from "@/lib/i18n";
 
@@ -19,7 +18,6 @@ export default function DetailPrayerInteractionPanel({ prayerId, locale: localeP
   const dictionary = getDictionary(locale);
   const recorderText = dictionary.home.recorder;
   const companionText = dictionary.home.companion;
-  const prayedText = dictionary.home.prayed;
 
   const {
     recorderRef,
@@ -56,7 +54,9 @@ export default function DetailPrayerInteractionPanel({ prayerId, locale: localeP
             </button>
           ) : null}
           <p className="detail-interaction__note">{recorderText.anonymousNote}</p>
-          <PrayedReactionButton prayerId={prayerId} text={prayedText} />
+          {/* 「我已為你禱告」按鈕與它的計數暫時不顯示：按下去對送出代禱的人來說
+                沒有實質改變，只是多一個要理解的東西。元件、hook 與
+                /api/home-cards/:id/prayed 都保留著，要回復就是把這一行放回來。 */}
         </div>
       )}
 

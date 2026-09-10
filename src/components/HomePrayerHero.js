@@ -5,7 +5,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import PrayerRecorder from "@/components/prayer-recorder/PrayerRecorder";
 import CompanionOverlay from "@/components/home-companion/CompanionOverlay";
-import PrayedReactionButton from "@/components/prayer-interaction/PrayedReactionButton";
 import { resolveArrowKeyDirection } from "@/components/home-companion/swipe-utils";
 import { usePrayerInteraction } from "@/components/prayer-interaction/usePrayerInteraction";
 import GainAudio from "@/components/GainAudio";
@@ -341,7 +340,9 @@ export default function HomePrayerHero({ text, prayers }) {
               ) : null}
             </div>
 
-            <PrayedReactionButton prayerId={settledId} text={text.prayed} />
+            {/* 「我已為你禱告」按鈕與它的計數暫時不顯示：按下去對送出代禱的人來說
+                沒有實質改變，只是多一個要理解的東西。元件、hook 與
+                /api/home-cards/:id/prayed 都保留著，要回復就是把這一行放回來。 */}
 
             <p className="prayer-hero__anonymous-note">{text.recorder.anonymousNote}</p>
 

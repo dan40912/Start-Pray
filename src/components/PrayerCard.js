@@ -58,9 +58,7 @@ export default function PrayerCard({
             <span className="home-card__category home-card__category--voice">{voiceLabel}</span>
           ) : null}
           {prayingLabel ? (
-            <span
-              className={`home-card__prayer-badge${responseCount === 0 ? " is-empty" : ""}`}
-            >
+            <span className={`home-card__prayer-badge${responseCount === 0 ? " is-empty" : ""}`}>
               {prayingLabel}
             </span>
           ) : null}
