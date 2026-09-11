@@ -16,10 +16,10 @@ import {
   stripLocalePrefix,
 } from "@/lib/i18n";
 
-// --- Phase 1 temporary navigation switch (docs/obsidian/11-Decision-Log.md DEC-003) ---
-// Hides the global prayer room entry only. It does NOT remove the route —
-// /global-prayer-room still works when visited directly.
-const SHOW_GLOBAL_ROOM_NAV_ENTRY = false;
+// --- Global prayer room navigation switch (docs/obsidian/11-Decision-Log.md DEC-003) ---
+// Phase 1 hid this entry temporarily; it is visible again. Set to false to hide
+// only the nav/footer link — the /global-prayer-room route itself is unaffected.
+const SHOW_GLOBAL_ROOM_NAV_ENTRY = true;
 
 // Account entry points (DEC-001) are visible again. The anonymous-first flows are
 // unchanged: praying, responding and creating a card still need no account, so the
