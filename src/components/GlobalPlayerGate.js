@@ -79,8 +79,7 @@ export default function GlobalPlayerGate() {
     }
   }, [pause, trackKey]);
 
-  const shouldShowByRoute =
-    supportedByRoute && hasPlaybackState && dismissedKey !== trackKey;
+  const shouldShowByRoute = supportedByRoute && hasPlaybackState && dismissedKey !== trackKey;
 
   if (!shouldShowByRoute) {
     return null;

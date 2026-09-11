@@ -201,7 +201,12 @@ export default async function PrayerDetailPage({ params, locale: localeProp = "z
             </div>
           </article>
 
-          <DetailPrayerInteractionPanel prayerId={card.id} locale={locale} />
+          <DetailPrayerInteractionPanel
+            prayerId={card.id}
+            locale={locale}
+            prayerTitle={card.title || ""}
+            coverImage={detailImage}
+          />
 
           <section className="pdv2-companion-panel" aria-labelledby="companion-actions-title">
             <div className="pdv2-companion-panel__intro">

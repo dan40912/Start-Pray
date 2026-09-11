@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import PrayerRecorder from "@/components/prayer-recorder/PrayerRecorder";
-import CompanionOverlay from "@/components/home-companion/CompanionOverlay";
 import { resolveArrowKeyDirection } from "@/components/home-companion/swipe-utils";
 import { usePrayerInteraction } from "@/components/prayer-interaction/usePrayerInteraction";
 import GainAudio from "@/components/GainAudio";
@@ -59,8 +58,6 @@ export default function HomePrayerHero({ text, prayers }) {
     discardRecorder,
     companionOpen,
     openCompanion,
-    closeCompanion,
-    playableResponses,
     hasCompanionEntry,
   } = usePrayerInteraction(settledId);
 
@@ -223,7 +220,7 @@ export default function HomePrayerHero({ text, prayers }) {
     const handleKeyDown = (event) => {
       const tag = document.activeElement?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA") return;
-      if (companionOpen) return; // CompanionOverlay owns its own keyboard handling
+      if (companionOpen) return; // 陪伴模式開著時，鍵盤交給播放器
       const direction = resolveArrowKeyDirection(event.key);
       if (direction) attemptSwitch(direction);
     };
@@ -336,7 +333,13 @@ export default function HomePrayerHero({ text, prayers }) {
                 <button
                   type="button"
                   className="prayer-hero__companion-cta"
-                  onClick={openCompanion}
+                  onClick={() =>
+                    openCompanion({
+                      anonymousLabel: companionText.anonymousLabel,
+                      prayerTitle: currentPrayer?.title || "",
+                      coverImage: currentPrayer?.image || "",
+                    })
+                  }
                 >
                   {companionText.listenEntry}
                 </button>
@@ -405,14 +408,6 @@ export default function HomePrayerHero({ text, prayers }) {
           </>
         )}
       </div>
-
-      {companionOpen && currentPrayer ? (
-        <CompanionOverlay
-          responses={playableResponses}
-          text={companionText}
-          onExit={closeCompanion}
-        />
-      ) : null}
 
       <style jsx>{`
         /* "夜禱 / Night Vigil" — see the design handbook. The whole hero runs on

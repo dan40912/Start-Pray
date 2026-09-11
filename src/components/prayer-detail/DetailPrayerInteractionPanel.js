@@ -1,7 +1,6 @@
 "use client";
 
 import PrayerRecorder from "@/components/prayer-recorder/PrayerRecorder";
-import CompanionOverlay from "@/components/home-companion/CompanionOverlay";
 import { usePrayerInteraction } from "@/components/prayer-interaction/usePrayerInteraction";
 import { getDictionary, normalizeLocale } from "@/lib/i18n";
 
@@ -9,11 +8,17 @@ import { getDictionary, normalizeLocale } from "@/lib/i18n";
 // /prayfor/[id], placed right after the Prayer hero card so it sits in the
 // first screen on both mobile and desktop without needing CSS reordering.
 // Shares its state machine with the homepage via usePrayerInteraction, and
-// renders the exact same PrayerRecorder / CompanionOverlay components — see
+// renders the exact same PrayerRecorder, and hands "listen" to the one shared
+// player (GlobalPlayer's companion presentation) instead of a second player — see
 // docs/obsidian/27-Shared-Prayer-Interaction-Audit.md. The existing
 // Comments.js voice/text/report flow (used by logged-in members) is left
 // untouched; this panel is an additive, anonymous-first entry point.
-export default function DetailPrayerInteractionPanel({ prayerId, locale: localeProp = "zh-TW" }) {
+export default function DetailPrayerInteractionPanel({
+  prayerId,
+  locale: localeProp = "zh-TW",
+  prayerTitle = "",
+  coverImage = "",
+}) {
   const locale = normalizeLocale(localeProp);
   const dictionary = getDictionary(locale);
   const recorderText = dictionary.home.recorder;
@@ -26,10 +31,7 @@ export default function DetailPrayerInteractionPanel({ prayerId, locale: localeP
     setRecorderState,
     openRecorder,
     closeRecorder,
-    companionOpen,
     openCompanion,
-    closeCompanion,
-    playableResponses,
     hasCompanionEntry,
   } = usePrayerInteraction(prayerId);
 
@@ -49,7 +51,17 @@ export default function DetailPrayerInteractionPanel({ prayerId, locale: localeP
             {recorderText.entryCta}
           </button>
           {hasCompanionEntry ? (
-            <button type="button" className="detail-interaction__companion-cta" onClick={openCompanion}>
+            <button
+              type="button"
+              className="detail-interaction__companion-cta"
+              onClick={() =>
+                openCompanion({
+                  anonymousLabel: companionText.anonymousLabel,
+                  prayerTitle,
+                  coverImage,
+                })
+              }
+            >
               {companionText.listenEntry}
             </button>
           ) : null}
@@ -59,10 +71,6 @@ export default function DetailPrayerInteractionPanel({ prayerId, locale: localeP
                 /api/home-cards/:id/prayed 都保留著，要回復就是把這一行放回來。 */}
         </div>
       )}
-
-      {companionOpen ? (
-        <CompanionOverlay responses={playableResponses} text={companionText} onExit={closeCompanion} />
-      ) : null}
 
       <style jsx>{`
         .detail-interaction {
