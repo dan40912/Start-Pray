@@ -9,9 +9,11 @@ import { Noto_Serif_TC } from "next/font/google";
 
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import GlobalPlayerGate from "@/components/GlobalPlayerGate";
+import SurfaceSync from "@/components/SurfaceSync";
 import { AudioProvider } from "@/context/AudioContext";
 import { getDictionary, localeFromPathname } from "@/lib/i18n";
 import { readSiteSettings } from "@/lib/siteSettings";
+import { resolveSurface } from "@/lib/surface";
 import { SITE_NAME, SITE_URL, buildPageMetadata } from "@/lib/seo";
 
 // Open Sans / Raleway / Poppins used to be loaded here, but nothing ever
@@ -96,23 +98,6 @@ function extractPathFromHeaders(requestHeaders) {
   }
 
   return "/";
-}
-
-// 兩種表面、一套 token（見 src/styles/tokens.css）。
-//   night 沉浸情境 — 夜色是內容的一部分：世界此刻在禱告
-//   day   閱讀與書寫 — 要讀字、要填表、要建立信任
-// 沒有列到的路徑一律 day，因為表單與長文預設就該是淺色。
-const NIGHT_PREFIXES = [
-  "/global-prayer-room",
-  "/prayfor",
-];
-
-function resolveSurface(pathname) {
-  const path = (pathname || "/").replace(/^\/en(?=\/|$)/, "") || "/";
-  if (path === "/") return "night";
-  return NIGHT_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))
-    ? "night"
-    : "day";
 }
 
 function shouldBypassMaintenance(pathname) {
@@ -263,6 +248,7 @@ export default async function RootLayout({ children }) {
     >
       <body>
         <StructuredData />
+        <SurfaceSync />
         <AudioProvider>
           {children}
           <GlobalPlayerGate />
