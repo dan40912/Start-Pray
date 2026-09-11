@@ -253,6 +253,9 @@ export default function HomePrayerHero({ text, prayers }) {
             prayerId={currentPrayer?.id}
             onStateChange={setRecorderState}
             onExit={closeRecorder}
+            // 送出之後的「下一則」就是牌組裡的下一張，原地換卡。牌組到底了
+            // 就不傳，交給錄音器自己找下一則。
+            onNext={hasNext ? () => performSwitch("next") : undefined}
           />
         ) : currentPrayer ? (
           <>

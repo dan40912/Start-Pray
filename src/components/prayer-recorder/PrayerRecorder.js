@@ -2,7 +2,7 @@
 
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import GainAudio from "@/components/GainAudio";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import { usePrayerRecorder } from "./usePrayerRecorder";
 import { formatDuration, hasRecordingSupport } from "./recorder-utils";
@@ -16,6 +16,8 @@ import { PRAYER_RESPONSE_CREATED } from "@/lib/events";
 // button disables before a round trip rather than after a 422.
 const TEXT_MIN_LENGTH = 8;
 const TEXT_MAX_LENGTH = 2000;
+// 送出之後停留多久才自動前往下一則。夠讀完那兩行字，又不會讓人枯等。
+const AUTO_NEXT_SECONDS = 3;
 
 function mapSubmitErrorKey(status, code) {
   if (status === 429 || code === "RATE_LIMITED") return "rateLimited";
@@ -23,7 +25,8 @@ function mapSubmitErrorKey(status, code) {
   return "rejected";
 }
 
-const PrayerRecorder = forwardRef(function PrayerRecorder({ text, prayerId, onExit, onStateChange }, ref) {
+const PrayerRecorder = forwardRef(function PrayerRecorder({ text, prayerId, onExit, onStateChange, onNext }, ref) {
+  const router = useRouter();
   const recorder = usePrayerRecorder();
   const {
     phase,
@@ -60,6 +63,9 @@ const PrayerRecorder = forwardRef(function PrayerRecorder({ text, prayerId, onEx
   // that disables the voice option — "prompt" still gets to try.
   const [micState, setMicState] = useState("checking"); // checking | ready | denied | unsupported
   const [submitErrorKey, setSubmitErrorKey] = useState("");
+  // 送出成功後的倒數；null 表示沒有在倒數（尚未成功，或使用者選擇留下）。
+  const [autoNextLeft, setAutoNextLeft] = useState(null);
+  const nextHrefRef = useRef(null);
 
   // Probe, don't prompt. permissions.query() reports the current state without
   // showing the browser dialog, so the chooser can render with an honest voice
@@ -120,6 +126,56 @@ const PrayerRecorder = forwardRef(function PrayerRecorder({ text, prayerId, onEx
     cancel();
     onExit?.();
   };
+
+  // 「下一則」由呼叫端決定 —— 首頁傳進來的是牌組的下一張，原地換卡。
+  // 沒傳（詳情頁、或首頁牌組已經到底）就自己找這則代禱的下一則。
+  const goNext = async () => {
+    setAutoNextLeft(null);
+    if (onNext) {
+      onNext();
+      return;
+    }
+    const href = (await nextHrefRef.current) || "/prayfor/one";
+    router.push(href);
+  };
+
+  // 留下來：停掉倒數、收起錄音器，回到這則代禱本身。
+  const stayHere = () => {
+    setAutoNextLeft(null);
+    handleExit();
+  };
+
+  // 一送出成功就開始倒數，同時先把下一則的網址查好，時間到就能直接走。
+  useEffect(() => {
+    if (submitState !== "success") {
+      setAutoNextLeft(null);
+      return;
+    }
+    if (!onNext && prayerId) {
+      nextHrefRef.current = fetch(`/api/home-cards/${prayerId}/adjacent`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => (data?.next?.id ? `/prayfor/${data.next.id}` : null))
+        .catch(() => null);
+    }
+    setAutoNextLeft(AUTO_NEXT_SECONDS);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [submitState]);
+
+  const isCountingDown = autoNextLeft !== null;
+  useEffect(() => {
+    if (!isCountingDown) return undefined;
+    const intervalId = window.setInterval(() => {
+      // 分頁在背景時不倒數，免得人切回來才發現已經被帶走。
+      if (document.hidden) return;
+      setAutoNextLeft((left) => (left === null ? null : left - 1));
+    }, 1000);
+    return () => window.clearInterval(intervalId);
+  }, [isCountingDown]);
+
+  useEffect(() => {
+    if (autoNextLeft === 0) goNext();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoNextLeft]);
 
   const togglePlayback = () => {
     const audioEl = audioRef.current;
@@ -216,14 +272,33 @@ const PrayerRecorder = forwardRef(function PrayerRecorder({ text, prayerId, onEx
         <div className="prayer-recorder__step">
           <h2>{text.successTitle}</h2>
           <p>{text.successBody}</p>
-          <div className="prayer-recorder__actions">
-            <Link href="/prayfor/one" className="prayer-recorder__btn prayer-recorder__btn--primary">
-              {text.listenAnother}
-            </Link>
-            <button type="button" className="prayer-recorder__btn prayer-recorder__btn--ghost" onClick={handleExit}>
-              {text.backToHome}
+          {/* 這裡原本的主按鈕是 next/link 的 <Link>。styled-jsx 不會把 scope
+              class 加到元件上，所以它渲染成一個沒有任何按鈕樣式的裸 <a>，和旁邊的
+              「回到首頁」擠成一行字。兩顆都改成 <button>，上下疊放。 */}
+          <div className="prayer-recorder__actions prayer-recorder__actions--stacked">
+            <button
+              type="button"
+              className="prayer-recorder__btn prayer-recorder__btn--primary prayer-recorder__btn--next"
+              onClick={goNext}
+            >
+              {text.nextPrayer}
+              {isCountingDown ? (
+                <span
+                  className="prayer-recorder__btn-progress"
+                  style={{ animationDuration: `${AUTO_NEXT_SECONDS}s` }}
+                  aria-hidden="true"
+                />
+              ) : null}
+            </button>
+            <button type="button" className="prayer-recorder__btn prayer-recorder__btn--ghost" onClick={stayHere}>
+              {text.stayHere}
             </button>
           </div>
+          {isCountingDown ? (
+            <p className="prayer-recorder__auto-next">
+              {text.autoNextCountdown.replace("{seconds}", String(Math.max(autoNextLeft, 0)))}
+            </p>
+          ) : null}
         </div>
       )}
 
@@ -562,9 +637,58 @@ const PrayerRecorder = forwardRef(function PrayerRecorder({ text, prayerId, onEx
           color: var(--text-on-accent);
         }
 
+        /* 次要按鈕原本是淡琥珀底 + 琥珀字，在夜色上幾乎看不出是一顆按鈕。
+           改成有邊框的外框鈕：一眼就能分出主次，也仍然像「可以按」。 */
         .prayer-recorder__btn--ghost {
-          background: var(--accent-soft);
-          color: var(--accent-text);
+          background: transparent;
+          color: var(--text-1);
+          box-shadow: inset 0 0 0 1px var(--line-2);
+        }
+
+        .prayer-recorder__actions--stacked {
+          flex-direction: column;
+          align-items: stretch;
+          width: min(100%, 320px);
+        }
+
+        .prayer-recorder__btn--next {
+          position: relative;
+          overflow: hidden;
+        }
+
+        /* 倒數條長在主按鈕底部 —— 時間到時會發生的，正是這顆按鈕的動作。 */
+        .prayer-recorder__btn-progress {
+          position: absolute;
+          left: 0;
+          bottom: 0;
+          width: 100%;
+          height: 3px;
+          background: currentColor;
+          opacity: 0.4;
+          transform-origin: left center;
+          animation-name: prayer-recorder-autonext;
+          animation-timing-function: linear;
+          animation-fill-mode: forwards;
+        }
+
+        @keyframes prayer-recorder-autonext {
+          from {
+            transform: scaleX(0);
+          }
+          to {
+            transform: scaleX(1);
+          }
+        }
+
+        .prayer-recorder__step .prayer-recorder__auto-next {
+          font-size: 0.85rem;
+          color: var(--text-2);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .prayer-recorder__btn-progress {
+            display: none;
+          }
         }
 
         .prayer-recorder__btn:focus-visible {
