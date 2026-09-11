@@ -758,6 +758,30 @@ button {
   line-height: 1.55;
 }
 
+/* 首頁地球下方的數據列 */
+.home-platform-stats {
+  padding-top: 0;
+}
+
+/* /terms 最上方的數據列：淺色頁面上的版本 */
+.platform-stats--light .home-proof__stat {
+  border-color: rgba(148, 163, 184, 0.24);
+  background: #ffffff;
+  box-shadow: 0 18px 45px rgba(23, 31, 88, 0.08);
+}
+
+.platform-stats--light .home-proof__stat strong {
+  color: #b45309;
+}
+
+.platform-stats--light .home-proof__stat span {
+  color: #0f172a;
+}
+
+.platform-stats--light .home-proof__stat p {
+  color: #64748b;
+}
+
 .home-proof__promise {
   display: grid;
   gap: 1rem;

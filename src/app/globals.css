@@ -3471,6 +3471,28 @@ details.terms-card summary {
   gap: 0.8rem;
 }
 
+.terms-grid--two {
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+.terms-rule {
+  align-content: start;
+}
+
+.terms-rule__why {
+  margin-top: 0.4rem !important;
+  border-left: 3px solid rgba(180, 83, 9, 0.45);
+  border-radius: 0 12px 12px 0;
+  padding: 0.8rem 1rem;
+  background: rgba(254, 243, 199, 0.45);
+}
+
+.terms-rule__why strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: #92400e;
+}
+
 @media (max-width: 960px) {
   .legal-hero,
   .terms-hero {

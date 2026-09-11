@@ -3,12 +3,14 @@ import Link from "next/link";
 import HomeGlobeHero from "@/components/HomeGlobeHero";
 import HomePrayerExplorer from "@/components/HomePrayerExplorer";
 import HomePrayerHero from "@/components/HomePrayerHero";
+import PlatformStats from "@/components/PlatformStats";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { toGlobalPrayerPayload } from "@/lib/globalPrayerPayload";
 import { readActiveCategories } from "@/lib/homeCategories";
 import { readHomeCards } from "@/lib/homeCards";
 import { readHomeStats } from "@/lib/homeStats";
 import { getDictionary, localizePath, normalizeLocale } from "@/lib/i18n";
+import { buildPlatformStats, countLocationLights } from "@/lib/platformStats";
 import prisma from "@/lib/prisma";
 import { SITE_URL, absoluteUrl, buildPageMetadata } from "@/lib/seo";
 
@@ -33,16 +35,6 @@ function buildHeroStats(stats, globalPrayers, locale = "zh-TW") {
     todayNew: todayNew.toLocaleString(locale),
     audioPrayers: audioPrayers.toLocaleString(locale),
   };
-}
-
-function countLocationLights(globalPrayers) {
-  return new Set(
-    globalPrayers.map((prayer) => {
-      const lat = Number(prayer.locationLat);
-      const lng = Number(prayer.locationLng);
-      return `${prayer.locationCity || "approx"}::${lat.toFixed(3)}::${lng.toFixed(3)}`;
-    })
-  ).size;
 }
 
 function toClientValue(value) {
@@ -251,6 +243,12 @@ export default async function HomeLandingPage({ locale: localeProp = "zh-TW" } =
 
   const globalPrayers = globalPrayerCards.map((card) => toGlobalPrayerPayload(card, locale));
   const heroStats = buildHeroStats(stats, globalPrayers, locale);
+  const platformStats = buildPlatformStats({
+    stats,
+    locationLights: countLocationLights(globalPrayers),
+    categoryCount: categories.length,
+    text,
+  });
   const clientCategories = toClientValue(categories);
   const clientTopCards = toClientValue(topCards);
   // HomeGlobeHero is a client component, so Date/Decimal values from Prisma
@@ -291,6 +289,12 @@ export default async function HomeLandingPage({ locale: localeProp = "zh-TW" } =
           primaryHref={localizePath("/global-prayer-room", locale)}
           secondaryHref={localizePath("/me/create", locale)}
         />
+
+        <section className="section home-platform-stats">
+          <div className="section__container">
+            <PlatformStats items={platformStats} locale={locale} label={text.proofEyebrow} />
+          </div>
+        </section>
 
         <section className="section bg-legal-links" id="trust-links">
           <div className="section__container">
