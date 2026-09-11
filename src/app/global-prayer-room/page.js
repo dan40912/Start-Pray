@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export const metadata = buildPageMetadata({
   title: "全球禱告室",
   description:
-    "在 Start Pray 全球禱告室查看世界各地的代禱光點、最新禱告需求與語音禱告，為城市、家庭、教會與急迫事件一起守望。",
+    "在 Start Pray 全球禱告室查看世界各地的代禱光點、最新代禱與語音禱告，為城市、家庭、教會與急迫事件一起守望。",
   path: "/global-prayer-room",
   image: "/img/categories/world.jpg",
   keywords: ["全球禱告室", "全球代禱", "禱告地圖", "語音禱告", "城市代禱", "Start Pray"],

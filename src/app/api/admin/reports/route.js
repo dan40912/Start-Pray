@@ -78,12 +78,12 @@ async function getCardReports(limit) {
       type: "card",
       targetId: String(group.cardId),
       // A private card's title used to be replaced with the placeholder
-      // "私密代禱卡" even here, which asked a moderator to rule on a report about
+      // "私密代禱" even here, which asked a moderator to rule on a report about
       // content they were not allowed to read. Privacy from other users is the
       // product promise; privacy from the person handling the report just makes
       // moderation guesswork. The card stays flagged as private so the UI can
       // mark it, and opening one is written to the admin log.
-      title: card?.title || "已刪除的代禱卡",
+      title: card?.title || "已刪除的代禱",
       owner: card?.owner ?? null,
       isBlocked: Boolean(card?.isBlocked),
       isPrivate: Boolean(card?.isPrivate),

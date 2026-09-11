@@ -30,7 +30,7 @@ export default function LoginForm({ locale: localeProp = "zh-TW" }) {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setStatus({ state: "loading", message: "" });
-    const nextPath = resolveSafeNextPath(searchParams?.get("next"), "/customer-portal");
+    const nextPath = resolveSafeNextPath(searchParams?.get("next"), "/me");
 
     try {
       const response = await fetch("/api/auth/login", {
@@ -49,7 +49,7 @@ export default function LoginForm({ locale: localeProp = "zh-TW" }) {
 
       setStatus({
         state: "success",
-        message: nextPath === "/customer-portal" ? text.successPortal : text.successNext,
+        message: nextPath === "/me" ? text.successPortal : text.successNext,
       });
       setTimeout(() => {
         router.replace(nextPath);

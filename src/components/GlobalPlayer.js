@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 
 import { useAudio } from "@/context/AudioContext";
+import { PRAYER_RESPONSE_CREATED } from "@/lib/events";
 import { getDictionary, localeFromPathname } from "@/lib/i18n";
 import usePlaybackWellbeing from "@/lib/usePlaybackWellbeing";
 import WellbeingNudge from "@/components/WellbeingNudge";
@@ -82,7 +83,7 @@ function getTrackIdentity(track) {
   return null;
 }
 
-export default function GlobalPlayer() {
+export default function GlobalPlayer({ onClose }) {
   const pathname = usePathname() || "";
   const prayerId = useMemo(() => parsePrayerId(pathname), [pathname]);
   const isPrayerDetailPage = Boolean(prayerId);
@@ -99,6 +100,8 @@ export default function GlobalPlayer() {
     clearPlaybackNotice,
     isExpanded,
     setIsExpanded,
+    isCompanion,
+    setIsCompanion,
     togglePlay,
     pause,
     duration,
@@ -114,8 +117,12 @@ export default function GlobalPlayer() {
     setAutoAdvanceDelay,
   } = useAudio();
 
-  const wellbeingLocale = localeFromPathname(pathname);
-  const wellbeingText = getDictionary(wellbeingLocale).wellbeing;
+  const locale = localeFromPathname(pathname);
+  const dictionary = getDictionary(locale);
+  const wellbeingText = dictionary.wellbeing;
+  // 陪伴模式的文案原本住在 CompanionOverlay 裡。那個元件被拿掉之後（它是第二個
+  // 播放器），文案跟著搬過來，播放器才是唯一講這些話的地方。
+  const companionText = dictionary.home.companion;
   const {
     shouldPrompt: showWellbeingNudge,
     dismiss: dismissWellbeing,
@@ -123,12 +130,14 @@ export default function GlobalPlayer() {
   } = usePlaybackWellbeing();
 
   const progressBarRef = useRef(null);
-  const [isOverlayDismissed, setIsOverlayDismissed] = useState(false);
   const [overlayBackground, setOverlayBackground] = useState("");
+  // 每則回應的「⋯ → 檢舉」。這原本只存在於陪伴模式自己的清單，現在跟著清單一起
+  // 收進播放器，底部播放列與沉浸畫面共用同一份。
+  const [openMenuTrackId, setOpenMenuTrackId] = useState(null);
+  const [reportState, setReportState] = useState({});
+  const [reportSuccessMessage, setReportSuccessMessage] = useState("");
   const [typedMessage, setTypedMessage] = useState("");
   const typewriterIntervalRef = useRef(null);
-  const previousTrackIdentityRef = useRef(null);
-  const previousPhaseRef = useRef(playerPhase);
 
   useEffect(() => {
     if (typeof document === "undefined") return undefined;
@@ -142,24 +151,6 @@ export default function GlobalPlayer() {
   const hasQueue = playlist.length > 0;
   const hasStartedPlayback = hasTrack;
   const currentTrackIdentity = useMemo(() => getTrackIdentity(currentTrack), [currentTrack]);
-
-  useEffect(() => {
-    const previousTrackIdentity = previousTrackIdentityRef.current;
-    const previousPhase = previousPhaseRef.current;
-    const hasTrackChanged =
-      Boolean(currentTrackIdentity) && currentTrackIdentity !== previousTrackIdentity;
-    const shouldReopenOverlay =
-      hasStartedPlayback &&
-      playerPhase === "playing" &&
-      (hasTrackChanged || previousPhase === "ready" || previousPhase === "ended");
-
-    if (shouldReopenOverlay) {
-      setIsOverlayDismissed(false);
-    }
-
-    previousTrackIdentityRef.current = currentTrackIdentity;
-    previousPhaseRef.current = playerPhase;
-  }, [currentTrackIdentity, hasStartedPlayback, playerPhase]);
 
   const displayTrack = hasStartedPlayback
     ? currentTrack
@@ -276,16 +267,12 @@ export default function GlobalPlayer() {
   const safeDuration = effectiveDuration > 0 ? effectiveDuration : 1;
   const progressPercent = Math.min(Math.max((effectiveProgress / safeDuration) * 100, 0), 100);
 
-  // "advancing" is the brief, silent gap between one track finishing and the next
-  // one starting (see COMPANION_AUTO_ADVANCE_DELAY_MS below) — the overlay should
-  // stay open and keep showing the just-finished card through that gap instead of
-  // disappearing and popping back in.
-  const showCompanionOverlay =
-    isPrayerDetailPage &&
-    hasStartedPlayback &&
-    (playerPhase === "playing" || playerPhase === "advancing") &&
-    !isQueueEnded &&
-    !isOverlayDismissed;
+  // 陪伴模式是「使用者按了聆聽大家的禱告」，不是「剛好在詳情頁播放」——
+  // 首頁與 /prayfor/[id] 走同一個旗標，於是兩邊拿到同一個沉浸畫面。
+  //
+  // 這裡刻意不再看 playerPhase：舊版只在 playing/advancing 時顯示，所以按下暫停
+  // 的瞬間整個沉浸畫面就消失、把人丟回底部播放列。暫停只是暫停，畫面該留著。
+  const showCompanionOverlay = isCompanion && hasQueue;
 
   // Ask the shared audio queue to pause for a few seconds of silence between prayer
   // cards while the companion overlay is open, instead of jumping to the next voice
@@ -318,7 +305,10 @@ export default function GlobalPlayer() {
     setTypedMessage("");
     const charDelayMs = Math.min(
       TYPEWRITER_MAX_CHAR_DELAY_MS,
-      Math.max(TYPEWRITER_MIN_CHAR_DELAY_MS, Math.round(TYPEWRITER_TARGET_DURATION_MS / fullText.length))
+      Math.max(
+        TYPEWRITER_MIN_CHAR_DELAY_MS,
+        Math.round(TYPEWRITER_TARGET_DURATION_MS / fullText.length)
+      )
     );
     let charIndex = 0;
 
@@ -342,7 +332,7 @@ export default function GlobalPlayer() {
   }, [currentTrackIdentity, overlayMessage, showCompanionOverlay]);
 
   useEffect(() => {
-    if (!isPrayerDetailPage) {
+    if (!isCompanion) {
       setOverlayBackground("");
       return;
     }
@@ -363,7 +353,7 @@ export default function GlobalPlayer() {
     const fallbackImage =
       heroImage?.currentSrc?.trim() || heroImage?.getAttribute?.("src")?.trim() || "";
     setOverlayBackground(fallbackImage);
-  }, [currentTrack?.coverImage, isPrayerDetailPage, playlist]);
+  }, [currentTrack?.coverImage, isCompanion, playlist]);
 
   useEffect(() => {
     if (typeof document === "undefined") return undefined;
@@ -442,22 +432,18 @@ export default function GlobalPlayer() {
           return;
       }
     },
-    [
-      currentTrack?.id,
-      playerPhase,
-      playlist.length,
-      restartQueue,
-      togglePlay,
-    ]
+    [currentTrack?.id, playerPhase, playlist.length, restartQueue, togglePlay]
   );
 
+  // 離開沉浸畫面 = 收回底部播放列，佇列留著。想再聽就按播放，不必重進一次。
   const handleOverlayClose = useCallback(
     (event) => {
       event?.stopPropagation?.();
-      setIsOverlayDismissed(true);
       pause();
+      setIsCompanion(false);
+      setIsExpanded(false);
     },
-    [pause]
+    [pause, setIsCompanion, setIsExpanded]
   );
 
   const handleLoopToggle = useCallback(
@@ -492,6 +478,69 @@ export default function GlobalPlayer() {
   );
   const handleQueueToggle = () => setIsExpanded(!isExpanded);
 
+  useEffect(() => {
+    if (!reportSuccessMessage) return undefined;
+    const timeoutId = window.setTimeout(() => setReportSuccessMessage(""), 3000);
+    return () => window.clearTimeout(timeoutId);
+  }, [reportSuccessMessage]);
+
+  // Esc 離開陪伴模式。這以前是 CompanionOverlay 的職責，跟著沉浸畫面一起搬進來。
+  useEffect(() => {
+    if (!showCompanionOverlay) return undefined;
+    const handleKeyDown = (event) => {
+      if (event.key !== "Escape") return;
+      if (openMenuTrackId) {
+        setOpenMenuTrackId(null);
+        return;
+      }
+      handleOverlayClose();
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [handleOverlayClose, openMenuTrackId, showCompanionOverlay]);
+
+  // 點清單以外的地方就把「⋯」選單收起來。只在選單真的開著時才掛監聽。
+  useEffect(() => {
+    if (!openMenuTrackId) return undefined;
+    const handlePointerDown = (event) => {
+      const menuEl = document.querySelector(`[data-player-menu="${openMenuTrackId}"]`);
+      if (menuEl && !menuEl.contains(event.target)) {
+        setOpenMenuTrackId(null);
+      }
+    };
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("touchstart", handlePointerDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("touchstart", handlePointerDown);
+    };
+  }, [openMenuTrackId]);
+
+  const handleReportConfirm = async (trackId) => {
+    setReportState((prev) => ({ ...prev, [trackId]: "sending" }));
+    try {
+      // 檢舉人的身分一律由伺服器從 session 或訪客 cookie 判定，前端不送 id
+      // （見 docs/obsidian/26-Anonymous-Reporting-Design.md）。
+      const response = await fetch("/api/prayer-response/report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ responseId: trackId, reason: "other" }),
+      });
+      if (!response.ok) throw new Error("report failed");
+      setReportState((prev) => ({ ...prev, [trackId]: "sent" }));
+      // 後端已經把這則藏起來了；removeTrack 只是讓眼前的佇列立刻跟上。
+      removeTrack(trackId);
+      setOpenMenuTrackId(null);
+      setReportSuccessMessage(companionText.reportSuccess);
+      // 底下的頁面（首頁的聆聽入口數、詳情頁的留言區）也要知道少了一則。
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent(PRAYER_RESPONSE_CREATED));
+      }
+    } catch {
+      setReportState((prev) => ({ ...prev, [trackId]: "failed" }));
+    }
+  };
+
   const handleRestartFromBeginning = () => {
     if (!hasQueue) return;
     setIsLoop(false);
@@ -504,13 +553,131 @@ export default function GlobalPlayer() {
     restartQueue();
   };
 
-  if (pathname?.startsWith("/customer-portal/create")) {
+  if (pathname?.startsWith("/me/create")) {
     return null;
   }
 
   const overlayBackgroundStyle = overlayBackground
     ? { backgroundImage: `url(${overlayBackground})` }
     : undefined;
+
+  // 播放清單只有一份。沉浸畫面與底部播放列共用它 —— 舊版是兩份各自渲染的清單
+  // 同時出現在螢幕上（上面一份、下面一份），連刪除鍵都各有一個。
+  const queuePanel = playlist.length ? (
+    <div className={`player-queue-panel ${isExpanded ? "is-open" : ""}`}>
+      <div className="player-queue-header">
+        <div>
+          <p className="eyebrow">播放清單</p>
+          <strong>{playlist.length} 首音檔</strong>
+        </div>
+        <button type="button" className="queue-toggle btn-secondary" onClick={handleQueueToggle}>
+          {isExpanded ? "收合" : "展開"}
+        </button>
+      </div>
+      {isExpanded ? (
+        <ul className="player-queue-list">
+          {playlist.map((track, index) => {
+            const isActive = currentTrack ? isSameTrack(currentTrack, track) : false;
+            const state = reportState[track.id];
+            return (
+              <li
+                key={track.id ?? index}
+                className={`player-queue-item${isActive ? " is-active" : ""}`}
+              >
+                <button
+                  type="button"
+                  className="queue-track"
+                  onClick={() => selectTrack(index)}
+                  aria-current={isActive ? "true" : "false"}
+                >
+                  <span className="queue-track__speaker">{track.speaker || FALLBACK_SPEAKER}</span>
+                  <span className="queue-track__title">
+                    {track.message || track.requestTitle || FALLBACK_TITLE}
+                  </span>
+                </button>
+                <div className="queue-track__actions" data-player-menu={track.id}>
+                  <button
+                    type="button"
+                    className="queue-track__delete"
+                    aria-label={companionText.removeFromPlaylist}
+                    title={companionText.removeFromPlaylist}
+                    onClick={() => removeTrack(track.id)}
+                  >
+                    <i className="fa-solid fa-xmark" aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    className="queue-track__more"
+                    aria-label={companionText.moreOptions}
+                    aria-haspopup="menu"
+                    aria-expanded={openMenuTrackId === track.id}
+                    onClick={() =>
+                      setOpenMenuTrackId(openMenuTrackId === track.id ? null : track.id)
+                    }
+                  >
+                    <i className="fa-solid fa-ellipsis" aria-hidden="true" />
+                  </button>
+                  {openMenuTrackId === track.id ? (
+                    <div className="queue-track__menu" role="menu">
+                      {state === "confirming" ? (
+                        <>
+                          <p>{companionText.reportConfirm}</p>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={() => handleReportConfirm(track.id)}
+                          >
+                            {companionText.reportConfirmYes}
+                          </button>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={() => {
+                              setReportState((prev) => ({ ...prev, [track.id]: undefined }));
+                              setOpenMenuTrackId(null);
+                            }}
+                          >
+                            {companionText.reportConfirmNo}
+                          </button>
+                        </>
+                      ) : state === "sending" ? (
+                        <p role="status" aria-live="polite">
+                          {companionText.reportSending}
+                        </p>
+                      ) : state === "failed" ? (
+                        <>
+                          <p role="alert">{companionText.reportFailed}</p>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={() =>
+                              setReportState((prev) => ({ ...prev, [track.id]: "confirming" }))
+                            }
+                          >
+                            {companionText.retry}
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() =>
+                            setReportState((prev) => ({ ...prev, [track.id]: "confirming" }))
+                          }
+                        >
+                          {companionText.report}
+                        </button>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+    </div>
+  ) : null;
 
   return (
     <>
@@ -521,27 +688,53 @@ export default function GlobalPlayer() {
           onDismissForever={dismissWellbeingForever}
         />
       ) : null}
+      {/* 沉浸畫面永遠是夜的表面，不管底下那一頁是 day 還是 night。
+          tokens.css 的 [data-surface="night"] 是屬性選擇器，掛在 section 上就只在
+          這個子樹裡換一套顏色 —— 不必為播放器寫第二套色票。 */}
       {showCompanionOverlay ? (
-        <section className="companion-overlay" aria-live="polite">
-          <div className="companion-overlay__bg" style={overlayBackgroundStyle} aria-hidden="true" />
+        <section
+          className="companion-overlay"
+          data-surface="night"
+          aria-live="polite"
+          aria-label={companionText.companionTitle}
+        >
+          <div
+            className="companion-overlay__bg"
+            style={overlayBackgroundStyle}
+            aria-hidden="true"
+          />
           <div className="companion-overlay__scrim" aria-hidden="true" />
 
           <div className="companion-overlay__content">
             <header className="companion-overlay__header">
+              {/* 舊版的沉浸畫面沒有講「這是為了誰、為了什麼事」，只有一個人名跟一段
+                  文字 —— 聽的人其實不知道自己在陪誰。抬頭補上代禱標題。 */}
+              <div className="companion-overlay__context">
+                <p className="companion-overlay__eyebrow">{companionText.companionTitle}</p>
+                <h2 className="companion-overlay__request">{nowMetaPrimary}</h2>
+              </div>
               <button
                 type="button"
-                className="companion-overlay__close btn-danger"
+                className="companion-overlay__exit"
                 onClick={handleOverlayClose}
-                aria-label="關閉陪伴模式"
               >
-                關閉
+                {companionText.exit}
               </button>
             </header>
+
+            {reportSuccessMessage ? (
+              <p className="companion-overlay__notice" role="status">
+                {reportSuccessMessage}
+              </p>
+            ) : null}
 
             <div className="companion-overlay__stage">
               <article className={`companion-overlay__card${hasVoiceTrack ? " is-voice" : ""}`}>
                 <div className="companion-overlay__identity">
-                  <div className={`companion-overlay__avatar ${isPlaying ? "is-speaking" : ""}`} aria-hidden="true">
+                  <div
+                    className={`companion-overlay__avatar ${isPlaying ? "is-speaking" : ""}`}
+                    aria-hidden="true"
+                  >
                     {displayTrack.avatarUrl ? (
                       <img src={displayTrack.avatarUrl} alt={trackSpeaker} />
                     ) : (
@@ -549,67 +742,121 @@ export default function GlobalPlayer() {
                     )}
                   </div>
                   <div className="companion-overlay__text">
-                    <div className="companion-overlay__speaker-row">
-                      <strong className="companion-overlay__speaker">{trackSpeaker}</strong>
-                      <span className={`player-now__chip ${playerStatusClass}`}>
-                        {playerStatusLabel}
-                      </span>
-                      {hasVoiceTrack ? (
-                        <span
-                          className="companion-overlay__voice-indicator"
-                          aria-label={FALLBACK_VOICE_MESSAGE}
-                          title={FALLBACK_VOICE_MESSAGE}
-                        >
-                          <i className="fa-solid fa-wave-square" aria-hidden="true" />
-                        </span>
-                      ) : null}
-                    </div>
-                    <p className="companion-overlay__message" title={overlayMessage}>
-                      <span className="sr-only">{overlayMessage}</span>
-                      <span aria-hidden="true">
-                        {typedMessage}
-                        {typedMessage.length < overlayMessage.length ? (
-                          <span className="companion-overlay__caret" />
-                        ) : null}
-                      </span>
-                    </p>
+                    <strong className="companion-overlay__speaker">{trackSpeaker}</strong>
+                    <span className={`player-now__chip ${playerStatusClass}`}>
+                      {playerStatusLabel}
+                    </span>
                   </div>
                 </div>
 
-                <div className="companion-overlay__actions">
-                  <button
-                    type="button"
-                    className="companion-overlay__btn companion-overlay__btn--play btn-primary"
-                    onClick={handleTogglePlay}
-                    aria-label={playButtonConfig.ariaLabel}
-                    disabled={playButtonConfig.disabled}
-                  >
-                    <i className={`fa-solid ${playButtonConfig.icon}`} aria-hidden="true" />
-                    <span className="companion-overlay__btn-text" aria-hidden="true">
-                      {playButtonConfig.label}
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    className="companion-overlay__btn companion-overlay__btn--close btn-danger"
-                    onClick={handleOverlayClose}
-                    aria-label="關閉陪伴模式"
-                  >
-                    <i className="fa-solid fa-xmark" aria-hidden="true" />
-                  </button>
-                </div>
+                <p className="companion-overlay__message" title={overlayMessage}>
+                  <span className="sr-only">{overlayMessage}</span>
+                  <span aria-hidden="true">
+                    {typedMessage}
+                    {typedMessage.length < overlayMessage.length ? (
+                      <span className="companion-overlay__caret" />
+                    ) : null}
+                  </span>
+                </p>
               </article>
             </div>
+
+            {/* 進度、上一則／下一則、第幾則 —— 這些以前只有底部播放列有，沉浸模式
+                反而看不到自己聽到哪裡、還剩幾則。控制項就該在你正在看的那一層。 */}
+            <footer className="companion-overlay__transport">
+              <div
+                className="companion-overlay__progress"
+                onClick={handleProgressClick}
+                ref={progressBarRef}
+                role="presentation"
+              >
+                <div
+                  className="companion-overlay__progress-fill"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+              <div className="companion-overlay__times">
+                <span>{formatTime(effectiveProgress)}</span>
+                <span className="companion-overlay__position">{queuePositionText}</span>
+                <span>{formatTime(effectiveDuration)}</span>
+              </div>
+
+              <div className="companion-overlay__controls">
+                <button
+                  type="button"
+                  className="companion-overlay__btn"
+                  onClick={() => hasQueue && playPrev()}
+                  disabled={!hasQueue || playlist.length <= 1}
+                  aria-label="上一則"
+                >
+                  <i className="fa-solid fa-backward-step" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  className="companion-overlay__btn companion-overlay__btn--play"
+                  onClick={handleTogglePlay}
+                  aria-label={playButtonConfig.ariaLabel}
+                  disabled={playButtonConfig.disabled}
+                >
+                  <i className={`fa-solid ${playButtonConfig.icon}`} aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  className="companion-overlay__btn"
+                  onClick={() => hasQueue && playNext()}
+                  disabled={!hasQueue || playlist.length <= 1}
+                  aria-label="下一則"
+                >
+                  <i className="fa-solid fa-forward-step" aria-hidden="true" />
+                </button>
+              </div>
+
+              {/* 循環與清單降級成次要動作。舊版把「播放／循環播放／停止」三顆做成
+                  同樣大的膠囊並排，看起來像錄音機，也看不出哪一顆是主要動作。 */}
+              <div className="companion-overlay__secondary">
+                <button
+                  type="button"
+                  className={`companion-overlay__link${isLoop ? " is-active" : ""}`}
+                  onClick={handleLoopToggle}
+                  aria-pressed={isLoop}
+                >
+                  <i className="fa-solid fa-repeat" aria-hidden="true" />
+                  {companionText.loop}
+                </button>
+                <button
+                  type="button"
+                  className={`companion-overlay__link${isExpanded ? " is-active" : ""}`}
+                  onClick={handleQueueToggle}
+                  aria-expanded={isExpanded}
+                >
+                  <i className="fa-solid fa-list" aria-hidden="true" />
+                  {playlist.length} 則
+                </button>
+              </div>
+
+              {isExpanded ? <div className="companion-overlay__queue">{queuePanel}</div> : null}
+            </footer>
           </div>
         </section>
       ) : null}
 
-      <div
-        className={`global-player glass-panel${isPrayerDetailPage ? " is-prayer-detail" : ""}${
-          showCompanionOverlay ? " is-overlay-active" : ""
-        }`}
-      >
-        {!showCompanionOverlay ? (
+      {/* 沉浸畫面開著的時候，底部播放列整個不渲染。舊版只是把它縮小 ——
+          於是同一份清單在螢幕上出現兩次，兩邊都有自己的 × 和播放鍵。 */}
+      {showCompanionOverlay ? null : (
+        <div
+          className={`global-player glass-panel${isPrayerDetailPage ? " is-prayer-detail" : ""}`}
+        >
+          {onClose ? (
+            <button
+              type="button"
+              className="global-player__close"
+              onClick={onClose}
+              aria-label="關閉播放器"
+              title="關閉播放器"
+            >
+              <i className="fa-solid fa-xmark" aria-hidden="true" />
+            </button>
+          ) : null}
           <div className="player-progress">
             <div
               className="progress-bar"
@@ -624,22 +871,24 @@ export default function GlobalPlayer() {
               <span>{formatTime(effectiveDuration)}</span>
             </div>
           </div>
-        ) : null}
 
-        <div className={`player-controls-container ${hasQueue ? "" : "is-idle"}`}>
-          {hasQueue && !showCompanionOverlay ? (
-            <section className="player-now" aria-live="polite">
-              {displayTrack.avatarUrl ? (
-                <img
-                  src={displayTrack.avatarUrl}
-                  alt={trackSpeaker}
-                  className={`track-avatar ${hasTrack && isPlaying ? "pulse" : ""}`}
-                />
-              ) : (
-                <div className={`track-avatar ${hasTrack && isPlaying ? "pulse" : ""}`} aria-hidden="true">
-                  {getSpeakerInitial(trackSpeaker)}
-                </div>
-              )}
+          <div className={`player-controls-container ${hasQueue ? "" : "is-idle"}`}>
+            {hasQueue ? (
+              <section className="player-now" aria-live="polite">
+                {displayTrack.avatarUrl ? (
+                  <img
+                    src={displayTrack.avatarUrl}
+                    alt={trackSpeaker}
+                    className={`track-avatar ${hasTrack && isPlaying ? "pulse" : ""}`}
+                  />
+                ) : (
+                  <div
+                    className={`track-avatar ${hasTrack && isPlaying ? "pulse" : ""}`}
+                    aria-hidden="true"
+                  >
+                    {getSpeakerInitial(trackSpeaker)}
+                  </div>
+                )}
                 <div className="player-now__body">
                   <div className="player-now__title-row">
                     <strong className="player-now__name">{trackSpeaker}</strong>
@@ -648,148 +897,110 @@ export default function GlobalPlayer() {
                     </span>
                     <span className="player-now__chip is-secondary">{queuePositionText}</span>
                   </div>
-                <p className="player-now__meta">{nowMetaPrimary}</p>
-                <p className="player-now__sub">{nowMetaSecondary}</p>
+                  <p className="player-now__meta">{nowMetaPrimary}</p>
+                  <p className="player-now__sub">{nowMetaSecondary}</p>
+                </div>
+              </section>
+            ) : null}
+
+            <div className="player-core">
+              <div className={`player-controls ${hasQueue ? "" : "is-idle"}`}>
+                <button
+                  className="control-btn btn-secondary"
+                  title="上一首"
+                  onClick={() => hasQueue && playPrev()}
+                  disabled={!hasQueue || playlist.length <= 1}
+                >
+                  <i className="fa-solid fa-backward-step" aria-hidden="true" />
+                </button>
+                <button
+                  className="control-btn play-pause-btn btn-primary"
+                  onClick={handleTogglePlay}
+                  disabled={playButtonConfig.disabled}
+                  aria-label={playButtonConfig.ariaLabel}
+                >
+                  <i className={`fa-solid ${playButtonConfig.icon}`} aria-hidden="true" />
+                </button>
+                <button
+                  className="control-btn btn-secondary"
+                  title="下一首"
+                  onClick={() => hasQueue && playNext()}
+                  disabled={!hasQueue || playlist.length <= 1}
+                >
+                  <i className="fa-solid fa-forward-step" aria-hidden="true" />
+                </button>
               </div>
-            </section>
+
+              {hasQueue ? (
+                <div className="player-actions">
+                  <button
+                    className={`control-btn control-btn--loop btn-secondary ${isLoop ? "is-active" : ""}`}
+                    title={isLoop ? "關閉循環播放" : "開啟循環播放"}
+                    onClick={handleLoopToggle}
+                    aria-label={isLoop ? "關閉循環播放" : "開啟循環播放"}
+                  >
+                    <i className="fa-solid fa-repeat" aria-hidden="true" />
+                  </button>
+                  {playlist.length ? (
+                    <button
+                      className={`control-btn btn-secondary ${isExpanded ? "is-active" : ""}`}
+                      title={isExpanded ? "收合播放清單" : "展開播放清單"}
+                      onClick={handleQueueToggle}
+                      aria-label={isExpanded ? "收合播放清單" : "展開播放清單"}
+                    >
+                      <i className="fa-solid fa-list" aria-hidden="true" />
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          {showPlaybackNotice ? (
+            <div
+              className={`player-notice player-notice--${playbackNotice.type || "info"}`}
+              role="status"
+              aria-live="polite"
+            >
+              <p className="player-notice__text">{playbackNotice.message}</p>
+              <button
+                type="button"
+                className="player-notice__dismiss"
+                onClick={clearPlaybackNotice}
+                aria-label="關閉提示"
+              >
+                <i className="fa-solid fa-xmark" aria-hidden="true" />
+              </button>
+            </div>
           ) : null}
 
-          <div className="player-core">
-            <div className={`player-controls ${hasQueue ? "" : "is-idle"}`}>
-              <button
-                className="control-btn btn-secondary"
-                title="上一首"
-                onClick={() => hasQueue && playPrev()}
-                disabled={!hasQueue || playlist.length <= 1}
-              >
-                <i className="fa-solid fa-backward-step" aria-hidden="true" />
-              </button>
-              <button
-                className="control-btn play-pause-btn btn-primary"
-                onClick={handleTogglePlay}
-                disabled={playButtonConfig.disabled}
-                aria-label={playButtonConfig.ariaLabel}
-              >
-                <i className={`fa-solid ${playButtonConfig.icon}`} aria-hidden="true" />
-              </button>
-              <button
-                className="control-btn btn-secondary"
-                title="下一首"
-                onClick={() => hasQueue && playNext()}
-                disabled={!hasQueue || playlist.length <= 1}
-              >
-                <i className="fa-solid fa-forward-step" aria-hidden="true" />
-              </button>
-            </div>
-
-            {hasQueue ? (
-              <div className="player-actions">
+          {playerPhase === "ended" && hasQueue ? (
+            <div className="player-ended-cta" role="status" aria-live="polite">
+              <p className="player-ended-cta__title">{endedTitle}</p>
+              <div className="player-ended-cta__actions">
                 <button
-                  className={`control-btn control-btn--loop btn-secondary ${isLoop ? "is-active" : ""}`}
-                  title={isLoop ? "關閉循環播放" : "開啟循環播放"}
-                  onClick={handleLoopToggle}
-                  aria-label={isLoop ? "關閉循環播放" : "開啟循環播放"}
+                  type="button"
+                  className="player-ended-cta__btn btn-secondary"
+                  onClick={handleRestartFromBeginning}
                 >
-                  <i className="fa-solid fa-repeat" aria-hidden="true" />
+                  重新播放
                 </button>
-                {playlist.length ? (
-                  <button
-                    className={`control-btn btn-secondary ${isExpanded ? "is-active" : ""}`}
-                    title={isExpanded ? "收合播放清單" : "展開播放清單"}
-                    onClick={handleQueueToggle}
-                    aria-label={isExpanded ? "收合播放清單" : "展開播放清單"}
-                  >
-                    <i className="fa-solid fa-list" aria-hidden="true" />
-                  </button>
-                ) : null}
+                <button
+                  type="button"
+                  className="player-ended-cta__btn player-ended-cta__btn--primary btn-primary"
+                  onClick={handleEnableLoopFromBeginning}
+                >
+                  開啟循環重播
+                </button>
               </div>
-            ) : null}
-          </div>
+            </div>
+          ) : null}
+
+          {!hasQueue ? <div className="player-empty-hint">{FALLBACK_EMPTY_HINT}</div> : null}
+
+          {queuePanel}
         </div>
-
-        {showPlaybackNotice ? (
-          <div className={`player-notice player-notice--${playbackNotice.type || "info"}`} role="status" aria-live="polite">
-            <p className="player-notice__text">{playbackNotice.message}</p>
-            <button
-              type="button"
-              className="player-notice__dismiss"
-              onClick={clearPlaybackNotice}
-              aria-label="關閉提示"
-            >
-              <i className="fa-solid fa-xmark" aria-hidden="true" />
-            </button>
-          </div>
-        ) : null}
-
-        {playerPhase === "ended" && hasQueue ? (
-          <div className="player-ended-cta" role="status" aria-live="polite">
-            <p className="player-ended-cta__title">{endedTitle}</p>
-            <div className="player-ended-cta__actions">
-              <button
-                type="button"
-                className="player-ended-cta__btn btn-secondary"
-                onClick={handleRestartFromBeginning}
-              >
-                重新播放
-              </button>
-              <button
-                type="button"
-                className="player-ended-cta__btn player-ended-cta__btn--primary btn-primary"
-                onClick={handleEnableLoopFromBeginning}
-              >
-                開啟循環重播
-              </button>
-            </div>
-          </div>
-        ) : null}
-
-        {!hasQueue ? <div className="player-empty-hint">{FALLBACK_EMPTY_HINT}</div> : null}
-
-        {playlist.length ? (
-          <div className={`player-queue-panel ${isExpanded ? "is-open" : ""}`}>
-            <div className="player-queue-header">
-              <div>
-                <p className="eyebrow">播放清單</p>
-                <strong>{playlist.length} 首音檔</strong>
-              </div>
-              <button type="button" className="queue-toggle btn-secondary" onClick={handleQueueToggle}>
-                {isExpanded ? "收合" : "展開"}
-              </button>
-            </div>
-            {isExpanded ? (
-              <ul className="player-queue-list">
-                {playlist.map((track, index) => {
-                  const isActive = currentTrack ? isSameTrack(currentTrack, track) : false;
-                  return (
-                    <li key={track.id ?? index} className={`player-queue-item${isActive ? " is-active" : ""}`}>
-                      <button
-                        type="button"
-                        className="queue-track"
-                        onClick={() => selectTrack(index)}
-                        aria-current={isActive ? "true" : "false"}
-                      >
-                        <span className="queue-track__speaker">{track.speaker || FALLBACK_SPEAKER}</span>
-                        <span className="queue-track__title">
-                          {track.message || track.requestTitle || FALLBACK_TITLE}
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        className="queue-track__delete"
-                        aria-label="移除此音檔"
-                        onClick={() => removeTrack(track.id)}
-                      >
-                        <i className="fa-solid fa-xmark" aria-hidden="true" />
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
+      )}
     </>
   );
 }
-

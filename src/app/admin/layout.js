@@ -1,5 +1,7 @@
 "use client";
 
+// 只有後台需要這 734 行。之前它掛在 root layout，每個公開頁都下載一次。
+import "@/styles/admin.css";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";

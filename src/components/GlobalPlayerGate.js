@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
 import GlobalPlayer from "@/components/GlobalPlayer";
 import { useAudio } from "@/context/AudioContext";
+
+const DISMISS_KEY = "startpray:player-dismissed";
 
 function isPath(pathname, target) {
   return pathname === target || pathname.startsWith(`${target}/`);
@@ -15,10 +17,18 @@ export default function GlobalPlayerGate() {
   const { playlist, currentTrack, isPlaying, pause } = useAudio();
 
   const hasQueue = Array.isArray(playlist) && playlist.length > 0;
-  const hasPlaybackState = hasQueue || Boolean(currentTrack);
   const inPrayerList = isPath(pathname, "/prayfor");
+  // 單則代禱的詳情頁。這一頁的佇列是 DetailAudioQueueBootstrap 為「這一則代禱」
+  // 鋪的，不會是別張卡片留下來的殘留。
+  const inPrayerDetail = /^\/(?:en\/)?prayfor\/[^/]+$/.test(pathname);
+  // 播放列以前只要「佇列非空」就出現，而首頁一載入就用 setQueue(tracks, -1)
+  // 預先鋪好佇列 —— 於是第一次進站、什麼都還沒按，螢幕底部就被一個播放列佔掉，
+  // 播的還是別張卡的語音。改看 currentTrack 修掉了那個，但也連帶把詳情頁的語音
+  // 藏了起來：明明有人留了聲音，畫面上什麼都看不到。
+  // 詳情頁的佇列既然是這一則自己的，就讓它有東西可播時直接顯示。
+  const hasPlaybackState = Boolean(currentTrack) || (inPrayerDetail && hasQueue);
   const inOvercomer = isPath(pathname, "/overcomer");
-  const inCustomerPortal = pathname === "/customer-portal";
+  const inCustomerPortal = pathname === "/me";
   const inGlobalPrayerRoom = isPath(pathname, "/global-prayer-room");
   // Homepage companion mode (docs/obsidian/25-Companion-Mode-Reuse-Audit.md) reuses
   // this same shared queue, so it needs to be on the supported list too — otherwise
@@ -37,8 +47,8 @@ export default function GlobalPlayerGate() {
     isPath(pathname, "/forgot-password") ||
     isPath(pathname, "/reset-password") ||
     isPath(pathname, "/admin") ||
-    isPath(pathname, "/customer-portal/create") ||
-    isPath(pathname, "/customer-portal/edit");
+    isPath(pathname, "/me/create") ||
+    isPath(pathname, "/me/edit");
 
   useEffect(() => {
     if (!blockedByRoute && supportedByRoute) return;
@@ -46,11 +56,34 @@ export default function GlobalPlayerGate() {
     pause();
   }, [blockedByRoute, isPlaying, pause, supportedByRoute]);
 
-  const shouldShowByRoute = supportedByRoute && hasPlaybackState;
+  // 使用者按了關閉之後，同一個 session 內不再自動彈回來 —— 除非他自己又去
+  // 播了別的東西。
+  const trackKey = currentTrack ? currentTrack.src || currentTrack.id || "" : "";
+  const [dismissedKey, setDismissedKey] = useState(null);
+
+  useEffect(() => {
+    try {
+      setDismissedKey(window.sessionStorage.getItem(DISMISS_KEY));
+    } catch {
+      // 無痕模式或封鎖 storage 時就當作沒關過，播放列照常出現。
+    }
+  }, []);
+
+  const handleClose = useCallback(() => {
+    pause();
+    setDismissedKey(trackKey);
+    try {
+      window.sessionStorage.setItem(DISMISS_KEY, trackKey);
+    } catch {
+      // 存不進去也沒關係，這一次仍然關得掉。
+    }
+  }, [pause, trackKey]);
+
+  const shouldShowByRoute = supportedByRoute && hasPlaybackState && dismissedKey !== trackKey;
 
   if (!shouldShowByRoute) {
     return null;
   }
 
-  return <GlobalPlayer />;
+  return <GlobalPlayer onClose={handleClose} />;
 }

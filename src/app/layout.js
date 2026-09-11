@@ -1,15 +1,19 @@
 import "./globals.css";
 import "@/styles/theme-modern.css";
-import "@/styles/admin.css";
 import "@/styles/fontawesome-lite.css";
+// tokens.css 必須最後載入：它收編前面各檔散落的變數名，讓舊規則跟著
+// surface 走。詳見 src/styles/tokens.css 開頭的規則。
+import "@/styles/tokens.css";
 import { headers } from "next/headers";
 import { Noto_Serif_TC } from "next/font/google";
 
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import GlobalPlayerGate from "@/components/GlobalPlayerGate";
+import SurfaceSync from "@/components/SurfaceSync";
 import { AudioProvider } from "@/context/AudioContext";
 import { getDictionary, localeFromPathname } from "@/lib/i18n";
 import { readSiteSettings } from "@/lib/siteSettings";
+import { resolveSurface } from "@/lib/surface";
 import { SITE_NAME, SITE_URL, buildPageMetadata } from "@/lib/seo";
 
 // Open Sans / Raleway / Poppins used to be loaded here, but nothing ever
@@ -41,7 +45,7 @@ export const metadata = {
       template: `%s | ${SITE_NAME}`,
     },
     description:
-      "Start Pray 讓人分享代禱事項、用文字與語音彼此回應，並透過全球禱告地圖看見正在被守望的需要。",
+      "Start Pray 讓人分享代禱、用文字與語音彼此回應，並透過全球禱告地圖看見正在被守望的需要。",
     path: "/",
     keywords: ["Start Pray", "禱告", "代禱", "基督信仰", "見證", "得勝者", "語音禱告", "全球禱告室"],
   }),
@@ -153,11 +157,12 @@ export default async function RootLayout({ children }) {
         <html
           lang={dictionary.htmlLang}
           className={notoSerifTC.variable}
+          data-surface="day"
         >
           <head>
             <meta name="robots" content="noindex,nofollow" />
           </head>
-          <body className="admin-layout">
+          <body>
             <SiteHeader locale={locale} />
             <div
               style={{
@@ -236,9 +241,14 @@ export default async function RootLayout({ children }) {
   }
 
   return (
-    <html lang={dictionary.htmlLang} className={notoSerifTC.variable}>
-      <body className="admin-layout">
+    <html
+      lang={dictionary.htmlLang}
+      className={notoSerifTC.variable}
+      data-surface={resolveSurface(requestPath)}
+    >
+      <body>
         <StructuredData />
+        <SurfaceSync />
         <AudioProvider>
           {children}
           <GlobalPlayerGate />

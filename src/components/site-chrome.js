@@ -16,10 +16,10 @@ import {
   stripLocalePrefix,
 } from "@/lib/i18n";
 
-// --- Phase 1 temporary navigation switch (docs/obsidian/11-Decision-Log.md DEC-003) ---
-// Hides the global prayer room entry only. It does NOT remove the route —
-// /global-prayer-room still works when visited directly.
-const SHOW_GLOBAL_ROOM_NAV_ENTRY = false;
+// --- Global prayer room navigation switch (docs/obsidian/11-Decision-Log.md DEC-003) ---
+// Phase 1 hid this entry temporarily; it is visible again. Set to false to hide
+// only the nav/footer link — the /global-prayer-room route itself is unaffected.
+const SHOW_GLOBAL_ROOM_NAV_ENTRY = true;
 
 // Account entry points (DEC-001) are visible again. The anonymous-first flows are
 // unchanged: praying, responding and creating a card still need no account, so the
@@ -33,7 +33,7 @@ const PRIMARY_NAV = [
   { href: "/overcomer", key: "overcomer" },
   { href: "/about", key: "about" },
   { href: "/howto", key: "howto" },
-  { href: "/customer-portal", key: "portal", requiresAuth: true, authOnly: true },
+  { href: "/me", key: "portal", requiresAuth: true, authOnly: true },
 ];
 
 const FOOTER_COLUMNS = [
@@ -45,7 +45,7 @@ const FOOTER_COLUMNS = [
       { href: "/overcomer", label: "得勝者" },
       { href: "/about", label: "平台介紹" },
       { href: "/howto", label: "使用方式" },
-      { href: "/customer-portal", label: "會員中心" },
+      { href: "/me", label: "會員中心" },
     ],
   },
   {
@@ -64,6 +64,8 @@ const FOOTER_COLUMNS = [
     ],
   },
 ];
+
+const LOCALE_REDIRECT_ONLY_PATHS = ["/me"];
 
 const SOCIAL_LINKS = [
   {
@@ -133,7 +135,7 @@ function SocialIcon({ icon }) {
 
 function resolveNavHref(item, isAuthenticated, locale) {
   if (item.requiresAuth && !isAuthenticated) {
-    return localizedLoginPath(locale, "/customer-portal");
+    return localizedLoginPath(locale, "/me");
   }
   return localizePath(item.href, locale);
 }
@@ -169,6 +171,13 @@ export function SiteHeader({ activePath, hideAuthActions = false, locale: locale
     [siteText, isAuthenticated],
   );
   const languageHref = localizePath(stripLocalePrefix(pathname || current || "/"), nextLocale);
+  // /en/me 與 /en/me/create 只是 redirect 回中文版
+  // （見那兩個 page.js）。在這些頁面上顯示語言切換，是給一個兌現不了的承諾：
+  // 使用者按下 English，整頁還是中文。有真英文版的頁面照常顯示。
+  const hasEnglishVersion = !LOCALE_REDIRECT_ONLY_PATHS.some((prefix) => {
+    const path = stripLocalePrefix(pathname || current || "/");
+    return path === prefix || path.startsWith(`${prefix}/`);
+  });
 
   const closeMenu = useCallback(() => {
     setMenuOpen(false);
@@ -232,23 +241,25 @@ export function SiteHeader({ activePath, hideAuthActions = false, locale: locale
             );
           })}
 
-          <Link
-            href={languageHref}
-            prefetch={false}
-            className="nav-language-switch"
-            onClick={closeMenu}
-            aria-label={siteText.language.label}
-            title={siteText.language.current}
-          >
-            {siteText.language.switchTo}
-          </Link>
+          {hasEnglishVersion ? (
+            <Link
+              href={languageHref}
+              prefetch={false}
+              className="nav-language-switch"
+              onClick={closeMenu}
+              aria-label={siteText.language.label}
+              title={siteText.language.current}
+            >
+              {siteText.language.switchTo}
+            </Link>
+          ) : null}
 
           {!hideAuthActions ? (
             <div className="nav-actions">
               {isAuthenticated ? (
                 <>
                   <Link
-                    href={localizePath("/customer-portal/create", locale)}
+                    href={localizePath("/me/create", locale)}
                     prefetch={false}
                     className="btn btn-primary"
                     onClick={closeMenu}
@@ -294,6 +305,9 @@ export function SiteFooter({ locale: localeProp }) {
   const locale = normalizeLocale(localeProp || localeFromPathname(pathname));
   const dictionary = getDictionary(locale);
   const siteText = dictionary.site;
+  // 這一欄過去是靜態陣列，不看 session，所以登入之後頁尾還在請你「登入 / 註冊」。
+  const authUser = useAuthSession();
+  const isAuthenticated = Boolean(authUser);
   const footerColumns = [
     {
       title: "Start Pray",
@@ -303,7 +317,7 @@ export function SiteFooter({ locale: localeProp }) {
         { href: "/overcomer", label: siteText.nav.overcomer },
         { href: "/about", label: siteText.nav.about },
         { href: "/howto", label: siteText.nav.howto },
-        { href: "/customer-portal", label: siteText.nav.portal },
+        { href: "/me", label: siteText.nav.portal },
       ],
     },
     {
@@ -315,9 +329,13 @@ export function SiteFooter({ locale: localeProp }) {
     {
       title: siteText.footer.accountHelp,
       links: [
-        { href: "/login", label: siteText.nav.login },
-        { href: "/signup", label: siteText.nav.signup },
-        { href: "/forgot-password", label: siteText.footer.forgotPassword },
+        ...(isAuthenticated
+          ? [{ href: "/me", label: siteText.nav.portal }]
+          : [
+              { href: "/login", label: siteText.nav.login },
+              { href: "/signup", label: siteText.nav.signup },
+              { href: "/forgot-password", label: siteText.footer.forgotPassword },
+            ]),
         { href: "mailto:startpraynow@gmail.com", label: siteText.footer.contact },
       ],
     },

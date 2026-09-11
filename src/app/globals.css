@@ -1,29 +1,4 @@
-﻿:root {
-  --bg: #f3f4f6;
-  --surface: #ffffff;
-  --surface-dark: rgba(17, 24, 39, 0.82);
-  --border: #d1d5db;
-  --border-soft: rgba(17, 24, 39, 0.08);
-  --accent: #2563eb;
-  --accent-soft: rgba(37, 99, 235, 0.12);
-  --accent-dark: #1d4ed8;
-  --accent-strong: #1d4ed8;
-  --text-primary: #111827;
-  --text-secondary: #4b5563;
-  --text-muted: #9ca3af;
-  --text: var(--text-primary);
-  --text-soft: rgba(17, 24, 39, 0.76);
-  --muted: rgba(55, 65, 81, 0.6);
-  --shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
-  --header-height: 56px;
-  --site-header-height: 56px;
-}
-@media (max-width: 768px) {
-  :root {
-    --header-height: 64px;
-    --site-header-height: 64px;
-  }
-}
+/* :root 已收斂到 src/styles/tokens.css —— 全站唯一的 token 來源。 */
 * {
   box-sizing: border-box;
 }
@@ -71,14 +46,14 @@ body.fullpage-scroll main.pray-detail .pray-section {
   }
 }
 a {
-  color: var(--accent);
+  color: var(--accent-text);
   text-decoration: none;
   transition:
     color 0.2s ease,
     background 0.2s ease;
 }
 a:hover {
-  color: var(--accent-dark);
+  color: var(--accent-text);
 }
 header {
   background: var(--surface);
@@ -126,7 +101,7 @@ header {
 .nav-links a.active,
 .nav-links a:hover {
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 main {
   max-width: 1100px;
@@ -212,7 +187,7 @@ main.home-page {
 }
 .btn-primary {
   background: var(--accent);
-  color: #ffffff;
+  color: var(--text-on-accent);
 }
 .btn-primary:hover {
   background: var(--accent-dark);
@@ -220,7 +195,7 @@ main.home-page {
 .btn-outline {
   background: rgba(255, 255, 255, 0.6);
   border: 1px solid var(--accent);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .btn-quiet {
   background: transparent;
@@ -290,7 +265,7 @@ main.home-page {
 }
 .not-found-copy p {
   max-width: 58ch;
-  color: #334155;
+  color: var(--text-2);
   font-size: 1rem;
   line-height: 1.8;
 }
@@ -337,7 +312,7 @@ main.home-page {
 }
 .hero-visual .stat-pill strong {
   font-size: 1.4rem;
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .focus-section {
   display: grid;
@@ -412,7 +387,7 @@ main.home-page {
   padding: 0.35rem 0.75rem;
   border-radius: 999px;
   background: rgba(37, 99, 235, 0.12);
-  color: var(--accent);
+  color: var(--accent-text);
   font-size: 0.82rem;
   font-weight: 600;
 }
@@ -434,7 +409,7 @@ main.home-page {
 }
 .cta-link {
   font-weight: 600;
-  color: var(--accent);
+  color: var(--accent-text);
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
@@ -547,11 +522,11 @@ main.home-page {
 }
 .detail-nav a:hover {
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .detail-nav a.active {
   background: var(--accent);
-  color: #ffffff;
+  color: var(--text-on-accent);
   border-color: var(--accent);
 }
 .detail-wrapper {
@@ -586,7 +561,7 @@ main.home-page {
 }
 .share-link {
   font-weight: 600;
-  color: var(--accent);
+  color: var(--accent-text);
   word-break: break-all;
 }
 .stat-chips {
@@ -602,7 +577,7 @@ main.home-page {
   font-size: 0.85rem;
 }
 .stat-chip strong {
-  color: var(--accent);
+  color: var(--accent-text);
   margin-right: 0.35rem;
 }
 .prayer-points {
@@ -678,7 +653,7 @@ main.home-page {
 }
 .role-uploader {
   background: rgba(37, 99, 235, 0.12);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .role-client {
   background: rgba(16, 185, 129, 0.12);
@@ -726,7 +701,7 @@ main.home-page {
   border-bottom: none;
 }
 .role-table .check {
-  color: var(--accent);
+  color: var(--accent-text);
   font-weight: 700;
 }
 .role-table .partial {
@@ -738,7 +713,7 @@ main.home-page {
   color: var(--text-secondary);
 }
 .anchor-link:hover {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 @media (max-width: 1024px) {
   .detail-layout {
@@ -842,7 +817,7 @@ footer {
   color: var(--text-secondary);
 }
 .footer-column a:hover {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .footer-social {
   display: grid;
@@ -857,7 +832,7 @@ footer {
   padding: 0.45rem 0.9rem;
   border-radius: 999px;
   background: rgba(37, 99, 235, 0.12);
-  color: var(--accent);
+  color: var(--accent-text);
   font-size: 0.85rem;
 }
 .footer-bottom {
@@ -875,7 +850,7 @@ footer {
   color: var(--text-secondary);
 }
 .footer-bottom a:hover {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .footer-legal {
   display: flex;
@@ -932,8 +907,8 @@ footer {
 .required-badge {
   padding: 0.15rem 0.55rem;
   border-radius: 999px;
-  background: rgba(37, 99, 235, 0.14);
-  color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-text);
   font-size: 0.75rem;
   font-weight: 600;
 }
@@ -942,7 +917,7 @@ footer {
   padding: 0.15rem 0.55rem;
   border-radius: 999px;
   background: rgba(148, 163, 184, 0.2);
-  color: #334155;
+  color: var(--text-2);
   font-size: 0.75rem;
   font-weight: 600;
 }
@@ -1018,10 +993,11 @@ footer {
   padding: 3rem 1.5rem 4rem;
 }
 .auth-page {
-  min-height: calc(100dvh - var(--site-header-height));
-  background:
-    radial-gradient(circle at 12% 8%, rgba(96, 165, 250, 0.16), transparent 34%),
-    linear-gradient(150deg, #0d1c33 0%, #071225 58%, #050c18 100%);
+  min-height: calc(100dvh - var(--header-h));
+  /* 這一層曾經自己畫一片深藍夜色，蓋在已經是 day 的 body 上：於是白色的表單卡
+     浮在深藍上，而使用者按下註冊之後又落到另一種深藍的會員中心。頁面自己不再
+     決定明暗，交給 surface。 */
+  background: var(--surface-page);
 }
 .auth-page--login .auth-wrapper {
   max-width: 760px;
@@ -1042,9 +1018,9 @@ footer {
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
 }
 .auth-card {
-  background: rgba(255, 255, 255, 0.98);
-  border: 1px solid var(--border-soft);
-  border-radius: 1.35rem;
+  background: var(--surface-1);
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
   padding: 2.25rem;
   display: grid;
@@ -1068,7 +1044,7 @@ footer {
 .auth-card h1 {
   margin: 0;
   font-size: 1.85rem;
-  color: #0b1220;
+  color: var(--text-1);
 }
 .auth-card--login h1 {
   font-size: clamp(1.75rem, 4vw, 2.15rem);
@@ -1076,7 +1052,7 @@ footer {
 }
 .auth-card p {
   margin: 0;
-  color: #334155;
+  color: var(--text-2);
   font-weight: 500;
 }
 .auth-card--login .auth-card__intro p {
@@ -1166,7 +1142,7 @@ textarea.form-control.is-invalid:focus {
   border: 1px solid rgba(37, 99, 235, 0.22);
   border-radius: 999px;
   padding: 0.35rem 0.75rem;
-  color: #1d4ed8;
+  color: var(--link);
   background: rgba(37, 99, 235, 0.08);
   font-size: 0.82rem;
   font-weight: 800;
@@ -1251,10 +1227,10 @@ textarea.form-control.is-invalid:focus {
   display: grid;
   gap: 0.6rem;
   font-size: 0.9rem;
-  color: #334155;
+  color: var(--text-2);
 }
 .auth-footer a {
-  color: #1d4ed8;
+  color: var(--link);
   font-weight: 700;
   text-decoration: underline;
   text-underline-offset: 2px;
@@ -1284,7 +1260,7 @@ textarea.form-control.is-invalid:focus {
   font-size: 0.88rem;
 }
 .auth-meta-list li::marker {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .auth-hero {
   background: linear-gradient(135deg, rgba(30, 64, 175, 0.95), rgba(3, 105, 161, 0.94));
@@ -1391,7 +1367,7 @@ textarea.form-control.is-invalid:focus {
   border-radius: 0.85rem;
   border: 1px solid var(--accent);
   background: rgba(37, 99, 235, 0.1);
-  color: var(--accent);
+  color: var(--accent-text);
   font-weight: 600;
   cursor: pointer;
   transition:
@@ -1400,7 +1376,7 @@ textarea.form-control.is-invalid:focus {
 }
 .btn-secondary:hover {
   background: var(--accent);
-  color: #ffffff;
+  color: var(--text-on-accent);
 }
 .hero-split {
   display: grid;
@@ -1514,7 +1490,7 @@ textarea.form-control.is-invalid:focus {
   position: absolute;
   left: 0;
   top: 0.05rem;
-  color: var(--accent);
+  color: var(--accent-text);
   font-weight: 700;
 }
 .media-feature {
@@ -1535,7 +1511,7 @@ textarea.form-control.is-invalid:focus {
   padding: 0.35rem 0.7rem;
   border-radius: 999px;
   background: rgba(37, 99, 235, 0.12);
-  color: var(--accent);
+  color: var(--accent-text);
   font-size: 0.8rem;
   font-weight: 600;
 }
@@ -1572,7 +1548,7 @@ textarea.form-control.is-invalid:focus {
   border-radius: 0.9rem;
   border: none;
   background: var(--accent);
-  color: #fff;
+  color: var(--text-on-accent);
   font-weight: 600;
   cursor: pointer;
 }
@@ -1606,7 +1582,7 @@ textarea.form-control.is-invalid:focus {
 .filter-pill.active {
   border-color: var(--accent);
   background: rgba(37, 99, 235, 0.12);
-  color: var(--accent);
+  color: var(--accent-text);
   font-weight: 600;
 }
 .sort-select {
@@ -1634,7 +1610,7 @@ textarea.form-control.is-invalid:focus {
   border-radius: 0.9rem;
   border: none;
   background: var(--accent);
-  color: #fff;
+  color: var(--text-on-accent);
   font-weight: 600;
   cursor: pointer;
   margin-left: 2rem;
@@ -1665,7 +1641,7 @@ textarea.form-control.is-invalid:focus {
   padding: 0.35rem 0.7rem;
   border-radius: 0.75rem;
   background: rgba(37, 99, 235, 0.12);
-  color: var(--accent);
+  color: var(--accent-text);
   font-size: 0.8rem;
 }
 .pagination {
@@ -1687,7 +1663,7 @@ textarea.form-control.is-invalid:focus {
 .pagination .active {
   border-color: var(--accent);
   background: var(--accent);
-  color: #fff;
+  color: var(--text-on-accent);
   font-weight: 600;
 }
 @media (max-width: 640px) {
@@ -1760,7 +1736,7 @@ textarea.form-control.is-invalid:focus {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   background: rgba(37, 99, 235, 0.18);
-  color: var(--accent);
+  color: var(--accent-text);
   font-weight: 600;
 }
 
@@ -1802,7 +1778,7 @@ textarea.form-control.is-invalid:focus {
   border-radius: 999px;
   font-weight: 600;
   background: var(--accent);
-  color: #fff;
+  color: var(--text-on-accent);
   border: 1px solid var(--accent);
   transition:
     transform 0.2s ease,
@@ -1817,12 +1793,12 @@ textarea.form-control.is-invalid:focus {
 
 .cp-button--ghost {
   background: rgba(37, 99, 235, 0.08);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .cp-button--ghost:hover {
   background: rgba(37, 99, 235, 0.15);
-  color: var(--accent-dark);
+  color: var(--accent-text);
 }
 
 .cp-hero__stats {
@@ -1848,7 +1824,7 @@ textarea.form-control.is-invalid:focus {
 
 .cp-stat strong {
   font-size: 1.6rem;
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .cp-section {
@@ -3160,7 +3136,7 @@ textarea.form-control.is-invalid:focus {
 .terms-hero > div:first-child > p:not(.terms-hero__eyebrow) {
   max-width: 680px;
   margin: 1rem 0 0;
-  color: #334155;
+  color: var(--text-2);
   font-size: clamp(1rem, 1.6vw, 1.16rem);
   font-weight: 500;
   line-height: 1.8;
@@ -3237,7 +3213,7 @@ textarea.form-control.is-invalid:focus {
 .legal-card p,
 .terms-card p {
   margin: 0;
-  color: #334155;
+  color: var(--text-2);
   line-height: 1.65;
 }
 
@@ -3274,7 +3250,7 @@ textarea.form-control.is-invalid:focus {
 .terms-card ul {
   margin: 0;
   padding-left: 1.1rem;
-  color: #334155;
+  color: var(--text-2);
   display: grid;
   gap: 0.5rem;
 }
@@ -3495,6 +3471,28 @@ details.terms-card summary {
   gap: 0.8rem;
 }
 
+.terms-grid--two {
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+.terms-rule {
+  align-content: start;
+}
+
+.terms-rule__why {
+  margin-top: 0.4rem !important;
+  border-left: 3px solid rgba(180, 83, 9, 0.45);
+  border-radius: 0 12px 12px 0;
+  padding: 0.8rem 1rem;
+  background: rgba(254, 243, 199, 0.45);
+}
+
+.terms-rule__why strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: #92400e;
+}
+
 @media (max-width: 960px) {
   .legal-hero,
   .terms-hero {
@@ -3662,7 +3660,7 @@ details.terms-card summary {
 .home-stats__value {
   font-size: clamp(2.1rem, 4vw, 2.6rem);
   line-height: 1.1;
-  color: var(--accent-dark);
+  color: var(--accent-text);
 }
 
 .home-stats__hint {
@@ -4048,14 +4046,10 @@ details.terms-card summary {
     linear-gradient(180deg, #f5f7ff 0%, #ffffff 100%);
 }
 
-.customer-create.customer-create--editor-only {
+.customer-create {
   width: 100%;
   max-width: none;
   grid-template-columns: minmax(0, 1fr);
-}
-
-.customer-create.customer-create--editor-only .customer-create__hero {
-  display: none;
 }
 
 .customer-create__hero,
@@ -4340,7 +4334,7 @@ details.terms-card summary {
     gap: clamp(2.2rem, 3vw, 3.4rem);
   }
 
-  .customer-create.customer-create--editor-only {
+  .customer-create {
     grid-template-columns: minmax(0, 1fr);
   }
 }
@@ -5171,7 +5165,7 @@ details.terms-card summary {
 }
 .pagination button:hover:not(:disabled) {
   border-color: var(--accent);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .pagination button:disabled {
   opacity: 0.45;
@@ -5329,7 +5323,7 @@ details.terms-card summary {
 
 .status-badge--processing {
   background: rgba(37, 99, 235, 0.15);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .admin-auth--enhanced {
   min-height: 100vh;
@@ -5620,7 +5614,7 @@ details.terms-card summary {
   font-weight: 500;
   border: 1px solid rgba(37, 99, 235, 0.35);
   background: rgba(37, 99, 235, 0.08);
-  color: var(--accent);
+  color: var(--accent-text);
   cursor: pointer;
   transition:
     background 0.2s ease,
@@ -5629,7 +5623,7 @@ details.terms-card summary {
 
 .cp-profile__edit:hover {
   background: rgba(37, 99, 235, 0.16);
-  color: var(--accent-dark);
+  color: var(--accent-text);
 }
 
 .cp-profile__info {
@@ -5671,7 +5665,7 @@ details.terms-card summary {
   border-radius: 1rem;
   border: 1px solid rgba(37, 99, 235, 0.15);
   background: rgba(37, 99, 235, 0.08);
-  color: var(--accent);
+  color: var(--accent-text);
   font-size: 0.95rem;
 }
 
@@ -5759,7 +5753,7 @@ details.terms-card summary {
   border-radius: 0.85rem;
   border: 1px solid transparent;
   background: rgba(37, 99, 235, 0.08);
-  color: var(--accent);
+  color: var(--accent-text);
   font-weight: 500;
   font-size: 0.9rem;
   cursor: pointer;
@@ -5806,8 +5800,8 @@ button.cp-link:disabled {
   align-items: center;
   padding: 0.25rem 0.75rem;
   border-radius: 999px;
-  background: rgba(37, 99, 235, 0.14);
-  color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-text);
   font-size: 0.78rem;
   font-weight: 600;
 }
@@ -6668,7 +6662,7 @@ header .menu-toggle:focus-visible {
 header .menu-toggle.is-open {
   background: var(--accent);
   border-color: rgba(37, 99, 235, 0.4);
-  color: #ffffff;
+  color: var(--text-on-accent);
 }
 
 header .menu-toggle__icon {
@@ -6783,7 +6777,7 @@ header .nav-actions {
 
 header .nav-link--primary {
   background: var(--accent);
-  color: #ffffff;
+  color: var(--text-on-accent);
   padding-left: 1.1rem;
   padding-right: 1.1rem;
   box-shadow: 0 14px 28px -18px rgba(37, 99, 235, 0.8);
@@ -6791,7 +6785,7 @@ header .nav-link--primary {
 
 header .nav-link--button {
   border: 1px solid var(--border-soft);
-  color: var(--accent);
+  color: var(--accent-text);
   background: rgba(37, 99, 235, 0.1);
 }
 
@@ -6859,15 +6853,17 @@ header .nav-actions .btn-glass {
     width: 40px;
     height: 40px;
     flex: 0 0 40px;
-    color: #ffffff;
-    border-color: rgba(148, 163, 184, 0.46);
-    background: rgba(255, 255, 255, 0.08);
+    /* 這裡曾經寫死白色圖示 —— 頁首跟著 surface 走之後，在 day 的頁面上就是
+       白底白圖示，整顆按鈕看不見。 */
+    color: var(--text-1);
+    border-color: var(--line-2);
+    background: var(--surface-3);
   }
 
   header .menu-toggle.is-open {
-    background: #ffffff;
-    color: var(--accent);
-    border-color: rgba(37, 99, 235, 0.35);
+    background: var(--accent);
+    color: var(--text-on-accent);
+    border-color: transparent;
   }
 
   header .nav-links {
@@ -6879,10 +6875,12 @@ header .nav-actions .btn-glass {
     align-items: stretch;
     gap: 0.65rem;
     padding: 1.2rem;
-    background: rgba(2, 6, 23, 0.94);
-    border: 1px solid rgba(148, 163, 184, 0.18);
-    border-radius: 1.35rem;
-    box-shadow: 0 28px 60px -30px rgba(15, 23, 42, 0.4);
+    /* 行動版展開的選單面板。它原本鎖死深藍，而連結文字已經跟著 surface 走 ——
+       在 day 的頁面上打開就是深底配深字，只有 2.6:1。 */
+    background: var(--surface-1);
+    border: 1px solid var(--line-1);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--elev-3);
     opacity: 0;
     transform: translateY(-10px) scale(0.98);
     pointer-events: none;
@@ -6902,7 +6900,7 @@ header .nav-actions .btn-glass {
   }
 
   header .nav-actions {
-    border-top: 1px solid rgba(148, 163, 184, 0.18);
+    border-top: 1px solid var(--line-1);
     margin-left: 0;
     padding-top: 0.75rem;
     flex-direction: column;
@@ -6991,8 +6989,9 @@ header .nav-actions .btn-glass {
   border: none;
   border-radius: 0.85rem;
   padding: 0.45rem 1.1rem;
-  background: linear-gradient(135deg, rgba(37, 99, 235, 0.95), rgba(59, 130, 246, 0.85));
-  color: #fff;
+  background: var(--accent);
+  color: var(--text-on-accent);
+  color: var(--text-on-accent);
   cursor: pointer;
   font-size: 0.85rem;
   font-weight: 600;
@@ -7054,7 +7053,7 @@ header .nav-actions .btn-glass {
 .home-explorer__suggestion:hover,
 .home-explorer__suggestion:focus-visible {
   background: rgba(37, 99, 235, 0.1);
-  color: var(--accent);
+  color: var(--accent-text);
   outline: none;
 }
 
@@ -7094,7 +7093,7 @@ header .nav-actions .btn-glass {
 .home-explorer__suggestion-tag {
   border: 1px solid rgba(37, 99, 235, 0.28);
   background: rgba(37, 99, 235, 0.08);
-  color: #1d4ed8;
+  color: var(--link);
   border-radius: 999px;
   padding: 0.38rem 0.72rem;
   font-size: 0.8rem;
@@ -7326,11 +7325,11 @@ header .nav-actions .btn-glass {
 
 .home-card__link {
   font-weight: 600;
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .home-card__link:hover {
-  color: var(--accent-dark);
+  color: var(--accent-text);
 }
 
 .home-card__empty {
@@ -7400,13 +7399,6 @@ header .nav-actions .btn-glass {
 }
 /* Start Pray base values */
 
-:root {
-  --color-primary: #1e3a8a; /* primary blue */
-  --color-highlight: #fbbf24; /* highlight gold */
-  --color-text: #374151; /* body text */
-  --color-light-bg: #f9fafb; /* light background */
-  --color-card-bg: #ffffff;
-}
 
 #tech-roadmap {
   font-family: "Inter", sans-serif;
@@ -7705,7 +7697,7 @@ header .nav-actions .btn-glass {
 .howto-page .section h2,
 .howto-page .section h3,
 .howto-page .section strong {
-  color: #0b1220;
+  color: var(--text-1);
 }
 
 .about-page .section p,
@@ -7902,9 +7894,6 @@ header .nav-actions .btn-glass {
 /* Mobile UX override layer (global)                                */
 /* --------------------------------------------------------------- */
 @media (max-width: 768px) {
-  :root {
-    --mobile-gutter: 0.9rem;
-  }
 
   html,
   body {
@@ -8126,9 +8115,6 @@ header .nav-actions .btn-glass {
 }
 
 @media (max-width: 540px) {
-  :root {
-    --mobile-gutter: 0.75rem;
-  }
 
   main {
     padding-bottom: 4rem;
@@ -9067,7 +9053,7 @@ header .nav-actions .btn-glass {
     min-height: 44px;
   }
 
-  /* 建立代禱卡表單欄位全寬,避免溢出 */
+  /* 建立代禱表單欄位全寬，避免溢出 */
   .theme-create input,
   .theme-create textarea,
   .theme-create select {

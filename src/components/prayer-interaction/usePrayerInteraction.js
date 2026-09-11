@@ -1,8 +1,32 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
+import { useAudio } from "@/context/AudioContext";
 import { PRAYER_RESPONSE_CREATED } from "@/lib/events";
+import { normalizeAudioUrl } from "@/lib/media-url";
+
+// 把一則語音回應轉成共用播放佇列吃的形狀（id + voiceUrl 是硬性需求，
+// 見 AudioContext 的 getTrackKey/sanitizeTrack）。requestTitle 會顯示在
+// 陪伴模式的卡片抬頭上 —— 聽的人要知道自己在為「哪一件事」禱告。
+function toTrack(response, { anonymousLabel, prayerTitle, coverImage }) {
+  const voiceUrl = normalizeAudioUrl(response?.voiceUrl);
+  if (!voiceUrl) return null;
+  const isAnonymous = Boolean(response.isAnonymous);
+  return {
+    id: response.id,
+    voiceUrl,
+    message: response.message?.trim() || "",
+    speaker: isAnonymous
+      ? anonymousLabel
+      : response.responder?.name?.trim() || anonymousLabel,
+    avatarUrl: isAnonymous
+      ? response.anonymousAvatarUrl?.trim() || ""
+      : response.responder?.avatarUrl?.trim() || "",
+    requestTitle: prayerTitle || response.card?.title || anonymousLabel,
+    coverImage: response.card?.image?.trim?.() || coverImage || "",
+  };
+}
 
 // Shared state/behavior for "record a response to this Prayer" + "listen to
 // others' responses", reused by both HomePrayerHero (homepage) and
@@ -13,8 +37,11 @@ import { PRAYER_RESPONSE_CREATED } from "@/lib/events";
 export function usePrayerInteraction(prayerId) {
   const [recorderActive, setRecorderActive] = useState(false);
   const [recorderState, setRecorderState] = useState(null);
-  const [companionOpen, setCompanionOpen] = useState(false);
   const [playableResponses, setPlayableResponses] = useState([]);
+
+  // 陪伴模式沒有自己的播放器了。它就是共用佇列 + GlobalPlayer 的沉浸呈現 ——
+  // 首頁與 /prayfor/[id] 因此拿到同一套播放體驗，而不是兩份長得不一樣的清單。
+  const { isCompanion, setIsCompanion, setQueue, setIsExpanded, pause } = useAudio();
 
   const recorderRef = useRef(null);
   const requestGenerationRef = useRef(0);
@@ -50,6 +77,29 @@ export function usePrayerInteraction(prayerId) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prayerId]);
 
+  const openCompanion = useCallback(
+    ({ anonymousLabel = "", prayerTitle = "", coverImage = "" } = {}) => {
+      const tracks = playableResponses
+        .map((response) => toTrack(response, { anonymousLabel, prayerTitle, coverImage }))
+        .filter(Boolean);
+      if (!tracks.length) return;
+      setIsCompanion(true);
+      setQueue(tracks, 0);
+      // setQueue 會順手把播放清單展開；陪伴模式一進來就先把清單收起來，
+      // 讓人先聽見聲音，想看清單再自己打開。
+      setIsExpanded(false);
+    },
+    [playableResponses, setIsCompanion, setIsExpanded, setQueue]
+  );
+
+  // 離開陪伴模式 = 收回底部那條播放列，不是把佇列丟掉。聲音停下來，但剛剛在聽的
+  // 那幾則還在，想再聽一次不必重新進一次陪伴模式；播放列上的 × 才是真的關掉。
+  const closeCompanion = useCallback(() => {
+    setIsCompanion(false);
+    setIsExpanded(false);
+    pause();
+  }, [pause, setIsCompanion, setIsExpanded]);
+
   const openRecorder = () => setRecorderActive(true);
 
   const closeRecorder = () => {
@@ -70,9 +120,9 @@ export function usePrayerInteraction(prayerId) {
     openRecorder,
     closeRecorder,
     discardRecorder,
-    companionOpen,
-    openCompanion: () => setCompanionOpen(true),
-    closeCompanion: () => setCompanionOpen(false),
+    companionOpen: isCompanion,
+    openCompanion,
+    closeCompanion,
     playableResponses,
     hasCompanionEntry: playableResponses.length > 0,
   };

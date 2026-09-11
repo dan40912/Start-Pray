@@ -3,12 +3,14 @@ import Link from "next/link";
 import HomeGlobeHero from "@/components/HomeGlobeHero";
 import HomePrayerExplorer from "@/components/HomePrayerExplorer";
 import HomePrayerHero from "@/components/HomePrayerHero";
+import PlatformStats from "@/components/PlatformStats";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { toGlobalPrayerPayload } from "@/lib/globalPrayerPayload";
 import { readActiveCategories } from "@/lib/homeCategories";
 import { readHomeCards } from "@/lib/homeCards";
 import { readHomeStats } from "@/lib/homeStats";
 import { getDictionary, localizePath, normalizeLocale } from "@/lib/i18n";
+import { buildPlatformStats, countLocationLights } from "@/lib/platformStats";
 import prisma from "@/lib/prisma";
 import { SITE_URL, absoluteUrl, buildPageMetadata } from "@/lib/seo";
 
@@ -35,52 +37,6 @@ function buildHeroStats(stats, globalPrayers, locale = "zh-TW") {
   };
 }
 
-function countLocationLights(globalPrayers) {
-  return new Set(
-    globalPrayers.map((prayer) => {
-      const lat = Number(prayer.locationLat);
-      const lng = Number(prayer.locationLng);
-      return `${prayer.locationCity || "approx"}::${lat.toFixed(3)}::${lng.toFixed(3)}`;
-    })
-  ).size;
-}
-
-function buildProofStats(stats, globalPrayers, categories, text = PAGE_TEXT) {
-  const proofText = text.proofStats || PAGE_TEXT.proofStats;
-  return [
-    {
-      value: stats.totalPrayerCards,
-      label: proofText.totalPrayerCards[0],
-      copy: proofText.totalPrayerCards[1],
-    },
-    {
-      value: stats.totalResponses,
-      label: proofText.totalResponses[0],
-      copy: proofText.totalResponses[1],
-    },
-    {
-      value: stats.totalVoiceResponses,
-      label: proofText.totalVoiceResponses[0],
-      copy: proofText.totalVoiceResponses[1],
-    },
-    {
-      value: stats.totalUsers,
-      label: proofText.totalUsers[0],
-      copy: proofText.totalUsers[1],
-    },
-    {
-      value: countLocationLights(globalPrayers),
-      label: proofText.locationLights[0],
-      copy: proofText.locationLights[1],
-    },
-    {
-      value: categories.length,
-      label: proofText.categories[0],
-      copy: proofText.categories[1],
-    },
-  ];
-}
-
 function toClientValue(value) {
   if (value == null) return value;
   if (value instanceof Date) return value.toISOString();
@@ -94,7 +50,7 @@ function toClientValue(value) {
 export const metadata = buildPageMetadata({
   title: "Start Pray 一起禱告吧",
   description:
-    "Start Pray 讓你看見全球正在被守望的禱告需要，建立代禱事項，並透過文字與語音禱告彼此陪伴。",
+    "Start Pray 讓你看見全球正在被守望的禱告需要，建立代禱，並透過文字與語音禱告彼此陪伴。",
   path: "/",
   image: "/img/categories/popular.jpg",
   keywords: ["Start Pray", "一起禱告", "代禱平台", "語音禱告", "全球禱告地圖", "基督徒禱告"],
@@ -173,7 +129,7 @@ function HomeStructuredData({ stats, globalPrayerCount, text = PAGE_TEXT, locale
   );
 }
 
-function HomeProofSection({ proofStats, text = PAGE_TEXT, locale = "zh-TW" }) {
+function HomeProofSection({ text = PAGE_TEXT, locale = "zh-TW" }) {
   const promises = text.promises.map(([title, copy]) => ({ title, copy }));
 
   return (
@@ -185,7 +141,7 @@ function HomeProofSection({ proofStats, text = PAGE_TEXT, locale = "zh-TW" }) {
           <p>{text.proofCopy}</p>
           <div className="home-proof__actions">
             <Link
-              href={localizePath("/customer-portal/create", locale)}
+              href={localizePath("/me/create", locale)}
               className="home-proof__action home-proof__action--primary"
               prefetch={false}
             >
@@ -195,16 +151,6 @@ function HomeProofSection({ proofStats, text = PAGE_TEXT, locale = "zh-TW" }) {
               {text.proofSecondary}
             </Link>
           </div>
-        </div>
-
-        <div className="home-proof__stats" aria-label="Start Pray 平台數據">
-          {proofStats.map((item) => (
-            <article key={item.label} className="home-proof__stat">
-              <strong>{Number(item.value || 0).toLocaleString(locale)}</strong>
-              <span>{item.label}</span>
-              <p>{item.copy}</p>
-            </article>
-          ))}
         </div>
 
         <div className="home-proof__promise" aria-labelledby="home-proof-promise-title">
@@ -233,7 +179,7 @@ function HomeFinalCta({ text = PAGE_TEXT, locale = "zh-TW" }) {
         </div>
         <div className="home-final-cta__actions">
           <Link
-            href={localizePath("/customer-portal/create", locale)}
+            href={localizePath("/me/create", locale)}
             className="home-final-cta__button home-final-cta__button--primary"
             prefetch={false}
           >
@@ -288,18 +234,27 @@ export default async function HomeLandingPage({ locale: localeProp = "zh-TW" } =
         _count: { select: { responses: true } },
       },
     }),
-    readHomeCards({ sort: "needsPrayer", limit: 1 }),
+    // Hero 一次帶一整副牌。過去只送一張，之後每滑一次都要先打一次
+    // /api/home-cards/:id/adjacent 才知道下一張是誰 —— 每一次滑動都在
+    // 等一趟往返。首頁本來就已經跑了 12 筆與 100 筆的查詢，多帶 9 張
+    // 幾乎沒有成本。
+    readHomeCards({ sort: "needsPrayer", limit: 10 }),
   ]);
 
   const globalPrayers = globalPrayerCards.map((card) => toGlobalPrayerPayload(card, locale));
   const heroStats = buildHeroStats(stats, globalPrayers, locale);
-  const proofStats = buildProofStats(stats, globalPrayers, categories, text);
+  const platformStats = buildPlatformStats({
+    stats,
+    locationLights: countLocationLights(globalPrayers),
+    categoryCount: categories.length,
+    text,
+  });
   const clientCategories = toClientValue(categories);
   const clientTopCards = toClientValue(topCards);
   // HomeGlobeHero is a client component, so Date/Decimal values from Prisma
   // have to be flattened the same way the other client props are.
   const clientGlobalPrayers = toClientValue(globalPrayers);
-  const featuredPrayer = toClientValue(featuredPrayerCards[0] || null);
+  const featuredPrayers = toClientValue(featuredPrayerCards || []);
 
   return (
     <>
@@ -307,9 +262,9 @@ export default async function HomeLandingPage({ locale: localeProp = "zh-TW" } =
 
       <main className="home-page">
         <HomeStructuredData stats={heroStats} globalPrayerCount={globalPrayers.length} text={text} locale={locale} />
-        <HomePrayerHero text={text} prayer={featuredPrayer} />
+        <HomePrayerHero text={text} prayers={featuredPrayers} />
 
-        <HomeProofSection proofStats={proofStats} text={text} locale={locale} />
+        <HomeProofSection text={text} locale={locale} />
 
         <section>
           <HomePrayerExplorer
@@ -320,7 +275,7 @@ export default async function HomeLandingPage({ locale: localeProp = "zh-TW" } =
               title: text.explorerTitle,
               copy: text.explorerCopy,
               primaryLabel: text.explorerPrimary,
-              primaryHref: localizePath("/customer-portal/create", locale),
+              primaryHref: localizePath("/me/create", locale),
               secondaryLabel: text.explorerSecondary,
               secondaryHref: localizePath("/prayfor/one", locale),
             }}
@@ -332,8 +287,14 @@ export default async function HomeLandingPage({ locale: localeProp = "zh-TW" } =
           prayers={clientGlobalPrayers}
           stats={heroStats}
           primaryHref={localizePath("/global-prayer-room", locale)}
-          secondaryHref={localizePath("/customer-portal/create", locale)}
+          secondaryHref={localizePath("/me/create", locale)}
         />
+
+        <section className="section home-platform-stats">
+          <div className="section__container">
+            <PlatformStats items={platformStats} locale={locale} label={text.proofEyebrow} />
+          </div>
+        </section>
 
         <section className="section bg-legal-links" id="trust-links">
           <div className="section__container">

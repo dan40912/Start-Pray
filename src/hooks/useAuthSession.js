@@ -13,12 +13,30 @@ function isSameUser(a, b) {
   return JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 }
 
-async function readServerSession() {
-  const response = await fetch("/api/customer/session", { cache: "no-store" });
-  if (!response.ok) return null;
+// 每個呼叫這個 hook 的元件過去都會自己打一次 /api/customer/session。
+// 一個詳情頁上就有頁首、頁尾、留言區同時掛載 —— 同一份答案問三次。
+// 同一時間內的請求共用同一個 promise。
+let inFlight = null;
 
-  const data = await response.json().catch(() => null);
-  return data?.user ?? null;
+async function readServerSession() {
+  if (inFlight) return inFlight;
+
+  inFlight = (async () => {
+    try {
+      const response = await fetch("/api/customer/session", { cache: "no-store" });
+      if (!response.ok) return null;
+      const data = await response.json().catch(() => null);
+      return data?.user ?? null;
+    } finally {
+      // 下一個 tick 才清掉，讓同一輪掛載的元件都搭到這一班車，
+      // 但登入/登出後的重新查詢仍然打得出去。
+      setTimeout(() => {
+        inFlight = null;
+      }, 0);
+    }
+  })();
+
+  return inFlight;
 }
 
 export function useAuthSession() {

@@ -24,7 +24,7 @@ export default function robots() {
         disallow: [
           "/admin",
           "/api",
-          "/customer-portal",
+          "/me",
           "/legacy",
           "/login",
           "/signup",

@@ -8,13 +8,13 @@ import { useAdminFeedback } from "@/components/admin/useAdminFeedback";
 
 const TYPE_OPTIONS = [
   { value: "all", label: "全部" },
-  { value: "card", label: "代禱卡" },
+  { value: "card", label: "代禱" },
   { value: "response", label: "回應" },
   { value: "overcomer", label: "公開見證頁" },
 ];
 
 const TYPE_LABELS = {
-  card: "代禱卡",
+  card: "代禱",
   response: "回應",
   overcomer: "公開見證頁",
 };
@@ -75,7 +75,7 @@ export default function ModerationPage() {
   const summaryCards = useMemo(
     () => [
       { id: "all", label: "佇列項目", value: summary.total ?? 0 },
-      { id: "card", label: "代禱卡", value: summary.card ?? 0 },
+      { id: "card", label: "代禱", value: summary.card ?? 0 },
       { id: "response", label: "回應", value: summary.response ?? 0 },
       { id: "overcomer", label: "公開見證頁", value: summary.overcomer ?? 0 },
     ],
@@ -138,7 +138,7 @@ export default function ModerationPage() {
         <div>
           <p className="admin-section__eyebrow">信任與安全</p>
           <h1>審核佇列</h1>
-          <p>集中查看被檢舉的代禱卡、回應與公開見證頁，先理解脈絡，再採取封鎖動作。</p>
+          <p>集中查看被檢舉的代禱、回應與公開見證頁，先理解脈絡，再採取封鎖動作。</p>
         </div>
         <button
           type="button"
@@ -154,7 +154,7 @@ export default function ModerationPage() {
       <AdminHintPanel
         title="審核原則"
         description="Start Pray 處理的是人的需要。封鎖前請先看檢舉原因、內容脈絡與是否涉及個資。"
-        items={["私密代禱卡只顯示審核必要資訊，不提供前台連結。", "封鎖操作會走既有 admin API 並留下操作紀錄。"]}
+        items={["私密代禱只顯示審核必要資訊，不提供前台連結。", "封鎖操作會走既有 admin API 並留下操作紀錄。"]}
       />
 
       <section className="admin-section__card">

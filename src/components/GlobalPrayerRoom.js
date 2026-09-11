@@ -2285,7 +2285,7 @@ function usePrayerClusters(prayers) {
 export function GlobalPrayerRoomEmbed({
   prayers = [],
   title = "全球禱告室",
-  subtitle = "拖曳旋轉地球，查看世界各地正在被守望的代禱事項。",
+  subtitle = "拖曳旋轉地球，查看世界各地正在被守望的代禱。",
   ctaHref = "/global-prayer-room",
   ctaLabel = "進入全球禱告室",
   isHero = false,
@@ -3038,7 +3038,7 @@ export default function GlobalPrayerRoom({ prayers = [] }) {
             <p>
               {selectedPrayer
                 ? getPrayerDescription(selectedPrayer)
-                : "得勝者建立代禱事項並選擇大概城市後，光點會在地球上亮起。"}
+                : "得勝者建立代禱並選擇大概城市後，光點會在地球上亮起。"}
             </p>
             <div className="global-room__selected-meta">
               <span>{selectedCluster?.totalCount ?? 0} 筆代禱</span>
@@ -3088,7 +3088,7 @@ export default function GlobalPrayerRoom({ prayers = [] }) {
               </div>
             ) : (
               <p className="global-room__empty">
-                目前還沒有選擇城市的代禱事項。地球預設停在台北，等待第一個光點被點亮。
+                目前還沒有選擇城市的代禱。地球預設停在台北，等待第一個光點被點亮。
               </p>
             )}
           </section>
@@ -3117,7 +3117,7 @@ export default function GlobalPrayerRoom({ prayers = [] }) {
             </section>
           ) : null}
 
-          <Link href="/customer-portal/create" className="global-room__cta" prefetch={false}>
+          <Link href="/me/create" className="global-room__cta" prefetch={false}>
             新增代禱
           </Link>
         </aside>
@@ -3148,11 +3148,11 @@ export default function GlobalPrayerRoom({ prayers = [] }) {
             <h2 id="global-prayer-modal-title">
               {modalCluster.isDefaultFocus
                 ? "台北預設視角"
-                : `${modalCluster.cityLabel} 的代禱事項`}
+                : `${modalCluster.cityLabel} 的代禱`}
             </h2>
             {modalCluster.isDefaultFocus ? (
               <p>
-                目前沒有任何城市代禱光點。得勝者建立代禱事項並選擇大概城市後，光點會出現在這裡。
+                目前沒有任何城市代禱光點。得勝者建立代禱並選擇大概城市後，光點會出現在這裡。
               </p>
             ) : (
               <>
@@ -4471,7 +4471,7 @@ export function GlobalPrayerRoomPageExperience({ prayers = [] }) {
       setQueue(queue, 0);
       playTrack(queue[0]);
       setIsExpanded?.(true);
-      setReplyNotice("正在播放這個代禱事項的語音。");
+      setReplyNotice("正在播放這個代禱的語音。");
     } catch {
       setReplyNotice("語音暫時無法載入，請稍後再試。");
     }
@@ -4548,7 +4548,7 @@ export function GlobalPrayerRoomPageExperience({ prayers = [] }) {
                 <h1 id="gpr-page-title">看見世界正在被守望</h1>
                 <p>看見全球正在被守望的禱告光點，快速定位國家、聆聽語音並加入代禱。</p>
               </div>
-              <Link className="gpr-page__intro-link" href="/customer-portal/create">
+              <Link className="gpr-page__intro-link" href="/me/create">
                 新增代禱
               </Link>
             </header>
@@ -4579,7 +4579,7 @@ export function GlobalPrayerRoomPageExperience({ prayers = [] }) {
                     setSearchQuery(event.target.value);
                     setCountrySearchMessage("");
                   }}
-                  placeholder="搜尋國家、城市或代禱事項"
+                  placeholder="搜尋國家、城市或代禱"
                   autoComplete="off"
                 />
                 <button type="submit">前往</button>
@@ -4763,7 +4763,7 @@ export function GlobalPrayerRoomPageExperience({ prayers = [] }) {
             )}
             {replyNotice ? <p className="gpr-drawer__notice" role="status">{replyNotice}</p> : null}
             <div className="gpr-drawer__footnote">
-              <span>登入用戶可建立新代禱事項。</span>
+              <span>登入用戶可建立新代禱。</span>
               <span>訪客目前可瀏覽與分享；語音上傳沿用既有回覆 API 權限。</span>
             </div>
           </article>
@@ -5298,6 +5298,13 @@ export function GlobalPrayerRoomPageExperience({ prayers = [] }) {
           gap: 0.45rem;
           flex-wrap: wrap;
           justify-content: flex-end;
+          /* 沒有這兩行，換行後的按鈕會被拉伸成 211px 高的長條，蓋住地球。
+             flex 的預設 align-items / align-content 是 stretch。 */
+          align-items: flex-start;
+          align-content: flex-start;
+          /* 這個容器原本高達 647px：一片透明的覆蓋層擋在地球前面，
+             連拖曳轉動地球都會被它吃掉。 */
+          height: fit-content;
         }
 
         .gpr-page__map-controls button {

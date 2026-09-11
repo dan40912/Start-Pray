@@ -337,7 +337,7 @@ export async function POST(request) {
       });
       if (!limit.allowed) {
         return NextResponse.json(
-          { message: "短時間內建立的代禱卡較多，請稍後再試。" },
+          { message: "短時間內建立的代禱較多，請稍後再試。" },
           { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } }
         );
       }

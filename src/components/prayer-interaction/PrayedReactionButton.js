@@ -29,8 +29,11 @@ export default function PrayedReactionButton({ prayerId, text }) {
       >
         {text.label}
       </button>
-      <span className="prayed-reaction__count" aria-live="polite">
-        {count} {text.countSuffix}
+      <span
+        className={`prayed-reaction__count${count > 0 ? "" : " is-empty"}`}
+        aria-live="polite"
+      >
+        {count > 0 ? `${count} ${text.countSuffix}` : text.countEmpty || text.countSuffix}
       </span>
 
       {status === "error" ? (
@@ -60,7 +63,7 @@ export default function PrayedReactionButton({ prayerId, text }) {
           border: none;
           border-radius: 999px;
           background: var(--accent-soft);
-          color: var(--accent);
+          color: var(--accent-text);
           font-size: 0.95rem;
           font-weight: 600;
           cursor: pointer;
@@ -68,7 +71,7 @@ export default function PrayedReactionButton({ prayerId, text }) {
 
         .prayed-reaction__btn[aria-pressed="true"] {
           background: var(--accent);
-          color: #fff;
+          color: var(--text-on-accent);
         }
 
         .prayed-reaction__btn:disabled {

@@ -266,7 +266,7 @@ export default function SignupForm({ locale: localeProp = "zh-TW" }) {
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    const nextPath = resolveSafeNextPath(searchParams?.get("next"), "/customer-portal");
+    const nextPath = resolveSafeNextPath(searchParams?.get("next"), "/me");
     const normalizedUsername = String(form.username)
       .trim()
       .normalize("NFKC")
@@ -281,10 +281,13 @@ export default function SignupForm({ locale: localeProp = "zh-TW" }) {
       const errorCount = Object.keys(errors).length;
       setStatus({
         state: "error",
+        // 只有一個錯誤時，這裡原本直接把該欄位的訊息再印一次，於是
+        // 「請先閱讀並同意條款。」會同時出現在核取方塊下方與這個警示框裡，
+        // 看起來像出了兩個錯。摘要只負責指路，訊息留在欄位旁邊。
         message:
           errorCount > 1
             ? `請修正以下 ${errorCount} 個欄位後再試一次。`
-            : Object.values(errors)[0],
+            : "還有一個欄位需要修正，已經幫你捲到那裡了。",
       });
       const firstInvalidField = SIGNUP_FIELD_ORDER.find((field) => errors[field]);
       const inputId = firstInvalidField ? SIGNUP_FIELD_INPUT_ID[firstInvalidField] : null;
@@ -315,7 +318,7 @@ export default function SignupForm({ locale: localeProp = "zh-TW" }) {
       saveAuthSession(data.user);
       setStatus({
         state: "success",
-        message: nextPath === "/customer-portal" ? text.successPortal : text.successNext,
+        message: nextPath === "/me" ? text.successPortal : text.successNext,
       });
       setForm(initialForm);
       setTimeout(() => {

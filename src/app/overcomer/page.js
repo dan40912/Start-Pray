@@ -8,7 +8,7 @@ import { buildPageMetadata } from "@/lib/seo";
 
 export const metadata = buildPageMetadata({
   title: "得勝者",
-  description: "認識 Start Pray 上願意分享信仰故事、發佈代禱事項並回應他人的得勝者。",
+  description: "認識 Start Pray 上願意分享信仰故事、發佈代禱並回應他人的得勝者。",
   path: "/overcomer",
 });
 
@@ -42,7 +42,7 @@ export default async function OvercomerIndexPage() {
           <div className="cp-section__head">
             <div>
               <h1>得勝者</h1>
-              <p>認識願意分享信仰故事、發佈代禱事項，並用禱告回應他人的 Start Pray 成員。</p>
+              <p>認識願意分享信仰故事、發佈代禱，並用禱告回應他人的 Start Pray 成員。</p>
             </div>
             <Link href="/signup" prefetch={false} className="cp-button">
               加入 Start Pray
@@ -56,7 +56,7 @@ export default async function OvercomerIndexPage() {
               <p className="home-stats__hint">願意公開分享故事與代禱參與的成員</p>
             </article>
             <article className="home-stats__item">
-              <span className="home-stats__label">代禱事項</span>
+              <span className="home-stats__label">代禱</span>
               <strong className="home-stats__value">{totalCards.toLocaleString("zh-TW")}</strong>
               <p className="home-stats__hint">由得勝者發佈的代禱內容</p>
             </article>
@@ -72,14 +72,14 @@ export default async function OvercomerIndexPage() {
           <div className="cp-section__head">
             <div>
               <h2>正在參與的得勝者</h2>
-              <p>點進個人頁，看見他的自我介紹、故事、代禱事項與回應。</p>
+              <p>點進個人頁，看見他的自我介紹、故事、代禱與回應。</p>
             </div>
           </div>
 
           {overcomers.length === 0 ? (
             <div className="cp-empty">
               <p>目前尚未有公開的得勝者資料。</p>
-              <Link href="/customer-portal" prefetch={false} className="cp-link">
+              <Link href="/me" prefetch={false} className="cp-link">
                 前往會員中心完善公開個人頁
               </Link>
             </div>
@@ -109,7 +109,7 @@ export default async function OvercomerIndexPage() {
                         <div className="cp-card__meta">
                           <span>加入：{formatDateTime(item.createdAt)}</span>
                           <span>更新：{formatDateTime(item.updatedAt)}</span>
-                          <span>代禱事項：{Number(item?._count?.homePrayerCards ?? 0).toLocaleString("zh-TW")}</span>
+                          <span>代禱：{Number(item?._count?.homePrayerCards ?? 0).toLocaleString("zh-TW")}</span>
                           <span>回應：{Number(item?._count?.prayerResponses ?? 0).toLocaleString("zh-TW")}</span>
                         </div>
 

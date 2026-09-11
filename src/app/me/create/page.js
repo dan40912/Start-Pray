@@ -13,11 +13,6 @@ import { useAuthSession } from "@/hooks/useAuthSession";
 import { buildCardMetaArray } from "@/lib/card-meta";
 import { buildDefaultThumbnailUrl } from "@/lib/default-thumbnail";
 
-const HERO_POINTS = [
-  "清楚分享當前需要，讓代禱者快速抓住重點",
-  "條列式說明能幫助大家更容易進入禱告的負擔",
-];
-
 const APPROXIMATE_LOCATION_LABEL = "\u5927\u81f4\u4f4d\u7f6e";
 const TAIPEI_LOCATION = {
   locationKey: "",
@@ -46,6 +41,8 @@ const INITIAL_FORM = {
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 const MAX_GALLERY_IMAGES = 3;
+// 路由改成 /me 之後這個 key 刻意不動：換掉等於把所有人正在寫的草稿
+// 從 localStorage 裡弄丟。
 const DRAFT_STORAGE_KEY = "customer-portal-create-draft-v1";
 const AUTO_SAVE_DELAY_MS = 700;
 const UPLOADS_PREFIX = "/uploads/";
@@ -408,8 +405,8 @@ export default function CustomerPortalCreatePage() {
         message: isGuest
           ? "你的代禱已送出，會以匿名使用者顯示。"
           : createdAsPrivate
-            ? "你的禱告已儲存為不公開，只會顯示匿名大致位置光點。"
-            : "你的禱告已加入全球地圖，對應地區的光點會亮起。",
+            ? "你的禱告已儲存為不公開，地圖上只會顯示大概位置。"
+            : "你的禱告已加入世界地圖，你所在的地區會亮起來。",
       });
       setForm(INITIAL_FORM);
       setUploadedImages([]);
@@ -420,7 +417,7 @@ export default function CustomerPortalCreatePage() {
       setShowModal(true);
 
       const timer = setTimeout(() => {
-        router.push(isGuest ? "/prayfor" : "/customer-portal");
+        router.push(isGuest ? "/prayfor" : "/me");
       }, 1000);
       setRedirectTimer(timer);
     } catch (error) {
@@ -435,33 +432,18 @@ export default function CustomerPortalCreatePage() {
     guestTermsRef.current?.focus();
   };
 
-  const previewImage = form.image.trim() || buildDefaultThumbnailUrl(form.title || "禱告卡預覽");
+  const previewImage = form.image.trim() || buildDefaultThumbnailUrl(form.title || "代禱預覽");
   const isGuestUser = !authUser?.id;
   const needsGuestTerms = isGuestUser && !form.acceptedGuestTerms;
 
   return (
     <>
-      <SiteHeader activePath="/customer-portal" />
-      <main className="customer-create customer-create--editor-only">
-        <section className="customer-create__hero">
-          <div className="customer-create__hero-card">
-            <p className="customer-create__eyebrow">Share & Pray</p>
-            <h1>讓需要被看見，邀請眾人一同守望</h1>
-            <p>
-              在這裡整理你的近況、壓力與需要，讓代禱者更快理解並以禱告托住你。你可以先上傳圖片，再撰寫內容。
-            </p>
-            <ul>
-              {HERO_POINTS.map((point) => (
-                <li key={point}>{point}</li>
-              ))}
-            </ul>
-          </div>
-          <div className="customer-create__hero-visual" aria-hidden="true">
-            <div className="customer-create__hero-glow" />
-            <div className="customer-create__hero-bubble" />
-            <div className="customer-create__hero-bubble customer-create__hero-bubble--sm" />
-          </div>
-        </section>
+      <SiteHeader activePath="/me" />
+      <main className="customer-create">
+        <div className="customer-create__header-band">
+          <h1>寫下一件需要被守望的事</h1>
+          <p>把現在的處境說清楚就好，不需要寫得漂亮。</p>
+        </div>
 
         <form className="customer-create__form" onSubmit={handleSubmit}>
           {status ? (
@@ -477,8 +459,8 @@ export default function CustomerPortalCreatePage() {
             <div className="customer-create__step-head">
               <span>01</span>
               <div>
-                <h2>定義這個禱告光點</h2>
-                <p>先用最少資訊讓人理解這個代禱事項。</p>
+                <h2>你想為什麼事禱告？</h2>
+                <p>先用最少資訊讓人理解這個代禱。</p>
               </div>
             </div>
 
@@ -525,7 +507,7 @@ export default function CustomerPortalCreatePage() {
               <span>02</span>
               <div>
                 <h2>選擇全球位置</h2>
-                <p>這會決定全球禱告室中被點亮的大致光點。</p>
+                <p>你的禱告會出現在世界地圖上，只顯示大概位置。</p>
               </div>
             </div>
             <PrayerLocationField value={form} onChange={updateLocation} disabled={submitting} />
@@ -606,9 +588,9 @@ export default function CustomerPortalCreatePage() {
                       onChange={updateFormField("isPrivate")}
                     />
                     <span>
-                      <strong>內容不公開，只顯示匿名大致位置光點</strong>
+                      <strong>不公開內容，地圖上只顯示大概位置</strong>
                       <small>
-                        勾選後，全球禱告室只會顯示大致位置光點與統計，不公開標題、內文、圖片、上傳者與詳情頁。
+                        勾選後，全球禱告室只顯示大概位置與統計，不會公開標題、內文、圖片、上傳者與詳情頁。
                       </small>
                     </span>
                   </label>
@@ -660,7 +642,7 @@ export default function CustomerPortalCreatePage() {
                 <div className="customer-create__preview-block">
                   <span>封面預覽</span>
                   <div className="customer-create__preview">
-                    <img src={previewImage} alt={form.alt || form.title || "禱告卡預覽"} />
+                    <img src={previewImage} alt={form.alt || form.title || "代禱預覽"} />
                   </div>
                 </div>
               </div>
@@ -675,10 +657,10 @@ export default function CustomerPortalCreatePage() {
               aria-disabled={needsGuestTerms || submitting || isUploadingImage || isUploadingVoice}
               onClick={needsGuestTerms ? handleGuestTermsRequired : undefined}
             >
-              {submitting ? "建立中..." : "建立禱告卡"}
+              {submitting ? "建立中..." : "建立代禱"}
             </button>
             <Link
-              href={authUser?.id ? "/customer-portal" : "/login?next=/customer-portal/create"}
+              href={authUser?.id ? "/me" : "/login?next=/me/create"}
               className="button button--ghost"
               prefetch={false}
             >
@@ -697,7 +679,7 @@ export default function CustomerPortalCreatePage() {
               {authUser?.id
                 ? submittedPrivate
                   ? "這則代禱已設為不公開，公開頁與搜尋不會顯示；1 秒後會回到管理頁。"
-                  : "你的禱告已加入全球地圖，對應光點會亮起。1 秒後會回到管理頁。"
+                  : "你的禱告已加入世界地圖，你所在的地區會亮起來。1 秒後回到管理頁。"
                 : "你的代禱已送出。1 秒後會前往禱告牆。"}
             </p>
           </div>
@@ -705,27 +687,22 @@ export default function CustomerPortalCreatePage() {
       ) : null}
 
       <style jsx>{`
-        .customer-create--editor-only {
+        .customer-create {
           background:
             radial-gradient(circle at 8% 12%, rgba(59, 130, 246, 0.12), transparent 42%),
             radial-gradient(circle at 90% 82%, rgba(20, 184, 166, 0.1), transparent 46%);
           padding-bottom: 4rem;
         }
 
-        .customer-create__hero-card {
-          border: 1px solid rgba(148, 163, 184, 0.3);
-          background: linear-gradient(145deg, rgba(10, 20, 38, 0.9), rgba(15, 23, 42, 0.78));
-          box-shadow: 0 28px 50px -34px rgba(2, 6, 23, 0.8);
-        }
 
         .customer-create__form {
           width: min(980px, 100%);
           margin: 0.75rem auto 0;
           padding: clamp(0.78rem, 2vw, 1.1rem);
           border-radius: 14px;
-          border: 1px solid rgba(148, 163, 184, 0.2);
-          background: linear-gradient(160deg, rgba(7, 16, 34, 0.92), rgba(10, 21, 41, 0.88));
-          box-shadow: 0 20px 42px -34px rgba(2, 6, 23, 0.86);
+          border: 1px solid var(--line-1);
+          background: var(--surface-1);
+          box-shadow: var(--elev-2);
         }
 
         .customer-create__step {
@@ -734,7 +711,7 @@ export default function CustomerPortalCreatePage() {
           border: 1px solid rgba(148, 163, 184, 0.16);
           border-radius: 12px;
           padding: clamp(0.78rem, 2vw, 1rem);
-          background: rgba(2, 6, 23, 0.18);
+          background: var(--surface-3);
         }
 
         .customer-create__step + .customer-create__step {
@@ -755,10 +732,10 @@ export default function CustomerPortalCreatePage() {
           height: 2rem;
           border: 1px solid rgba(125, 211, 252, 0.34);
           border-radius: 999px;
-          color: #67e8f9;
+          color: var(--accent-text);
           font-size: 0.78rem;
           font-weight: 900;
-          background: rgba(14, 165, 233, 0.12);
+          background: var(--accent-soft);
         }
 
         .customer-create__step-head h2,
@@ -767,20 +744,20 @@ export default function CustomerPortalCreatePage() {
         }
 
         .customer-create__step-head h2 {
-          color: #f8fafc;
+          color: var(--text-1);
           font-size: 1.05rem;
           line-height: 1.25;
         }
 
         .customer-create__step-head p {
           margin-top: 0.22rem;
-          color: rgba(203, 213, 225, 0.74);
+          color: var(--text-2);
           font-size: 0.84rem;
           line-height: 1.5;
         }
 
         .customer-create__step--map {
-          background: rgba(2, 6, 23, 0.14);
+          background: var(--surface-3);
         }
 
         .customer-create__row label {
@@ -789,7 +766,7 @@ export default function CustomerPortalCreatePage() {
         }
 
         .customer-create__row label > span {
-          color: rgba(226, 232, 240, 0.95);
+          color: var(--text-1);
           font-size: 0.84rem;
           font-weight: 700;
           letter-spacing: 0.01em;
@@ -800,8 +777,8 @@ export default function CustomerPortalCreatePage() {
         .customer-create__row textarea {
           border-radius: 12px;
           border: 1px solid rgba(148, 163, 184, 0.36);
-          background: rgba(15, 23, 42, 0.66);
-          color: #f8fbff;
+          background: var(--surface-2);
+          color: var(--text-1);
           min-height: 44px;
           padding: 0.7rem 0.78rem;
         }
@@ -820,13 +797,12 @@ export default function CustomerPortalCreatePage() {
         }
 
         .customer-create__preview {
-          border: 1px dashed rgba(125, 211, 252, 0.36);
+          border: 1px dashed var(--line-2);
           border-radius: 12px;
           min-height: 180px;
           display: grid;
           place-items: center;
-          background:
-            linear-gradient(180deg, rgba(15, 23, 42, 0.58), rgba(2, 6, 23, 0.42));
+          background: var(--surface-2);
         }
 
         .customer-create__preview-block {
@@ -835,7 +811,7 @@ export default function CustomerPortalCreatePage() {
         }
 
         .customer-create__preview-block > span {
-          color: rgba(226, 232, 240, 0.95);
+          color: var(--text-1);
           font-size: 0.84rem;
           font-weight: 800;
         }
@@ -851,7 +827,7 @@ export default function CustomerPortalCreatePage() {
           display: flex;
           align-items: flex-start;
           gap: 0.75rem;
-          color: #e2f6ff;
+          color: var(--text-1);
         }
 
         .customer-create__privacy-card input {
@@ -867,11 +843,11 @@ export default function CustomerPortalCreatePage() {
         }
 
         .customer-create__privacy-card strong {
-          color: #ffffff;
+          color: var(--text-1);
         }
 
         .customer-create__privacy-card small {
-          color: rgba(226, 232, 240, 0.76);
+          color: var(--text-2);
           line-height: 1.55;
         }
 
@@ -884,14 +860,14 @@ export default function CustomerPortalCreatePage() {
         }
 
         .customer-create__placeholder {
-          color: rgba(226, 232, 240, 0.82);
+          color: var(--text-2);
           font-size: 0.9rem;
         }
 
         .customer-create__status {
           border-radius: 12px;
           border: 1px solid rgba(148, 163, 184, 0.34);
-          background: rgba(15, 23, 42, 0.5);
+          background: var(--surface-2);
           padding: 0.65rem 0.78rem;
         }
 
@@ -904,7 +880,7 @@ export default function CustomerPortalCreatePage() {
           border: 1px solid rgba(125, 211, 252, 0.2);
           border-radius: 16px;
           padding: 0.9rem;
-          background: rgba(2, 6, 23, 0.32);
+          background: var(--surface-3);
         }
 
         .customer-create__mode span,
@@ -913,13 +889,13 @@ export default function CustomerPortalCreatePage() {
         }
 
         .customer-create__mode span {
-          color: #f8fafc;
+          color: var(--text-1);
           font-weight: 900;
         }
 
         .customer-create__mode p {
           margin-top: 0.25rem;
-          color: rgba(226, 232, 240, 0.7);
+          color: var(--text-2);
           font-size: 0.85rem;
         }
 
@@ -935,14 +911,14 @@ export default function CustomerPortalCreatePage() {
           border-radius: 999px;
           padding: 0 0.8rem;
           color: #cbd5e1;
-          background: rgba(15, 23, 42, 0.72);
+          background: var(--surface-2);
           cursor: pointer;
           font-weight: 900;
         }
 
         .customer-create__mode-actions button.is-active {
           border-color: rgba(125, 211, 252, 0.62);
-          color: #f8fafc;
+          color: var(--text-1);
           background: rgba(14, 165, 233, 0.22);
         }
 
@@ -959,7 +935,8 @@ export default function CustomerPortalCreatePage() {
         }
 
         .customer-create__actions :global(.button--primary) {
-          background: linear-gradient(135deg, #3b82f6, #0ea5e9);
+          background: var(--accent);
+          color: var(--text-on-accent);
           border-color: transparent;
         }
 
@@ -972,8 +949,8 @@ export default function CustomerPortalCreatePage() {
 
         .customer-create__actions :global(.button--ghost) {
           border-color: rgba(148, 163, 184, 0.45);
-          color: #e2e8f0;
-          background: rgba(15, 23, 42, 0.4);
+          color: var(--text-1);
+          background: var(--surface-3);
         }
 
         .customer-create__row--description textarea {
@@ -987,13 +964,10 @@ export default function CustomerPortalCreatePage() {
         }
 
         @media (max-width: 640px) {
-          .customer-create--editor-only {
+          .customer-create {
             padding-inline: 0.55rem;
           }
 
-          .customer-create__hero {
-            display: none;
-          }
 
           .customer-create__form {
             border-radius: 12px;
@@ -1036,7 +1010,7 @@ export default function CustomerPortalCreatePage() {
             z-index: 20;
             border: 1px solid rgba(148, 163, 184, 0.28);
             border-radius: 16px;
-            background: rgba(2, 6, 23, 0.86);
+            background: var(--surface-2);
             padding: 0.65rem;
             backdrop-filter: blur(14px);
           }
@@ -1054,7 +1028,7 @@ export default function CustomerPortalCreatePage() {
         .customer-create__advanced {
           border: 1px solid rgba(148, 163, 184, 0.14);
           border-radius: 12px;
-          background: rgba(15, 23, 42, 0.2);
+          background: var(--surface-3);
           overflow: hidden;
         }
 
@@ -1063,7 +1037,7 @@ export default function CustomerPortalCreatePage() {
           display: flex;
           align-items: center;
           padding: 0 0.85rem;
-          color: #dbeafe;
+          color: var(--text-1);
           cursor: pointer;
           font-weight: 900;
         }

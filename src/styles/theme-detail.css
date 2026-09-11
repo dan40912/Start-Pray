@@ -1,6 +1,4 @@
-:root {
-  --site-header-height: 72px;
-}
+/* :root 已收斂到 src/styles/tokens.css —— 全站唯一的 token 來源。 */
 
 /* ------------------------------------------
    DETAIL PAGE SPECIFIC STYLES
@@ -402,7 +400,7 @@
 .player-hint {
   margin-top: 0.5rem;
   font-size: 0.8rem;
-  color: var(--accent-gold);
+  color: var(--accent-text);
 }
 
 @media (max-width: 768px) {
@@ -996,7 +994,7 @@
   box-shadow: var(--glow-gold);
 }
 
-.play-icon { font-size: 1.2rem; color: var(--accent-gold); }
+.play-icon { font-size: 1.2rem; color: var(--accent-text); }
 
 .waveform-bars {
   display: flex;
@@ -1286,9 +1284,9 @@
   min-height: 44px;
   padding: 0.5rem 1rem;
   border-radius: 999px;
-  border: 1px solid rgba(125, 211, 252, 0.55);
-  background: linear-gradient(135deg, #1d4ed8, #0ea5e9);
-  color: #f8fbff;
+  border: 1px solid var(--line-2);
+  background: transparent;
+  color: var(--text-1);
   font-weight: 600;
   font-size: 0.85rem;
   line-height: 1;
@@ -1436,11 +1434,8 @@
 .pdv2-meta-row span {
   display: block;
   font-size: 0.82rem;
-  color: rgba(203, 213, 225, 0.95);
-  background: rgba(15, 23, 42, 0.72);
-  border: 1px solid rgba(148, 163, 184, 0.24);
-  border-radius: 10px;
-  padding: 0.45rem 0.65rem;
+  color: var(--text-2);
+  padding: 0.2rem 0;
 }
 
 .pdv2-content-card,
@@ -1564,8 +1559,8 @@
 }
 
 .pdv2-sticky-actions a:first-child {
-  background: linear-gradient(135deg, #1d4ed8, #0ea5e9);
-  color: #fff;
+  background: var(--accent);
+  color: var(--text-on-accent);
 }
 
 .pdv2-content-card {
@@ -1932,7 +1927,7 @@
 .pdv2-player__progress-fill {
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #38bdf8, #1d4ed8);
+  background: var(--accent);
 }
 
 .pdv2-player__time {
@@ -2257,28 +2252,32 @@
     gap: 0.6rem;
   }
 
+  /* 這幾條規則過去讓 header 換行、操作鈕撐成整行 —— 結果「分享 / ⋯」自成
+     一列，插在名字與留言內文之間，把閱讀順序切斷。留言的內文必須緊接在名字
+     之後；操作鈕收回名字那一行的右端。 */
   #responses-panel .comment-item__header {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
   }
 
   #responses-panel .comment-item__meta-actions {
-    width: 100%;
+    width: auto;
     min-width: 0;
-    margin-left: 0;
-    justify-items: stretch;
-    gap: 0.55rem;
+    margin-left: auto;
+    justify-items: end;
+    gap: 0.35rem;
   }
 
   #responses-panel .comment-item__actions {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 0.5rem;
-    justify-content: stretch;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    justify-content: flex-end;
   }
 
   #responses-panel .comment-item__action-btn {
-    min-height: 40px;
-    width: 100%;
+    min-height: 36px;
+    width: auto;
+    padding-inline: 0.7rem;
     justify-content: center;
   }
 
@@ -2654,13 +2653,15 @@
   white-space: nowrap;
 }
 
+/* 這一塊原本是 #edf6f3 薄荷底 + #365b5e 綠字 —— 又一個舊淺色版的殘留，
+   在深色的詳情頁上是一塊突兀的淺色方塊。 */
 .comments__guest-note {
   margin: 0 0 0.9rem;
-  border: 1px solid rgba(47, 111, 115, 0.24);
-  border-radius: 10px;
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-md);
   padding: 0.75rem 0.85rem;
-  color: #365b5e;
-  background: #edf6f3;
+  color: var(--text-2);
+  background: var(--surface-3);
   font-size: 0.92rem;
   line-height: 1.55;
 }
@@ -2672,7 +2673,9 @@
     z-index: 5;
     margin: 0.75rem -0.25rem -0.25rem;
     padding: 0.35rem;
-    background: linear-gradient(to bottom, rgba(255, 253, 248, 0.86), #fffdf8 35%);
+    /* 這裡原本是 #fffdf8 —— 舊淺色版留下的奶白，在深色頁上就是那塊
+       包住「送出文字禱告」的白方塊。改成跟留言卡同色的上緣淡出。 */
+    background: linear-gradient(to bottom, rgba(17, 29, 51, 0), var(--surface-1) 35%);
   }
 
   .pdv2-comments-card .record-toolbar .btn {
@@ -2752,4 +2755,40 @@
   background: transparent;
   color: #9aa5b4;
   font-size: 14px;
+}
+
+/* 「看更多回應」—— 回應區預設只顯示 5 則。 */
+.comments__show-more {
+  align-self: start;
+  margin-top: 0.25rem;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-1);
+  font-size: 0.86rem;
+  cursor: pointer;
+}
+
+.comments__show-more:hover {
+  background: var(--surface-3);
+}
+
+/* 名字與操作鈕同一行時，名字負責截斷，按鈕不換行 —— 不然「分享」會被壓成
+   直排兩個字，名字被擠成兩行。 */
+.comment-item__identity {
+  min-width: 0;
+}
+
+.comment-item__name,
+.comment-item__identity strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.comment-item__action-btn,
+.comment-item__menu-trigger {
+  white-space: nowrap;
 }
