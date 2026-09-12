@@ -13,7 +13,6 @@ import VoicePrayerOverlay from "@/components/VoicePrayerOverlay";
 import { REPORT_REASONS } from "@/constants/reportReasons";
 
 const MAX_AUDIO_BYTES = 12 * 1024 * 1024;
-const ACCEPTED_AUDIO_TYPES = "audio/webm,audio/mpeg,audio/mp4,audio/aac,audio/ogg,audio/wav,.webm,.mp3,.m4a,.aac,.ogg,.wav";
 
 // ===== Shared helpers =====
 function formatMessage(template, values = {}) {
@@ -126,9 +125,6 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
   const [showAllResponses, setShowAllResponses] = useState(false);
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [text, setText] = useState("");
-  const [audioFile, setAudioFile] = useState(null);
-  const [audioInputKey, setAudioInputKey] = useState(0);
-  const [responseMode, setResponseMode] = useState("prayer");
   const [responses, setResponses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -356,7 +352,8 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
 
   const submitResponse = async ({ audioOverride, textOverride } = {}) => {
     const effectiveText = textOverride !== undefined ? textOverride : text;
-    const effectiveAudio = audioOverride !== undefined ? audioOverride : audioFile;
+    // Audio only arrives from the voice-prayer overlay; the manual file upload was removed.
+    const effectiveAudio = audioOverride || null;
 
     if (submittingResponse) return false;
     if (isCoolingDown) {
@@ -413,9 +410,6 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
         window.dispatchEvent(new CustomEvent(PRAYER_RESPONSE_CREATED, { detail: saved }));
       }
       setText("");
-      setAudioFile(null);
-      setAudioInputKey((prev) => prev + 1);
-      setResponseMode("prayer");
       setIsAnonymous(false);
       setCooldownNow(Date.now());
       setCooldownUntil(Date.now() + 120 * 1000);
@@ -466,12 +460,6 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
   const pendingReviewCount = responses.filter(
     (response) => response.isBlocked || Number(response.reportCount ?? 0) > 0
   ).length;
-  const responseModes = [
-    { key: "prayer", label: commentsText.modes.prayer[0], placeholder: commentsText.modes.prayer[1] },
-    { key: "encouragement", label: commentsText.modes.encouragement[0], placeholder: commentsText.modes.encouragement[1] },
-    { key: "testimony", label: commentsText.modes.testimony[0], placeholder: commentsText.modes.testimony[1] },
-  ];
-  const activeMode = responseModes.find((mode) => mode.key === responseMode) || responseModes[0];
 
   return (
     <section className="comments card">
@@ -691,78 +679,38 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
           </div>
           <form className="comment-form" id="response-composer" onSubmit={handleSubmit} noValidate>
             {!authUser ? <p className="comments__guest-note">{commentsText.guestTextNotice}</p> : null}
-            <div className="prayer-response-modes" aria-label={commentsText.modeLabel}>
-              {responseModes.map((mode) => (
-                <button
-                  key={mode.key}
-                  type="button"
-                  className={responseMode === mode.key ? "is-active" : ""}
-                  onClick={async () => {
-                    setResponseMode(mode.key);
-                    if (mode.key === "encouragement" && !text.trim()) {
-                      setText(commentsText.modes.encouragement[2]);
-                    }
-                    if (mode.key === "testimony" && !text.trim()) {
-                      setText(commentsText.modes.testimony[2]);
-                    }
-                  }}
-                >
-                  {mode.label}
-                </button>
-              ))}
-            </div>
-            {authUser ? <label className="checkbox">
-              <input
-                type="checkbox"
-                checked={isAnonymous}
-                onChange={(event) => setIsAnonymous(event.target.checked)}
-              />
-              {commentsText.anonymousPost}
-            </label> : null}
+            {authUser ? (
+              <label className={`comment-form__anon-switch${isAnonymous ? " is-on" : ""}`}>
+                <input
+                  type="checkbox"
+                  role="switch"
+                  checked={isAnonymous}
+                  onChange={(event) => setIsAnonymous(event.target.checked)}
+                />
+                <span className="comment-form__anon-track" aria-hidden="true">
+                  <span className="comment-form__anon-thumb" />
+                </span>
+                <span className="comment-form__anon-copy">
+                  <strong>{commentsText.anonymousPost}</strong>
+                  <small>（{commentsText.anonymousHint}）</small>
+                </span>
+                <span className="comment-form__anon-state">
+                  {isAnonymous ? commentsText.anonymousStateOn : commentsText.anonymousStateOff}
+                </span>
+              </label>
+            ) : null}
 
             <textarea
               ref={textareaRef}
               value={text}
               onChange={(event) => setText(event.target.value)}
-              placeholder={audioFile ? commentsText.textPlaceholderWithAudio : activeMode.placeholder}
+              placeholder={commentsText.textPlaceholder}
               rows={4}
               minLength={8}
               maxLength={2000}
               aria-describedby="response-text-help"
             />
-            <small id="response-text-help" className="cp-helper">{commentsText.textRules}</small>
-            {authUser ? <label className="comment-form__audio">
-              <span>{commentsText.audioLabel}</span>
-              <input
-                key={audioInputKey}
-                type="file"
-                accept={ACCEPTED_AUDIO_TYPES}
-                onChange={(event) => {
-                  const file = event.target.files?.[0] || null;
-                  setAudioFile(file);
-                  if (file && Number(file.size) > MAX_AUDIO_BYTES) {
-                    setActionNotice(commentsText.audioTooLargeShort);
-                    setActionNoticeType("error");
-                    setActionNoticeLoginHref("");
-                  }
-                }}
-              />
-              <small>
-                {commentsText.audioHelp}
-              </small>
-              {audioFile ? (
-                <button
-                  type="button"
-                  className="comment-form__clear-audio"
-                  onClick={() => {
-                    setAudioFile(null);
-                    setAudioInputKey((prev) => prev + 1);
-                  }}
-                >
-                  {formatMessage(commentsText.removeAudio, { name: audioFile.name })}
-                </button>
-              ) : null}
-            </label> : null}
+            <small id="response-text-help" className="comment-form__rules">{commentsText.textRules}</small>
             <div className="record-toolbar">
               <button
                 type="submit"
