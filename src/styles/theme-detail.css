@@ -2541,6 +2541,42 @@
   background: #4db6ac;
 }
 
+/* Input level meter — the bars above keep an idle animation even with no
+   signal, so this is what actually shows the microphone is picking up sound.
+   Matches .prayer-recorder__meter on the homepage. */
+.vpo-meter {
+  width: min(260px, 100%);
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.25);
+  overflow: hidden;
+}
+
+.vpo-meter-fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  background: #34d399;
+  transform: scaleX(0.02);
+  transform-origin: left center;
+  transition: transform 90ms linear;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vpo-meter-fill {
+    transition: none;
+  }
+}
+
+.vpo-meter-notice {
+  margin: 0;
+  font-size: 13px;
+  color: #fbbf24;
+  text-align: center;
+  line-height: 1.5;
+}
+
 /* Live transcript */
 .vpo-live-transcript {
   min-height: 56px;

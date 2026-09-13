@@ -2,9 +2,36 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import GainAudio from "@/components/GainAudio";
+import { analyzeRecording } from "@/components/prayer-recorder/analyze-recording";
+import {
+  SILENCE_RMS_THRESHOLD,
+  isMobileBrowser,
+  judgeRecording,
+} from "@/components/prayer-recorder/recorder-utils";
 
 const REC_MAX = 60;
 const REC_MIN = 3;
+
+// MediaRecorder is started with a 1-second timeslice, so a healthy recording
+// hands over a chunk every second. If the microphone stops delivering, the
+// chunks stop while the timer keeps counting. Five seconds without a chunk is
+// well past any normal delivery jitter.
+const INPUT_STALL_MS = 5000;
+
+const FAIL_MESSAGES = {
+  empty: "錄音未能完整保存，剛才的內容不會送出。請重新錄製。",
+  silent: "錄音裡沒有收到任何聲音，可能是麥克風被靜音或被其他程式佔用。剛才的內容不會送出，請重新錄製。",
+  tooShort: (seconds) =>
+    `只錄到 ${seconds.toFixed(1)} 秒的聲音，麥克風可能在錄音途中被中斷了。剛才的內容不會送出，請重新錄製。`,
+};
+
+function failMessageFor(verdict) {
+  if (verdict.reason === "silent") return FAIL_MESSAGES.silent;
+  if (verdict.reason === "too-short" && Number.isFinite(verdict.durationSeconds)) {
+    return FAIL_MESSAGES.tooShort(verdict.durationSeconds);
+  }
+  return FAIL_MESSAGES.empty;
+}
 
 function fmt(sec) {
   const s = Math.max(0, Math.floor(sec));
@@ -23,6 +50,10 @@ function WaveBars({ live, refEl }) {
       ))}
     </div>
   );
+}
+
+function emptyRecording() {
+  return { blob: null, url: null, duration: 0, transcript: "", segments: [], verified: false };
 }
 
 /**
@@ -44,33 +75,43 @@ const MIC_CONSTRAINTS = {
 
 export default function VoicePrayerOverlay({ onComplete, onCancel }) {
   // ── Speech recognition ref ──────────────────────────────────────────────
+  // Captions run only where they can share the microphone with the recorder.
+  // See isMobileBrowser in recorder-utils for why phones record without them.
   const SRRef = useRef(null);
+  const captionsOnRef = useRef(false);
+  const [captionsOn, setCaptionsOn] = useState(false);
   useEffect(() => {
     if (typeof window === "undefined") return;
     SRRef.current = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+    captionsOnRef.current = Boolean(SRRef.current) && !isMobileBrowser();
+    setCaptionsOn(captionsOnRef.current);
   }, []);
 
   // ── Recording infrastructure refs ───────────────────────────────────────
   const mediaStreamRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
+  const lastChunkAtRef = useRef(0);
+  const chunkSeenRef = useRef(false);
   const audioCtxRef = useRef(null);
   const rafRef = useRef(null);
   const recogRef = useRef(null);
   const recStartMsRef = useRef(0);
   const segStartRef = useRef(0);
   const interimTranscriptRef = useRef("");
-  const recRef = useRef({ blob: null, url: null, duration: 0, transcript: "", segments: [] });
+  const recRef = useRef(emptyRecording());
   const recSecRef = useRef(0);
   const pvAudioRef = useRef(null);
   const waveRef = useRef(null);
+  const meterFillRef = useRef(null);
+  const heardSoundRef = useRef(false);
   const timersRef = useRef([]);
   const recorderDoneRef = useRef(null);
   const recordingRunRef = useRef(0);
   const isFinishingRef = useRef(false);
 
   // ── UI state ────────────────────────────────────────────────────────────
-  // phase: vperm | vdenied | vcount | vrec | vproc | vconfirm
+  // phase: vperm | vdenied | vcount | vrec | vproc | vconfirm | vfail
   const [phase, setPhase] = useState("vperm");
   const [recSec, setRecSec] = useState(0);
   const [countN, setCountN] = useState(3);
@@ -83,6 +124,10 @@ export default function VoicePrayerOverlay({ onComplete, onCancel }) {
   const [voiceBusy, setVoiceBusy] = useState(false);
   const [toastMsg, setToastMsg] = useState("");
   const [previewUrl, setPreviewUrl] = useState("");
+  const [failMsg, setFailMsg] = useState("");
+  // Same input detector as the homepage recorder: the wave bars animate even
+  // with no signal, so on their own they cannot tell a muted mic from a live one.
+  const [heardSound, setHeardSound] = useState(false);
 
   // ── Helpers ─────────────────────────────────────────────────────────────
   const clearTimers = useCallback(() => {
@@ -127,6 +172,7 @@ export default function VoicePrayerOverlay({ onComplete, onCancel }) {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     rafRef.current = null;
     setWaveLive(false);
+    if (meterFillRef.current) meterFillRef.current.style.transform = "scaleX(0.02)";
     if (recogRef.current) {
       try { recogRef.current.stop(); } catch {}
       recogRef.current = null;
@@ -135,7 +181,7 @@ export default function VoicePrayerOverlay({ onComplete, onCancel }) {
 
   const stopRecorder = useCallback(() => {
     try {
-      if (mediaRecorderRef.current?.state !== "inactive") {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
         mediaRecorderRef.current.stop();
       }
     } catch {}
@@ -198,6 +244,12 @@ export default function VoicePrayerOverlay({ onComplete, onCancel }) {
       analyser.fftSize = 64;
       src.connect(analyser);
       const data = new Uint8Array(analyser.frequencyBinCount);
+      // A second, wider window for the level meter: 64 samples is too short
+      // for a stable RMS reading.
+      const levelAnalyser = audioCtxRef.current.createAnalyser();
+      levelAnalyser.fftSize = 1024;
+      src.connect(levelAnalyser);
+      const samples = new Float32Array(levelAnalyser.fftSize);
       setWaveLive(true);
       const loop = () => {
         analyser.getByteFrequencyData(data);
@@ -205,6 +257,20 @@ export default function VoicePrayerOverlay({ onComplete, onCancel }) {
         bars.forEach((b, i) => {
           b.style.height = `${Math.max(10, ((data[i + 2] || 0) / 255) * 56)}px`;
         });
+
+        levelAnalyser.getFloatTimeDomainData(samples);
+        let sum = 0;
+        for (let i = 0; i < samples.length; i += 1) sum += samples[i] * samples[i];
+        const rms = Math.sqrt(sum / samples.length);
+        // Written straight to the element, like the bars, so the overlay does
+        // not re-render sixty times a second. Scale matches the homepage meter.
+        if (meterFillRef.current) {
+          meterFillRef.current.style.transform = `scaleX(${Math.max(0.02, Math.min(1, rms * 6))})`;
+        }
+        if (!heardSoundRef.current && rms >= SILENCE_RMS_THRESHOLD) {
+          heardSoundRef.current = true;
+          setHeardSound(true);
+        }
         rafRef.current = requestAnimationFrame(loop);
       };
       loop();
@@ -264,7 +330,29 @@ export default function VoicePrayerOverlay({ onComplete, onCancel }) {
     }
   }, []);
 
+  // ── Give up on a recording ───────────────────────────────────────────────
+  // Everything captured so far is discarded and the microphone released, so a
+  // retry starts from a fresh stream rather than the one that just failed.
+  const failRecording = useCallback(
+    (message) => {
+      recordingRunRef.current += 1;
+      stopWaveAndRecog();
+      clearTimers();
+      stopRecorder();
+      releaseMic();
+      if (recRef.current.url) URL.revokeObjectURL(recRef.current.url);
+      recRef.current = emptyRecording();
+      setPreviewUrl("");
+      setFailMsg(message);
+      setPhase("vfail");
+    },
+    [clearTimers, releaseMic, stopRecorder, stopWaveAndRecog]
+  );
+
   // ── Finish recording ─────────────────────────────────────────────────────
+  // `force` only skips the timer's 3-second gate (auto-stop at the limit, a
+  // lost microphone). It never skips checking the audio itself: the timer
+  // proves time passed, not that anything was recorded.
   const finishRec = useCallback(
     async (force) => {
       if (isFinishingRef.current) return;
@@ -273,7 +361,6 @@ export default function VoicePrayerOverlay({ onComplete, onCancel }) {
         return;
       }
       isFinishingRef.current = true;
-      recRef.current.duration = recSecRef.current;
       stopWaveAndRecog();
       clearTimers();
       setPhase("vproc");
@@ -287,7 +374,18 @@ export default function VoicePrayerOverlay({ onComplete, onCancel }) {
           r.url = URL.createObjectURL(r.blob);
           setPreviewUrl(r.url);
         }
-        if (!r.blob?.size) throw new Error("EMPTY_RECORDING");
+
+        const verdict = judgeRecording({
+          analysis: await analyzeRecording(r.blob),
+          blobSize: r.blob?.size || 0,
+        });
+        if (!verdict.ok) {
+          failRecording(failMessageFor(verdict));
+          return;
+        }
+
+        r.duration = verdict.durationSeconds ?? recSecRef.current;
+        r.verified = true;
         r.transcript =
           r.segments.map((s) => s.t).join("，") || interimTranscriptRef.current.trim();
         setVcDur(r.duration);
@@ -295,17 +393,18 @@ export default function VoicePrayerOverlay({ onComplete, onCancel }) {
         setVcHint(
           r.transcript
             ? "字幕可以修改，不會改變原語音。"
-            : "沒有取得即時字幕；可以自己補一句，或直接送出純語音。"
+            : captionsOnRef.current
+              ? "沒有取得即時字幕；可以自己補一句，或直接送出純語音。"
+              : "可以在這裡補上一句文字，或直接送出純語音。"
         );
         setPhase("vconfirm");
       } catch {
-        setPhase("vrec");
-        showToast("錄音未能完整保存，請重新錄製；剛才的內容不會送出。");
+        failRecording(FAIL_MESSAGES.empty);
       } finally {
         isFinishingRef.current = false;
       }
     },
-    [clearTimers, showToast, stopRecorderAndWait, stopWaveAndRecog]
+    [clearTimers, failRecording, showToast, stopRecorderAndWait, stopWaveAndRecog]
   );
 
   // ── Start recording ──────────────────────────────────────────────────────
@@ -316,7 +415,10 @@ export default function VoicePrayerOverlay({ onComplete, onCancel }) {
     recSecRef.current = 0;
     setRecSec(0);
     chunksRef.current = [];
-    recRef.current = { blob: null, url: null, duration: 0, transcript: "", segments: [] };
+    chunkSeenRef.current = false;
+    heardSoundRef.current = false;
+    setHeardSound(false);
+    recRef.current = emptyRecording();
     recStartMsRef.current = performance.now();
     segStartRef.current = 0;
     interimTranscriptRef.current = "";
@@ -342,7 +444,10 @@ export default function VoicePrayerOverlay({ onComplete, onCancel }) {
     }
     mediaRecorderRef.current = recorder;
     recorder.ondataavailable = (e) => {
-      if (runId === recordingRunRef.current && e.data.size) chunksRef.current.push(e.data);
+      if (runId !== recordingRunRef.current || !e.data.size) return;
+      chunksRef.current.push(e.data);
+      chunkSeenRef.current = true;
+      lastChunkAtRef.current = performance.now();
     };
     recorder.onstop = () => {
       if (runId !== recordingRunRef.current) return;
@@ -364,16 +469,19 @@ export default function VoicePrayerOverlay({ onComplete, onCancel }) {
     recorder.onstart = () => {
       if (runId !== recordingRunRef.current) return;
       recStartMsRef.current = performance.now();
+      lastChunkAtRef.current = performance.now();
       startWave();
-      startRecog();
+      if (captionsOnRef.current) startRecog();
     };
 
     const audioTrack = mediaStreamRef.current?.getAudioTracks?.()[0];
     if (audioTrack) {
       audioTrack.onmute = () => {
         stopWaveAndRecog();
-        showToast("麥克風輸入暫時中斷；請確認沒有其他程式正在使用麥克風後重新錄製。");
+        showToast("麥克風輸入暫時中斷；請確認沒有其他程式正在使用麥克風。");
       };
+      // Keep whatever was captured before the track ended — finishRec checks
+      // the audio and turns this into a retry if too little was recorded.
       audioTrack.onended = () => {
         if (recorder.state === "recording") void finishRec(true);
       };
@@ -387,9 +495,19 @@ export default function VoicePrayerOverlay({ onComplete, onCancel }) {
     addTimer(() => {
       recSecRef.current += 1;
       setRecSec(recSecRef.current);
+      if (isFinishingRef.current || recorder.state !== "recording") return;
+
+      // Armed only after a first chunk, so a browser that ignores the timeslice
+      // and delivers everything at stop is never mistaken for a lost microphone.
+      if (chunkSeenRef.current && performance.now() - lastChunkAtRef.current > INPUT_STALL_MS) {
+        showToast("麥克風停止收音了，正在保存已錄到的部分");
+        void finishRec(true);
+        return;
+      }
+
       if (recSecRef.current >= REC_MAX) {
         showToast("已達 60 秒上限，已自動保存錄音");
-        finishRec(true);
+        void finishRec(true);
       }
     }, 1000);
   }, [addTimer, finishRec, onCancel, showToast, startRecog, startWave, stopWaveAndRecog]);
@@ -404,6 +522,12 @@ export default function VoicePrayerOverlay({ onComplete, onCancel }) {
       if (n > 0) {
         setCountN(n);
       } else {
+        // The countdown interval must die here. It used to keep ticking, so
+        // every second after zero it called startRec() again: a new recorder,
+        // a cleared chunk list, a fresh caption session. The uploaded file only
+        // ever held the audio since the last restart — 0.18 s and 0.6 s on
+        // 2026-09-13 — while the stacked record timers kept the clock moving.
+        clearTimers();
         setPhase("vrec");
         startRec();
       }
@@ -416,6 +540,7 @@ export default function VoicePrayerOverlay({ onComplete, onCancel }) {
       setPhase("vdenied");
       return;
     }
+    releaseMic();
     try {
       mediaStreamRef.current = await navigator.mediaDevices.getUserMedia({ audio: MIC_CONSTRAINTS });
       setPhase("vcount");
@@ -423,7 +548,7 @@ export default function VoicePrayerOverlay({ onComplete, onCancel }) {
     } catch {
       setPhase("vdenied");
     }
-  }, [runCountdown]);
+  }, [releaseMic, runCountdown]);
 
   // ── Restart recording ────────────────────────────────────────────────────
   const restartRec = useCallback(async () => {
@@ -433,9 +558,15 @@ export default function VoicePrayerOverlay({ onComplete, onCancel }) {
     recordingRunRef.current += 1;
     if (pvAudioRef.current) pvAudioRef.current.pause();
     setPvPlaying(false);
+    // A stream whose track has ended cannot record again; ask for a new one.
+    const track = mediaStreamRef.current?.getAudioTracks?.()[0];
+    if (!track || track.readyState !== "live") {
+      await askMic();
+      return;
+    }
     setPhase("vcount");
     runCountdown();
-  }, [clearTimers, runCountdown, stopRecorderAndWait, stopWaveAndRecog]);
+  }, [askMic, clearTimers, runCountdown, stopRecorderAndWait, stopWaveAndRecog]);
 
   // ── Cancel / close ────────────────────────────────────────────────────────
   const handleCancel = useCallback(() => {
@@ -472,7 +603,7 @@ export default function VoicePrayerOverlay({ onComplete, onCancel }) {
     const r = recRef.current;
     const edited = vcTx.trim();
 
-    if (!r.blob) {
+    if (!r.blob || !r.verified) {
       showToast("錄音資料遺失，請重新錄製");
       return;
     }
@@ -521,7 +652,9 @@ export default function VoicePrayerOverlay({ onComplete, onCancel }) {
               改用文字禱告
             </button>
             <p className="vpo-hint">
-              字幕使用瀏覽器內建語音辨識（免費）。不支援的瀏覽器仍可錄音，錄完可自行補上文字。
+              {captionsOn
+                ? "字幕使用瀏覽器內建語音辨識（免費）。不支援的瀏覽器仍可錄音，錄完可自行補上文字。"
+                : "為了確保錄音完整，錄音時不會同步產生字幕；錄完可以自己補上文字。"}
             </p>
           </div>
         )}
@@ -565,12 +698,24 @@ export default function VoicePrayerOverlay({ onComplete, onCancel }) {
               <span className="vpo-rec-remain">剩餘 {REC_MAX - recSec} 秒</span>
             </div>
             <WaveBars live={waveLive} refEl={waveRef} />
+            <div
+              className="vpo-meter"
+              role="img"
+              aria-label={heardSound ? "目前有收到聲音" : "目前沒有收到聲音"}
+            >
+              <span ref={meterFillRef} className="vpo-meter-fill" />
+            </div>
+            {!heardSound && recSec >= 2 ? (
+              <p className="vpo-meter-notice" role="status">
+                還沒有收到聲音，檢查一下麥克風是不是被靜音了。
+              </p>
+            ) : null}
             <div className="vpo-live-transcript" aria-live="polite">
               {liveText || (
                 <span className="vpo-pending">
-                  {SRRef.current
+                  {captionsOn
                     ? "開始說話，字幕會出現在這裡…"
-                    : "此瀏覽器不支援即時字幕，錄完可以自己補上"}
+                    : "開始說話吧，錄完可以自己補上文字"}
                 </span>
               )}
             </div>
@@ -593,11 +738,25 @@ export default function VoicePrayerOverlay({ onComplete, onCancel }) {
         {/* ── 處理中 ── */}
         {phase === "vproc" && (
           <div className="vpo-center">
-            <p className="vpo-proc-title">正在整理成字幕</p>
+            <p className="vpo-proc-title">正在確認錄音</p>
             <div className="vpo-dots" aria-label="處理中">
               <i /><i /><i />
             </div>
             <p className="vpo-hint">你的錄音已保留，請不要關閉。</p>
+          </div>
+        )}
+
+        {/* ── 錄音失敗 ── */}
+        {phase === "vfail" && (
+          <div className="vpo-center" role="alert">
+            <div className="vpo-icon" aria-hidden="true">🎙</div>
+            <p className="vpo-body">{failMsg}</p>
+            <button type="button" className="vpo-btn vpo-btn--primary" onClick={askMic}>
+              重新錄製
+            </button>
+            <button type="button" className="vpo-btn vpo-btn--ghost" onClick={handleCancel}>
+              改用文字禱告
+            </button>
           </div>
         )}
 

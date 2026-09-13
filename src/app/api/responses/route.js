@@ -21,8 +21,17 @@ import {
   hashGuestId,
 } from "@/lib/guest-response";
 import { isTrustedOrigin } from "@/lib/origin-guard";
+import { readWebmDurationSeconds } from "@/lib/audio-duration";
 
 const MAX_AUDIO_BYTES = 12 * 1024 * 1024;
+// A recording holding a fraction of a second is still a structurally valid
+// file, so the size ceiling alone let 301- and 3,059-byte uploads through. Real speech
+// runs ~15 KB per second (measured on /voices), so 4 KB is well under any
+// three-second prayer and above every broken upload seen so far.
+const MIN_AUDIO_BYTES = 4 * 1024;
+// The recorder asks for 3 seconds; half a second of slack covers the gap
+// between pressing record and the first encoded packet.
+const MIN_AUDIO_SECONDS = 2.5;
 const MAX_MESSAGE_LENGTH = 2000;
 const MIN_MESSAGE_LENGTH_WITHOUT_AUDIO = 8;
 const RECENT_WINDOW_MINUTES = 10;
@@ -222,10 +231,24 @@ export async function POST(req) {
         );
       }
 
+      const bytes = Buffer.from(await audio.arrayBuffer());
+      // WebM is what Chrome and Firefox record; its length can be read from the
+      // container. Other formats come back null and rely on the size floor.
+      const durationSeconds = readWebmDurationSeconds(bytes);
+      const tooShort = durationSeconds !== null && durationSeconds < MIN_AUDIO_SECONDS;
+      if (bytes.length < MIN_AUDIO_BYTES || tooShort) {
+        return NextResponse.json(
+          {
+            code: "AUDIO_TOO_SHORT",
+            error: "這段錄音幾乎沒有收到聲音，所以沒有送出。請重新錄製至少 3 秒。",
+          },
+          { status: 422 }
+        );
+      }
+
       // PRD-009:依 storage driver 判斷是否可寫
       assertStorageWritable();
 
-      const bytes = Buffer.from(await audio.arrayBuffer());
       const folderName = resolveVoiceFolder(requestId);
       const sanitizedOriginal = sanitizeFileName(audio.name);
       const filename = `${Date.now()}-${sanitizedOriginal}`;
@@ -247,7 +270,7 @@ export async function POST(req) {
         },
       });
       const { flags, autoReject } = evaluateVoiceUpload({
-        durationSeconds: null, // 伺服器端時長解析未實作,保守不觸發 TOO_LONG
+        durationSeconds, // 只有 WebM 讀得出時長;其他格式為 null,不觸發 TOO_LONG
         fileSizeBytes: Number(audio.size) || bytes.length,
         recentUploadCount: recentVoiceCount,
       });

@@ -64,3 +64,49 @@ export function isSilentRecording(peak, threshold = SILENCE_PEAK_THRESHOLD) {
   if (typeof peak !== "number" || Number.isNaN(peak)) return false;
   return peak < threshold;
 }
+
+// The timer starts when recording is requested; the first encoded packet lands a
+// moment later, so a recording stopped on the 3-second tick decodes a little
+// short. Half a second of slack keeps that from reading as a failure.
+export const MIN_DECODED_SECONDS = MIN_DURATION_SECONDS - 0.5;
+
+// Floor for recordings the browser could not decode, where size is the only
+// evidence left. Speech runs ~15 KB/s; the broken uploads were 301 and 3,059 B.
+export const MIN_RECORDING_BYTES = 4 * 1024;
+
+// Live captions use the browser's SpeechRecognition, which opens the microphone
+// a second time. On Android the system recogniser takes the input exclusively,
+// which can leave the recording's own track silent. Desktop browsers share the
+// input, so they keep captions; phones and tablets record without them.
+export function isMobileBrowser(nav = typeof navigator !== "undefined" ? navigator : undefined) {
+  if (!nav) return false;
+  if (nav.userAgentData?.mobile === true) return true;
+  const ua = String(nav.userAgent || "");
+  if (/Android|iPhone|iPad|iPod|Mobile/i.test(ua)) return true;
+  // iPadOS presents a desktop Mac user agent; touch support gives it away.
+  return /Macintosh/.test(ua) && Number(nav.maxTouchPoints) > 1;
+}
+
+/**
+ * Decides whether a finished recording is worth sending.
+ * @param {{ analysis: {durationSeconds:number, peak:number}|null, blobSize: number }} input
+ * @returns {{ ok: boolean, reason?: "empty"|"too-short"|"silent", durationSeconds: number|null }}
+ */
+export function judgeRecording({ analysis, blobSize } = {}) {
+  if (!blobSize) return { ok: false, reason: "empty", durationSeconds: null };
+
+  if (!analysis) {
+    return blobSize < MIN_RECORDING_BYTES
+      ? { ok: false, reason: "empty", durationSeconds: null }
+      : { ok: true, durationSeconds: null };
+  }
+
+  const { durationSeconds, peak } = analysis;
+  if (isRecordingTooShort(durationSeconds, MIN_DECODED_SECONDS)) {
+    return { ok: false, reason: "too-short", durationSeconds };
+  }
+  if (isSilentRecording(peak)) {
+    return { ok: false, reason: "silent", durationSeconds };
+  }
+  return { ok: true, durationSeconds };
+}

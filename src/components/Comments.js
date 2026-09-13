@@ -399,7 +399,7 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
         setActionNotice(details.message);
         setActionNoticeType("error");
         setActionNoticeLoginHref(details.action?.href || (details.needsLogin ? buildLoginHref(requestId, locale) : ""));
-        setActionNoticeLabel(details.action?.label || (details.needsLogin ? commentsText.voiceLoginAction : ""));
+        setActionNoticeLabel(details.action?.label || (details.needsLogin ? commentsText.loginAction : ""));
         if (["EMPTY_RESPONSE", "TEXT_TOO_SHORT", "TEXT_TOO_LONG"].includes(details.code)) textareaRef.current?.focus();
         return false;
       }
@@ -662,16 +662,10 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
             <button
               type="button"
               className="comments__voice-btn"
-              onClick={() => {
-                if (authUser) {
-                  setShowVoiceOverlay(true);
-                } else {
-                  setActionNotice(commentsText.voiceLoginRequired);
-                  setActionNoticeType("error");
-                  setActionNoticeLoginHref(buildLoginHref(requestId, locale));
-                  setActionNoticeLabel(commentsText.voiceLoginAction);
-                }
-              }}
+              // Open to guests, same as the homepage recorder: /api/responses has
+              // always accepted anonymous voice uploads, and the login gate here was
+              // the only place on the site that asked for an account to record.
+              onClick={() => setShowVoiceOverlay(true)}
             >
               <span aria-hidden="true">🎙</span> 語音禱告
             </button>

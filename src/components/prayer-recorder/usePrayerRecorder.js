@@ -12,6 +12,7 @@ import {
   selectSupportedMimeType,
   SILENCE_RMS_THRESHOLD,
 } from "./recorder-utils";
+import { analyzeRecording } from "./analyze-recording";
 
 // Recording engine adapted from the proven logic in
 // src/components/VoicePrayerOverlay.js (permission handling, MIME fallback,
@@ -25,31 +26,6 @@ import {
 // maxDurationSeconds defaults to the 60s anonymous-response limit so every
 // existing caller (PrayerRecorder.js) is unaffected; pass a longer value
 // (e.g. the card-voice-message feature's 180s) without touching that default.
-// Returns the loudest sample in the recording, or null when the browser cannot
-// decode it — a decode failure is not evidence of silence, so we let those
-// through rather than blocking a valid recording on a codec quirk.
-async function measurePeakAmplitude(blob) {
-  const Ctor = typeof window !== "undefined" ? window.AudioContext || window.webkitAudioContext : null;
-  if (!Ctor) return null;
-  let ctx = null;
-  try {
-    ctx = new Ctor();
-    const decoded = await ctx.decodeAudioData(await blob.arrayBuffer());
-    let peak = 0;
-    for (let channel = 0; channel < decoded.numberOfChannels; channel += 1) {
-      const samples = decoded.getChannelData(channel);
-      for (let i = 0; i < samples.length; i += 1) {
-        const value = Math.abs(samples[i]);
-        if (value > peak) peak = value;
-      }
-    }
-    return peak;
-  } catch {
-    return null;
-  } finally {
-    try { await ctx?.close(); } catch { /* already closed */ }
-  }
-}
 
 // Bare `{ audio: true }` leaves gain entirely to the device, and the recordings
 // it produced measured -29 to -34 dBFS RMS — roughly 10-14 dB under a normal
@@ -341,8 +317,9 @@ export function usePrayerRecorder({ maxDurationSeconds = MAX_DURATION_SECONDS } 
       // Catch a recording that ran fine but captured nothing — muted input,
       // wrong device, an OS-level mic block. Better to say so now than to let
       // someone submit a prayer nobody can hear.
-      const peak = await measurePeakAmplitude(blob);
-      if (peak !== null && isSilentRecording(peak)) {
+      // A decode failure (null) is not evidence of silence, so it passes.
+      const analysis = await analyzeRecording(blob);
+      if (analysis && isSilentRecording(analysis.peak)) {
         setErrorReason("silent");
         setPhase("error");
         return;
