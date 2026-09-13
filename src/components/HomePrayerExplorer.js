@@ -7,12 +7,9 @@ import { getDictionary, localizePath, normalizeLocale } from "@/lib/i18n";
 import PrayerCard from "@/components/PrayerCard";
 import { isPlayableVoiceHref } from "@/lib/voice";
 
+// Pseudo-category: not a real HomeCategory row, it just means "no category filter".
 const POPULAR_SLUG = "popular";
-// Pseudo-category like POPULAR_SLUG: it isn't a real HomeCategory row, it just
-// swaps the API sort to "recent" so the newest needs surface without filtering
-// by category. Kept next to POPULAR_SLUG because every place that special-cases
-// one has to special-case the other.
-const LATEST_SLUG = "latest";
+const DEFAULT_SORT = "responses";
 const DEFAULT_LIMIT = 12;
 const SUGGESTION_LIMIT = 6;
 const FALLBACK_CATEGORY_LIMIT = 3;
@@ -95,15 +92,29 @@ export default function HomePrayerExplorer({
   initialActiveSlug = POPULAR_SLUG,
   cardLimit = DEFAULT_LIMIT,
   intro = null,
+  initialSort = DEFAULT_SORT,
+  showSortControls = false,
+  sortOptions = null,
   locale: localeProp = "zh-TW",
 }) {
   const locale = normalizeLocale(localeProp);
   const text = getDictionary(locale).explorer;
   const { setQueue, playTrack, setIsExpanded } = useAudio();
   const resolvedCardLimit = Number.isFinite(cardLimit) && cardLimit > 0 ? Math.floor(cardLimit) : DEFAULT_LIMIT;
+  const resolvedSortOptions = useMemo(
+    () =>
+      Array.isArray(sortOptions) && sortOptions.length
+        ? sortOptions
+        : [
+            { key: "responses", label: text.sortByResponses },
+            { key: "recent", label: text.sortByRecent },
+          ],
+    [sortOptions, text.sortByRecent, text.sortByResponses]
+  );
 
   const [categories] = useState(initialCategories);
   const [activeCategory, setActiveCategory] = useState(initialActiveSlug);
+  const [sortOrder, setSortOrder] = useState(initialSort || DEFAULT_SORT);
   const [cards, setCards] = useState(initialCards);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState(null);
@@ -127,28 +138,16 @@ export default function HomePrayerExplorer({
         description: text.popularDescription,
         background: "/img/categories/popular.jpg",
       },
-      {
-        slug: LATEST_SLUG,
-        name: text.latestPrayer,
-        description: text.latestDescription,
-        background: "/img/categories/world.jpg",
-      },
       ...topCategories.map((item) => ({
         ...item,
         background: getCategoryBackground(item.slug),
       })),
     ];
-  }, [
-    text.latestDescription,
-    text.latestPrayer,
-    text.popularDescription,
-    text.popularPrayer,
-    topCategories,
-  ]);
+  }, [text.popularDescription, text.popularPrayer, topCategories]);
   const fallbackCategories = useMemo(
     () =>
       categoryItems
-        .filter((item) => item?.slug && item.slug !== POPULAR_SLUG && item.slug !== LATEST_SLUG)
+        .filter((item) => item?.slug && item.slug !== POPULAR_SLUG)
         .slice(0, FALLBACK_CATEGORY_LIMIT),
     [categoryItems]
   );
@@ -162,7 +161,7 @@ export default function HomePrayerExplorer({
     setSearchError(null);
     try {
       const results = await fetchCards(
-        { search: query, limit: resolvedCardLimit * 2, sort: "responses" },
+        { search: query, limit: resolvedCardLimit * 2, sort: sortOrder },
         { signal }
       );
       setSearchResults(results);
@@ -175,7 +174,8 @@ export default function HomePrayerExplorer({
     } finally {
       setIsSearchLoading(false);
     }
-  }, [resolvedCardLimit, text.searchFailed]);
+    // sortOrder is a dependency on purpose: changing the order re-runs the search effect below.
+  }, [resolvedCardLimit, sortOrder, text.searchFailed]);
 
   useEffect(() => {
     if (debounceTimeoutRef.current) {
@@ -238,6 +238,23 @@ export default function HomePrayerExplorer({
     [queueCards]
   );
 
+  const loadCards = async (slug, sort) => {
+    setIsLoading(true);
+    setLoadError(null);
+
+    try {
+      const params = { limit: resolvedCardLimit, sort };
+      if (slug !== POPULAR_SLUG) params.category = slug;
+      const nextCards = await fetchCards(params);
+      setCards(nextCards);
+    } catch (error) {
+      console.warn("[HomePrayerExplorer] load failed", error);
+      setLoadError(text.loadFailed);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleCategorySelect = async (slug) => {
     if (!slug) return;
     if (slug === activeCategory && !isShowingSearchResults) return;
@@ -247,28 +264,15 @@ export default function HomePrayerExplorer({
     setHasSearched(false);
     setSearchResults([]);
     setSearchError(null);
-    setIsLoading(true);
-    setLoadError(null);
+    await loadCards(slug, sortOrder);
+  };
 
-    try {
-      const params = { limit: resolvedCardLimit };
-      if (slug === POPULAR_SLUG) {
-        params.sort = "responses";
-      } else if (slug === LATEST_SLUG) {
-        // Newest needs across every category — no category filter.
-        params.sort = "recent";
-      } else {
-        params.category = slug;
-        params.sort = "recent";
-      }
-      const nextCards = await fetchCards(params);
-      setCards(nextCards);
-    } catch (error) {
-      console.warn("[HomePrayerExplorer] load failed", error);
-      setLoadError(text.loadFailed);
-    } finally {
-      setIsLoading(false);
-    }
+  const handleSortChange = (sort) => {
+    if (!sort || sort === sortOrder) return;
+    setSortOrder(sort);
+    // Search results re-sort through the search effect (runSearch depends on sortOrder).
+    if (isShowingSearchResults) return;
+    void loadCards(activeCategory || POPULAR_SLUG, sort);
   };
 
   const handleSearchChange = (event) => {
@@ -368,11 +372,13 @@ export default function HomePrayerExplorer({
 
   const headingText = isShowingSearchResults
     ? `${text.headingSearch}: "${trimmedQuery}"`
-    : activeCategory === POPULAR_SLUG
-      ? text.headingPopular
-      : activeCategory === LATEST_SLUG
+    : activeCategory !== POPULAR_SLUG
+      ? text.headingCards
+      : sortOrder === "recent"
         ? text.headingLatest
-        : text.headingCards;
+        : sortOrder === "responses"
+          ? text.headingPopular
+          : text.headingCards;
 
   return (
     <section className="section home-explorer">
@@ -547,6 +553,22 @@ export default function HomePrayerExplorer({
       <div className="home-cards">
         <div className="home-cards__header" aria-live="polite">
           <h3>{headingText}</h3>
+          {showSortControls ? (
+            <div className="home-cards__sort" role="group" aria-label={text.sortLabel}>
+              {resolvedSortOptions.map((option) => (
+                <button
+                  key={option.key}
+                  type="button"
+                  className={`home-cards__sort-btn${sortOrder === option.key ? " is-active" : ""}`}
+                  aria-pressed={sortOrder === option.key}
+                  title={option.helper || undefined}
+                  onClick={() => handleSortChange(option.key)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
           {displayIsLoading ? <span className="home-cards__status">{text.loading}</span> : null}
           {displayError ? <span className="home-cards__status error">{displayError}</span> : null}
           {displayError ? (

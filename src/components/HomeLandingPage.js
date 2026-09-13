@@ -37,6 +37,34 @@ function buildHeroStats(stats, globalPrayers, locale = "zh-TW") {
   };
 }
 
+const HERO_HALF_SIZE = 5;
+
+// 首頁輪播：留言最多的五則和最新的五則交錯排列。一打開就看得到「很多人在
+// 這裡禱告」的卡，也看得到剛剛才被送出的需要。兩邊重疊的卡只出現一次，
+// 並由最新的那一半往後補，盡量維持十張。
+function buildHeroDeck(popularCards = [], recentCards = []) {
+  const seen = new Set();
+  const take = (cards) => {
+    const picked = [];
+    for (const card of cards) {
+      if (!card || seen.has(card.id)) continue;
+      seen.add(card.id);
+      picked.push(card);
+      if (picked.length === HERO_HALF_SIZE) break;
+    }
+    return picked;
+  };
+  const popular = take(popularCards.filter((card) => Number(card?._count?.responses || 0) > 0));
+  const recent = take(recentCards);
+
+  const deck = [];
+  for (let i = 0; i < Math.max(popular.length, recent.length); i += 1) {
+    if (popular[i]) deck.push(popular[i]);
+    if (recent[i]) deck.push(recent[i]);
+  }
+  return deck;
+}
+
 function toClientValue(value) {
   if (value == null) return value;
   if (value instanceof Date) return value.toISOString();
@@ -236,9 +264,8 @@ export default async function HomeLandingPage({ locale: localeProp = "zh-TW" } =
     }),
     // Hero 一次帶一整副牌。過去只送一張，之後每滑一次都要先打一次
     // /api/home-cards/:id/adjacent 才知道下一張是誰 —— 每一次滑動都在
-    // 等一趟往返。首頁本來就已經跑了 12 筆與 100 筆的查詢，多帶 9 張
-    // 幾乎沒有成本。
-    readHomeCards({ sort: "needsPrayer", limit: 10 }),
+    // 等一趟往返。最新的這一半多拿幾張，和留言最多的重疊時才補得滿五張。
+    readHomeCards({ sort: "recent", limit: HERO_HALF_SIZE * 2 }),
   ]);
 
   const globalPrayers = globalPrayerCards.map((card) => toGlobalPrayerPayload(card, locale));
@@ -254,7 +281,7 @@ export default async function HomeLandingPage({ locale: localeProp = "zh-TW" } =
   // HomeGlobeHero is a client component, so Date/Decimal values from Prisma
   // have to be flattened the same way the other client props are.
   const clientGlobalPrayers = toClientValue(globalPrayers);
-  const featuredPrayers = toClientValue(featuredPrayerCards || []);
+  const featuredPrayers = toClientValue(buildHeroDeck(topCards, featuredPrayerCards));
 
   return (
     <>
@@ -270,6 +297,8 @@ export default async function HomeLandingPage({ locale: localeProp = "zh-TW" } =
           <HomePrayerExplorer
             initialCategories={clientCategories}
             initialCards={clientTopCards}
+            initialSort="responses"
+            showSortControls
             intro={{
               eyebrow: text.explorerEyebrow,
               title: text.explorerTitle,

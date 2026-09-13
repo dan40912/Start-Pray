@@ -7234,6 +7234,46 @@ header .nav-actions .btn-glass {
   font-size: 1.35rem;
 }
 
+/* 排序切換：留言最多 / 最新。 */
+.home-cards__sort {
+  display: inline-flex;
+  align-self: center;
+  margin-left: auto;
+  padding: 3px;
+  gap: 2px;
+  border: 1px solid var(--line-1, rgba(255, 255, 255, 0.12));
+  border-radius: 999px;
+  background: var(--surface-3, rgba(255, 255, 255, 0.05));
+}
+
+.home-cards__sort-btn {
+  min-height: 36px;
+  padding: 0 0.95rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-2, rgba(226, 236, 255, 0.74));
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.home-cards__sort-btn:hover {
+  color: var(--text-1, #f2f6ff);
+}
+
+.home-cards__sort-btn.is-active {
+  background: var(--accent, #fbbf24);
+  color: #241505;
+}
+
+.home-cards__sort-btn:focus-visible {
+  outline: 2px solid var(--accent, #fbbf24);
+  outline-offset: 2px;
+}
+
 .home-cards__status {
   font-size: 0.85rem;
   color: var(--text-muted);
@@ -7978,6 +8018,11 @@ header .nav-actions .btn-glass {
     margin-top: 1rem;
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .home-cards__sort {
+    align-self: flex-start;
+    margin-left: 0;
   }
 
   .home-card-grid {

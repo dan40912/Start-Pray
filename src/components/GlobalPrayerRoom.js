@@ -826,6 +826,8 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
     onHoverCluster,
     staticView = false,
     heroMap = false,
+    pickerLocation = null,
+    onPickLocation,
   },
   ref
 ) {
@@ -837,6 +839,22 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
   const rotationReadyRef = useRef(false);
   const [globeReady, setGlobeReady] = useState(false);
   const [loadError, setLoadError] = useState("");
+  // Location-picker mode: one draggable marker whose position lives in a ref, so moving it
+  // never tears down and rebuilds the Cesium viewer.
+  const isLocationPicker = typeof onPickLocation === "function";
+  const onPickLocationRef = useRef(onPickLocation);
+  const pickerPointRef = useRef(null);
+
+  useEffect(() => {
+    onPickLocationRef.current = onPickLocation;
+  }, [onPickLocation]);
+
+  const pickerLat = Number(pickerLocation?.lat);
+  const pickerLng = Number(pickerLocation?.lng);
+  useEffect(() => {
+    if (!Number.isFinite(pickerLat) || !Number.isFinite(pickerLng)) return;
+    pickerPointRef.current = { lat: pickerLat, lng: pickerLng };
+  }, [pickerLat, pickerLng]);
 
   useEffect(() => {
     let disposed = false;
@@ -979,7 +997,11 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
         }
 
         // Put the camera somewhere useful before any network tiles exist, so first paint is not blank.
-        if (heroMap) {
+        if (isLocationPicker && pickerPointRef.current) {
+          viewer.camera.setView(
+            buildTopDownView({ ...pickerPointRef.current, height: TAIWAN_VIEW.height })
+          );
+        } else if (heroMap) {
           viewer.camera.setView(buildTopDownView(TAIWAN_VIEW));
         } else {
           viewer.camera.setView({
@@ -1189,13 +1211,55 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
           activeEntityRef.current = null;
         }
 
+        function addPickerEntity() {
+          const pulse = () => 1 + Math.sin(Date.now() * 0.004) * 0.12;
+          const position = new Cesium.CallbackProperty(() => {
+            const current = pickerPointRef.current || TAIPEI_VIEW;
+            return Cesium.Cartesian3.fromDegrees(Number(current.lng), Number(current.lat), 6500);
+          }, false);
+
+          return viewer.entities.add({
+            name: "picker",
+            position,
+            point: {
+              color: Cesium.Color.fromCssColorString("#38bdf8"),
+              pixelSize: new Cesium.CallbackProperty(() => 18 * pulse(), false),
+              outlineColor: Cesium.Color.WHITE,
+              outlineWidth: 4,
+              disableDepthTestDistance: Number.POSITIVE_INFINITY,
+            },
+            ellipse: {
+              semiMajorAxis: new Cesium.CallbackProperty(() => 42000 * pulse(), false),
+              semiMinorAxis: new Cesium.CallbackProperty(() => 42000 * pulse(), false),
+              material: Cesium.Color.fromCssColorString("#fef08a").withAlpha(0.22),
+              height: 4000,
+              outline: true,
+              outlineColor: Cesium.Color.fromCssColorString("#fef08a").withAlpha(0.7),
+            },
+          });
+        }
+
+        function pickGlobePoint(screenPosition) {
+          const cartesian = viewer.camera.pickEllipsoid(screenPosition, viewer.scene.globe.ellipsoid);
+          if (!cartesian) return null;
+          const cartographic = Cesium.Cartographic.fromCartesian(cartesian);
+          return {
+            lat: Cesium.Math.toDegrees(cartographic.latitude),
+            lng: Cesium.Math.toDegrees(cartographic.longitude),
+          };
+        }
+
+        const pickerEntity = isLocationPicker ? addPickerEntity() : null;
+        let isDraggingPicker = false;
+
         // First batch is intentionally smaller on mobile so the hero can become useful quickly.
-        const initialBatchSize = Math.min(isCompactViewport ? 28 : 45, markerSource.length);
-        markerSource.slice(0, initialBatchSize).forEach(addEntity);
+        const clusterSource = isLocationPicker ? [] : markerSource;
+        const initialBatchSize = Math.min(isCompactViewport ? 28 : 45, clusterSource.length);
+        clusterSource.slice(0, initialBatchSize).forEach(addEntity);
 
         const entityTimer = window.setTimeout(() => {
           if (disposed || viewer.isDestroyed()) return;
-          markerSource.slice(initialBatchSize).forEach((cluster, index) => {
+          clusterSource.slice(initialBatchSize).forEach((cluster, index) => {
             addEntity(cluster, initialBatchSize + index);
           });
         }, 1200);
@@ -1261,7 +1325,49 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
         }
 
         const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-        if (!staticView) {
+        if (isLocationPicker) {
+          viewer.scene.canvas.style.cursor = "crosshair";
+
+          const commitPickerPoint = (point) => {
+            if (!point) return;
+            pickerPointRef.current = point;
+            onPickLocationRef.current?.(point);
+          };
+
+          const stopPickerDrag = () => {
+            if (!isDraggingPicker) return;
+            isDraggingPicker = false;
+            controller.enableRotate = true;
+            commitPickerPoint(pickerPointRef.current);
+          };
+
+          // Grabbing the marker drags it; grabbing anywhere else rotates the globe as usual.
+          handler.setInputAction((event) => {
+            const picked = viewer.scene.pick(event.position);
+            if (picked?.id !== pickerEntity) return;
+            isDraggingPicker = true;
+            controller.enableRotate = false;
+            viewer.scene.canvas.style.cursor = "grabbing";
+          }, Cesium.ScreenSpaceEventType.LEFT_DOWN);
+
+          handler.setInputAction((movement) => {
+            if (isDraggingPicker) {
+              const point = pickGlobePoint(movement.endPosition);
+              if (point) pickerPointRef.current = point;
+              return;
+            }
+            const picked = viewer.scene.pick(movement.endPosition);
+            viewer.scene.canvas.style.cursor = picked?.id === pickerEntity ? "grab" : "crosshair";
+          }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+
+          handler.setInputAction(stopPickerDrag, Cesium.ScreenSpaceEventType.LEFT_UP);
+
+          // Cesium only fires LEFT_CLICK when the pointer barely moved, so rotating never re-places the marker.
+          handler.setInputAction((event) => {
+            if (isDraggingPicker) return;
+            commitPickerPoint(pickGlobePoint(event.position));
+          }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+        } else if (!staticView) {
           handler.setInputAction(() => setAutoRotate(false), Cesium.ScreenSpaceEventType.LEFT_DOWN);
           handler.setInputAction(() => setAutoRotate(false), Cesium.ScreenSpaceEventType.WHEEL);
           handler.setInputAction((movement) => {
@@ -1269,27 +1375,29 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
             setHoveredEntity(picked?.id?.clusterData ? picked.id : null);
           }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
         }
-        handler.setInputAction((movement) => {
-          const picked = viewer.scene.pick(movement.position);
-          const cluster = picked?.id?.clusterData;
+        if (!isLocationPicker) {
+          handler.setInputAction((movement) => {
+            const picked = viewer.scene.pick(movement.position);
+            const cluster = picked?.id?.clusterData;
 
-          if (cluster) {
-            const currentHeight = viewer.camera.positionCartographic.height;
-            const isAlreadyActive = activeEntityRef.current?.clusterData?.id === cluster.id;
-            if (!isAlreadyActive) {
-              focusCluster(
-                cluster,
-                heroMap
-                  ? Math.max(currentHeight * 0.82, getClusterCameraHeight(cluster), 1400000)
-                  : Math.max(currentHeight * 0.62, 260000)
-              );
+            if (cluster) {
+              const currentHeight = viewer.camera.positionCartographic.height;
+              const isAlreadyActive = activeEntityRef.current?.clusterData?.id === cluster.id;
+              if (!isAlreadyActive) {
+                focusCluster(
+                  cluster,
+                  heroMap
+                    ? Math.max(currentHeight * 0.82, getClusterCameraHeight(cluster), 1400000)
+                    : Math.max(currentHeight * 0.62, 260000)
+                );
+              }
+              onSelectCluster?.(cluster);
+            } else {
+              clearActiveCluster();
+              onBlankClick?.();
             }
-            onSelectCluster?.(cluster);
-          } else {
-            clearActiveCluster();
-            onBlankClick?.();
-          }
-        }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+          }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+        }
 
         const tick = () => {
           if (
@@ -1429,6 +1537,7 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
           hoveredEntityRef.current = null;
           entitiesRef.current.forEach((entity) => viewer.entities.remove(entity));
           entitiesRef.current = [];
+          if (pickerEntity) viewer.entities.remove(pickerEntity);
           viewer.destroy();
         };
       } catch (error) {
@@ -1447,6 +1556,7 @@ export const GlobalPrayerRoomOptimized = forwardRef(function GlobalPrayerRoomOpt
   }, [
     clusters,
     heroMap,
+    isLocationPicker,
     onAutoRotateChange,
     onBlankClick,
     onHoverCluster,
@@ -2251,7 +2361,8 @@ function usePrayerClusters(prayers) {
   );
 
   const clusters = useMemo(() => buildCityClusters(locatedPrayers), [locatedPrayers]);
-  const displayClusters = clusters.length ? clusters : [TAIPEI];
+  // Memoized: the globe tears down and rebuilds its viewer whenever this array identity changes.
+  const displayClusters = useMemo(() => (clusters.length ? clusters : [TAIPEI]), [clusters]);
   const recent24Count = locatedPrayers.filter((prayer) => {
     const time = getCreatedTime(prayer);
     return time > 0 && Date.now() - time <= ONE_DAY_MS;
@@ -2297,6 +2408,8 @@ export function GlobalPrayerRoomEmbed({
   onHeroBlankClick,
   externalGlobeRef = null,
   heroMap = false,
+  pickerLocation = null,
+  onPickLocation,
 }) {
   const internalGlobeRef = useRef(null);
   const globeRef = externalGlobeRef || internalGlobeRef;
@@ -2362,6 +2475,8 @@ export function GlobalPrayerRoomEmbed({
           clusters={displayClusters}
           staticView={!heroMap}
           heroMap={heroMap}
+          pickerLocation={pickerLocation}
+          onPickLocation={onPickLocation}
           onSelectCluster={handleSelectCluster}
           onBlankClick={onHeroBlankClick}
           onAutoRotateChange={setAutoRotate}

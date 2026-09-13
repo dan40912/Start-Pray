@@ -13,7 +13,7 @@ const TEXT = {
   approximateLocation: "\u5927\u81f4\u4f4d\u7f6e",
   chooseApproximateLocation: "\u9078\u53d6\u5927\u81f4\u4f4d\u7f6e",
   dragHint:
-    "\u62d6\u66f3\u5730\u5716\u8abf\u6574\u4e2d\u5fc3\u9ede\u3002\u9001\u51fa\u6642\u6703\u4fdd\u5b58\u76ee\u524d\u4e2d\u5fc3\u4f4d\u7f6e\u3002",
+    "\u9ede\u4e00\u4e0b\u5730\u7403\u6216\u62d6\u66f3\u5149\u9ede\u8abf\u6574\u4f4d\u7f6e\u3002\u9001\u51fa\u6642\u6703\u4fdd\u5b58\u5149\u9ede\u6240\u5728\u7684\u4f4d\u7f6e\u3002",
   resetTaipei: "\u56de\u5230\u53f0\u5317",
   dragMapAria: "\u62d6\u66f3\u5730\u5716\u8abf\u6574\u5927\u81f4\u4f4d\u7f6e",
   zoomControls: "\u5730\u5716\u7e2e\u653e\u63a7\u5236",
@@ -27,6 +27,9 @@ const TEXT = {
 };
 
 const APPROXIMATE_LOCATION_LABEL = TEXT.approximateLocation;
+// Stable empty list: the globe rebuilds whenever its clusters change, and the picker marker
+// is driven by pickerLocation instead.
+const NO_PRAYERS = [];
 const TAIPEI_POINT = { lat: 25.033, lng: 121.5654 };
 const DEFAULT_ZOOM = 5;
 const MIN_ZOOM = 3;
@@ -148,6 +151,7 @@ export default function PrayerLocationField({ disabled = false, onChange, value 
   const selectedCountryRef = useRef(initialCountry);
   const onChangeRef = useRef(onChange);
   const globeRef = useRef(null);
+  const pickedOnGlobeRef = useRef(false);
 
   const mapView = useMemo(() => buildMapTiles(point, zoom), [point, zoom]);
   const countrySuggestions = useMemo(
@@ -175,23 +179,13 @@ export default function PrayerLocationField({ disabled = false, onChange, value 
 
   useEffect(() => {
     onChangeRef.current(toLocationPayload(point, selectedCountryRef.current));
+    // A point picked on the globe is already where the user is looking; don't yank the camera.
+    if (pickedOnGlobeRef.current) {
+      pickedOnGlobeRef.current = false;
+      return;
+    }
     globeRef.current?.focusLocation?.({ lat: point.lat, lng: point.lng, globeHeight: 2200000 });
   }, [point]);
-
-  const selectedPrayer = useMemo(
-    () => ({
-      id: "create-location-preview",
-      title: "目前選擇的位置",
-      description: "建立代禱時使用的大致位置",
-      locationCity: selectedLocationLabel || APPROXIMATE_LOCATION_LABEL,
-      locationCountry: selectedCountryRef.current?.label || "",
-      locationLat: point.lat,
-      locationLng: point.lng,
-      createdAt: new Date(0).toISOString(),
-      isPrivate: false,
-    }),
-    [point, selectedLocationLabel]
-  );
 
   useEffect(
     () => () => {
@@ -369,22 +363,24 @@ export default function PrayerLocationField({ disabled = false, onChange, value 
 
       <div className="prayer-location__globe-wrap">
         <GlobalPrayerRoomEmbed
-          prayers={[selectedPrayer]}
+          prayers={NO_PRAYERS}
           title="選擇全球大致位置"
           isHero
           fullscreen
           heroMap
-          focusPrayerId={selectedPrayer.id}
           externalGlobeRef={globeRef}
-          onHeroLocationSelect={(nextPoint) => {
-            if (!disabled) updatePoint(nextPoint);
+          pickerLocation={point}
+          onPickLocation={(nextPoint) => {
+            if (disabled) return;
+            pickedOnGlobeRef.current = true;
+            updatePoint(nextPoint);
           }}
         />
         <div className="prayer-location__globe-zoom" aria-label={TEXT.zoomControls}>
           <button type="button" onClick={() => globeRef.current?.zoomIn?.()} disabled={disabled}>+</button>
           <button type="button" onClick={() => globeRef.current?.zoomOut?.()} disabled={disabled}>−</button>
         </div>
-        <p>拖曳旋轉地球，點一下地球表面即可選擇大致位置。</p>
+        <p>點一下地球或拖曳光點即可選擇大致位置，拖曳其他地方可旋轉地球。</p>
       </div>
 
       <details className="prayer-location__precision-map">

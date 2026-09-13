@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { forwardRef, useCallback, useEffect, useRef } from "react";
 
 import { attachPlaybackGain } from "@/lib/audio-gain";
 
@@ -13,8 +13,22 @@ import { attachPlaybackGain } from "@/lib/audio-gain";
 // It exists as a component because most of these players are rendered inside
 // .map() calls with no ref of their own; swapping the tag is a one-word change
 // at each call site, whereas threading a ref through each is not.
-export default function GainAudio(props) {
+//
+// The recorders' preview buttons do pass a ref and call play() on it. On React
+// 18 a plain function component never receives `ref`, so those buttons always
+// found null and reported "nothing to play" — hence forwardRef, with the one
+// element shared between the caller and the gain hookup below.
+const GainAudio = forwardRef(function GainAudio(props, forwardedRef) {
   const ref = useRef(null);
+
+  const setRef = useCallback(
+    (node) => {
+      ref.current = node;
+      if (typeof forwardedRef === "function") forwardedRef(node);
+      else if (forwardedRef) forwardedRef.current = node;
+    },
+    [forwardedRef]
+  );
 
   useEffect(() => {
     const detach = attachPlaybackGain(ref.current);
@@ -22,5 +36,7 @@ export default function GainAudio(props) {
   }, []);
 
   // eslint-disable-next-line jsx-a11y/media-has-caption
-  return <audio ref={ref} {...props} />;
-}
+  return <audio ref={setRef} {...props} />;
+});
+
+export default GainAudio;

@@ -25,28 +25,55 @@ function toPlainText(value) {
 
 const BLOCKING_RECORDER_PHASES = new Set(["requesting-permission", "countdown", "recording"]);
 
+// 循環輪播至少要有這麼多張，左右兩側才都有鄰卡、換卡時也不會看到卡片從
+// 一邊飛到另一邊。牌太少就把整副牌重複幾輪。
+const MIN_LOOP_SLIDES = 5;
+
 export default function HomePrayerHero({ text, prayers }) {
   const copy = text.prayerHero;
   const companionText = text.companion;
 
   // 一整副牌，不是一張卡。索引移動就是換卡，零網路。
   const deck = useMemo(() => (Array.isArray(prayers) ? prayers.filter(Boolean) : []), [prayers]);
+  const slides = useMemo(() => {
+    const copies = deck.length > 1 ? Math.ceil(MIN_LOOP_SLIDES / deck.length) : 1;
+    const result = [];
+    for (let round = 0; round < copies; round += 1) {
+      deck.forEach((prayer) => result.push({ key: `${prayer.id}:${round}`, prayer }));
+    }
+    return result;
+  }, [deck]);
+  const slideCount = slides.length;
+  const isLoop = slideCount > 1;
   const [index, setIndex] = useState(0);
   const [switchConfirm, setSwitchConfirm] = useState(null); // { direction } | null
   const [blockedMessage, setBlockedMessage] = useState("");
+  const [openVoiceKey, setOpenVoiceKey] = useState(null);
 
-  const currentPrayer = deck[index] || null;
-  const hasPrev = index > 0;
-  const hasNext = index < deck.length - 1;
+  const currentPrayer = slides[index]?.prayer || null;
+
+  const wrapIndex = (value) => ((value % slideCount) + slideCount) % slideCount;
+  // 某張卡相對於中間那張的位置：負的在左、正的在右，取繞圈最短的那一邊。
+  const relativePosition = (itemIndex, centerIndex) => {
+    const rel = wrapIndex(itemIndex - centerIndex);
+    return rel > slideCount / 2 ? rel - slideCount : rel;
+  };
+
+  // 上一次畫面上的中間索引。換卡時繞到另一側的那張卡要瞬移，不能帶過渡
+  // 從畫面前面飛過去。
+  const [renderedIndex, setRenderedIndex] = useState(0);
+  useEffect(() => {
+    setRenderedIndex(index);
+  }, [index]);
 
   // 連續快滑時，每一張都去打一次互動 API 等於一次滑五張就發五組請求。
   // 等停下來之後才把 id 交給那些 hook。
   const [settledId, setSettledId] = useState(currentPrayer?.id ?? null);
   useEffect(() => {
-    const id = deck[index]?.id ?? null;
+    const id = slides[index]?.prayer?.id ?? null;
     const timeoutId = window.setTimeout(() => setSettledId(id), 180);
     return () => window.clearTimeout(timeoutId);
-  }, [deck, index]);
+  }, [slides, index]);
 
   const {
     recorderRef,
@@ -87,11 +114,12 @@ export default function HomePrayerHero({ text, prayers }) {
     measure();
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
-  }, [measure, deck.length]);
+  }, [measure, slideCount]);
 
   useEffect(() => {
     setIndex(0);
-  }, [deck]);
+    setRenderedIndex(0);
+  }, [slides]);
 
   useEffect(() => {
     if (!blockedMessage) return;
@@ -122,17 +150,16 @@ export default function HomePrayerHero({ text, prayers }) {
     return companionText.switchBlockedGeneric;
   };
 
-  const canGo = (direction) => (direction === "next" ? hasNext : hasPrev);
-
   const performSwitch = (direction) => {
-    if (!canGo(direction)) return;
+    if (!isLoop) return;
     discardRecorder();
     setSwitchConfirm(null);
-    setIndex((prev) => prev + (direction === "next" ? 1 : -1));
+    setOpenVoiceKey(null);
+    setIndex((prev) => wrapIndex(prev + (direction === "next" ? 1 : -1)));
   };
 
   const attemptSwitch = (direction) => {
-    if (!canGo(direction)) return;
+    if (!isLoop) return;
     if (!canSwitchNow()) {
       setBlockedMessage(blockedMessageForState());
       return;
@@ -148,7 +175,7 @@ export default function HomePrayerHero({ text, prayers }) {
   // 抽換 DOM —— 那是一個手勢偵測器，不是拖曳，體感上這是「不流暢」的主因。
   const handlePointerDown = (event) => {
     if (event.pointerType === "mouse" && event.button !== 0) return;
-    if (deck.length <= 1) return;
+    if (!isLoop) return;
     // 錄音中根本不進入拖曳狀態，而不是讓人拖到一半才被彈回去。
     if (!canSwitchNow()) return;
     dragRef.current = {
@@ -185,9 +212,8 @@ export default function HomePrayerHero({ text, prayers }) {
     }
     if (state.axis !== "x") return;
 
-    // 到底了就給阻尼，讓人感覺到邊界而不是卡死。
-    const atEdge = (dx > 0 && !hasPrev) || (dx < 0 && !hasNext);
-    setDrag(atEdge ? dx * 0.22 : dx);
+    // 循環輪播沒有邊界，手指拖多少卡片就跟多少。
+    setDrag(dx);
   };
 
   const endDrag = (event) => {
@@ -227,7 +253,7 @@ export default function HomePrayerHero({ text, prayers }) {
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [index, deck, canSwitchNow, companionOpen, needsDiscardConfirm]);
+  }, [index, slides, canSwitchNow, companionOpen, needsDiscardConfirm]);
 
 
   return (
@@ -250,9 +276,9 @@ export default function HomePrayerHero({ text, prayers }) {
             prayerId={currentPrayer?.id}
             onStateChange={setRecorderState}
             onExit={closeRecorder}
-            // 送出之後的「下一則」就是牌組裡的下一張，原地換卡。牌組到底了
-            // 就不傳，交給錄音器自己找下一則。
-            onNext={hasNext ? () => performSwitch("next") : undefined}
+            // 送出之後的「下一則」就是牌組裡的下一張，原地換卡。只有一張卡
+            // 時才不傳，交給錄音器自己找下一則。
+            onNext={isLoop ? () => performSwitch("next") : undefined}
           />
         ) : currentPrayer ? (
           <>
@@ -271,21 +297,28 @@ export default function HomePrayerHero({ text, prayers }) {
                 className="prayer-hero__track"
                 ref={trackRef}
                 data-dragging={isDragging ? "true" : "false"}
-                style={{
-                  transform: `translate3d(${metrics.offset - index * metrics.step + drag}px, 0, 0)`,
-                }}
               >
-                {deck.map((item, itemIndex) => {
+                {slides.map(({ key, prayer: item }, itemIndex) => {
                   const isCurrent = itemIndex === index;
+                  const rel = relativePosition(itemIndex, index);
+                  // 繞到另一側的卡一次移動超過一格，只有它瞬移。
+                  const wrapped = Math.abs(rel - relativePosition(itemIndex, renderedIndex)) > 1;
+                  // 每張卡在 flex 裡的自然位置是 itemIndex 格，這裡把它推到 rel 格。
+                  const x = metrics.offset + (rel - itemIndex) * metrics.step + drag;
                   const itemVoice = isPlayableVoiceHref(item.voiceHref) ? item.voiceHref : null;
+                  const isVoiceOpen = isCurrent && openVoiceKey === key;
                   const itemUploader =
                     item?.owner?.name || item?.owner?.username || copy.uploaderAnonymous;
                   return (
                     <li
-                      key={item.id}
+                      key={key}
                       className="prayer-hero__slide"
                       aria-hidden={!isCurrent}
-                      onClick={isCurrent ? undefined : () => attemptSwitch(itemIndex > index ? "next" : "prev")}
+                      style={{
+                        transform: `translate3d(${x}px, 0, 0)`,
+                        transition: wrapped ? "none" : undefined,
+                      }}
+                      onClick={isCurrent ? undefined : () => attemptSwitch(rel > 0 ? "next" : "prev")}
                     >
                       <article
                         className="prayer-hero__card"
@@ -306,17 +339,29 @@ export default function HomePrayerHero({ text, prayers }) {
                           <span className="prayer-hero__uploader-name">{itemUploader}</span>
                         </p>
                         {toPlainText(item.description) ? <p>{toPlainText(item.description)}</p> : null}
-                        {itemVoice && isCurrent ? (
+                        {itemVoice && isVoiceOpen ? (
                           <div className="prayer-hero__voice">
                             <span className="prayer-hero__voice-label">{copy.voiceLabel}</span>
                             {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
                             <GainAudio
                               controls
+                              autoPlay
                               preload="metadata"
                               src={itemVoice}
                               className="prayer-hero__card-audio"
                             />
                           </div>
+                        ) : itemVoice ? (
+                          <button
+                            type="button"
+                            className="prayer-hero__play"
+                            onClick={() => setOpenVoiceKey(key)}
+                          >
+                            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                              <path d="M8 5.14v13.72a1 1 0 0 0 1.52.85l10.9-6.86a1 1 0 0 0 0-1.7L9.52 4.29A1 1 0 0 0 8 5.14z" />
+                            </svg>
+                            {copy.playVoice}
+                          </button>
                         ) : null}
                       </article>
                     </li>
@@ -352,13 +397,12 @@ export default function HomePrayerHero({ text, prayers }) {
 
             <p className="prayer-hero__anonymous-note">{text.recorder.anonymousNote}</p>
 
-            {deck.length > 1 ? (
+            {isLoop ? (
               <div className="prayer-hero__nav">
                 <button
                   type="button"
                   className="prayer-hero__nav-btn"
                   onClick={() => attemptSwitch("prev")}
-                  disabled={!hasPrev}
                   aria-label={copy.prevPrayer}
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -370,7 +414,6 @@ export default function HomePrayerHero({ text, prayers }) {
                   type="button"
                   className="prayer-hero__nav-btn"
                   onClick={() => attemptSwitch("next")}
-                  disabled={!hasNext}
                   aria-label={copy.nextPrayer}
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -537,25 +580,16 @@ export default function HomePrayerHero({ text, prayers }) {
           margin: 0;
           padding: 0.75rem 0 0.25rem;
           list-style: none;
-          /* 位移由 JS 寫進 inline transform。只動 transform，交給 GPU 合成，
-             不觸發 layout / paint。 */
-          transition: transform 420ms cubic-bezier(0.22, 0.61, 0.36, 1);
         }
 
-        .prayer-hero__track[data-dragging="true"] {
-          transition: none;
-          will-change: transform;
-        }
-
+        /* 循環輪播：每張卡各自由 JS 寫進 inline transform（位置），track 不動。
+           只動 transform，交給 GPU 合成，不觸發 layout / paint。 */
         .prayer-hero__slide {
           flex: 0 0 var(--slide);
           display: flex;
           /* 鄰卡露肩：它就是「還有更多」的視覺證據，比一行小字有效得多，
              而且只吃水平邊緣，垂直高度增加 0px。 */
-          /* scale 會把鄰卡的左緣往中間縮，露出來的那一條就沒了 —— 用比較
-             淺的縮放，並讓它往畫面外側縮，露肩才留得住。 */
           opacity: 0.42;
-          transform: scale(0.95);
           filter: blur(1.5px);
           transition:
             opacity 420ms ease,
@@ -564,15 +598,26 @@ export default function HomePrayerHero({ text, prayers }) {
           cursor: pointer;
         }
 
-        .prayer-hero__slide:not([aria-hidden="false"]) {
-          transform-origin: center;
+        .prayer-hero__track[data-dragging="true"] .prayer-hero__slide {
+          transition: none;
+          will-change: transform;
         }
 
         .prayer-hero__slide[aria-hidden="false"] {
           opacity: 1;
-          transform: none;
           filter: none;
           cursor: default;
+        }
+
+        /* 位置的 transform 已經給了 li，縮放改掛在卡片上。用比較淺的縮放，
+           露肩那一條才留得住。 */
+        .prayer-hero__slide .prayer-hero__card {
+          transform: scale(0.95);
+          transition: transform 420ms cubic-bezier(0.22, 0.61, 0.36, 1);
+        }
+
+        .prayer-hero__slide[aria-hidden="false"] .prayer-hero__card {
+          transform: none;
         }
 
         .prayer-hero__card h2 :global(a) {
@@ -593,8 +638,12 @@ export default function HomePrayerHero({ text, prayers }) {
 
           .prayer-hero__slide {
             transition: opacity 120ms ease;
-            transform: none;
             filter: none;
+          }
+
+          .prayer-hero__slide .prayer-hero__card {
+            transform: none;
+            transition: none;
           }
         }
 
@@ -660,6 +709,35 @@ export default function HomePrayerHero({ text, prayers }) {
 
         .prayer-hero__card-audio {
           width: 100%;
+        }
+
+        .prayer-hero__play {
+          align-self: flex-start;
+          display: inline-flex;
+          align-items: center;
+          gap: 0.5rem;
+          min-height: 44px;
+          margin-top: 0.4rem;
+          padding: 0.55rem 1.1rem 0.55rem 0.85rem;
+          border: 1px solid rgba(226, 160, 90, 0.38);
+          border-radius: 999px;
+          background: var(--nv-ember-soft);
+          color: var(--nv-ember-bright);
+          font-size: 0.9rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: background 0.2s ease, border-color 0.2s ease;
+        }
+
+        .prayer-hero__play svg {
+          width: 18px;
+          height: 18px;
+        }
+
+        .prayer-hero__play:hover,
+        .prayer-hero__play:focus-visible {
+          border-color: var(--nv-ember);
+          background: rgba(226, 160, 90, 0.24);
         }
 
         .prayer-hero__actions {
