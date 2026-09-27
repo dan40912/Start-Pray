@@ -1605,10 +1605,24 @@ button {
   background: rgba(255, 255, 255, 0.08);
   transition: height var(--transition-fast);
   cursor: pointer;
+  /* 線只有幾 px，可以抓的範圍要有手指那麼大。padding 與負 margin 互相抵銷，
+     所以版面高度不變 —— 沉浸畫面的進度條用的是同一招。 */
+  box-sizing: content-box;
+  padding: 10px 0;
+  margin: -10px 0;
+  background-clip: content-box;
+  /* 橫向拖曳由我們處理，瀏覽器不要把它當成捲頁手勢。 */
+  touch-action: none;
 }
 
 .progress-bar:hover {
   height: 7px;
+}
+
+.progress-bar:focus-visible {
+  outline: 3px solid var(--link);
+  outline-offset: 4px;
+  border-radius: var(--radius-pill);
 }
 
 .progress-fill {
@@ -1642,6 +1656,8 @@ button {
   font-size: 0.72rem;
   color: var(--player-text-sub);
   padding: 0 0.95rem;
+  /* 拖曳時秒數每一格都在跳，等寬數字才不會讓整行左右抖動。 */
+  font-variant-numeric: tabular-nums;
 }
 
 .player-controls-container {
@@ -2152,6 +2168,13 @@ img.track-avatar {
   padding: 10px 0;
   margin: -10px 0;
   background-clip: content-box;
+  /* 橫向拖曳由我們處理，瀏覽器不要把它當成捲頁手勢。 */
+  touch-action: none;
+}
+
+.companion-overlay__progress:focus-visible {
+  outline: 3px solid var(--link);
+  outline-offset: 4px;
 }
 
 .companion-overlay__progress-fill {
@@ -2159,6 +2182,11 @@ img.track-avatar {
   border-radius: inherit;
   background: var(--accent);
   transition: width 120ms linear;
+}
+
+/* 拖曳中一定要關掉補間，不然填色會落後手指 120ms，跟手的感覺就沒了。 */
+.companion-overlay__progress[data-scrubbing="true"] .companion-overlay__progress-fill {
+  transition: none;
 }
 
 .companion-overlay__times {

@@ -8,6 +8,14 @@ import { PRAYER_RESPONSE_CREATED } from "@/lib/events";
 import { getDictionary, localeFromPathname } from "@/lib/i18n";
 import usePlaybackWellbeing from "@/lib/usePlaybackWellbeing";
 import WellbeingNudge from "@/components/WellbeingNudge";
+import {
+  clampTime,
+  isSeekableDuration,
+  percentFromTime,
+  ratioFromPointer,
+  resolveKeyboardSeek,
+  timeFromRatio,
+} from "@/components/player/scrubber-utils";
 
 const FALLBACK_SPEAKER = "匿名上傳者";
 const FALLBACK_TITLE = "代禱音訊";
@@ -59,6 +67,213 @@ function formatTime(value) {
     .toString()
     .padStart(2, "0");
   return `${minutes}:${seconds}`;
+}
+
+/**
+ * 進度條的行為層。底部播放列和沉浸畫面共用這一份 —— 兩邊各寫一次是原本最容易
+ * 走鐘的地方（舊版兩處共用同一個 ref，也都標成 role="presentation"，鍵盤和讀屏
+ * 使用者完全碰不到播放位置）。
+ *
+ * 三條規則：
+ *   1. 按下就給回饋、拖曳全程跟手，但**放開才提交** seek。
+ *   2. 拖曳到一半被打斷（pointercancel、切歌、佇列清空、元件卸載）就整個放棄，
+ *      絕不拿舊位置去 seek。
+ *   3. 時長未知（載入中、0、NaN）時不能換算比例，這時整個控制項是 disabled。
+ */
+function useQueueScrubber({ progress, duration, trackKey, onSeek }) {
+  const barRef = useRef(null);
+  // 拖曳中的位置同時放 ref 與 state：ref 給連續進來的 pointer 事件同步讀取，
+  // state 只負責觸發重繪。只靠 state 會讀到上一個值。
+  const pointerIdRef = useRef(null);
+  const previewRef = useRef(null);
+  const settleTimeoutRef = useRef(null);
+  const [preview, setPreview] = useState(null);
+  const [settleTarget, setSettleTarget] = useState(null);
+
+  const seekable = isSeekableDuration(duration);
+
+  const clearSettleTimer = useCallback(() => {
+    if (settleTimeoutRef.current) {
+      window.clearTimeout(settleTimeoutRef.current);
+      settleTimeoutRef.current = null;
+    }
+  }, []);
+
+  // 放棄這次預覽，不提交 seek。
+  const cancelPreview = useCallback(() => {
+    const pointerId = pointerIdRef.current;
+    if (pointerId !== null) {
+      try {
+        barRef.current?.releasePointerCapture(pointerId);
+      } catch {
+        // 指標已經不存在了（手指離開畫面、視窗失焦），不影響收尾。
+      }
+      pointerIdRef.current = null;
+    }
+    previewRef.current = null;
+    setPreview(null);
+  }, []);
+
+  // 切歌：這次拖曳的位置對新音軌沒有意義，丟掉，不要拿舊位置去 seek。
+  //
+  // 這裡只收預覽，不收下面的 settleTarget —— 跨音軌的 seek 本身就會換 currentTrack，
+  // 兩個一起清的話，剛提交的位置會在同一輪被抹掉，那段防閃爍就永遠不會生效。
+  useEffect(() => {
+    cancelPreview();
+  }, [trackKey, cancelPreview]);
+
+  // 時長變成未知或 0（音檔還在載、佇列被清空）：不能算比例，收掉預覽。
+  useEffect(() => {
+    if (seekable) return;
+    cancelPreview();
+    clearSettleTimer();
+    setSettleTarget(null);
+  }, [seekable, cancelPreview, clearSettleTimer]);
+
+  // 卸載：只清 ref 與計時器，這時不能再 setState。
+  useEffect(
+    () => () => {
+      if (settleTimeoutRef.current) {
+        window.clearTimeout(settleTimeoutRef.current);
+        settleTimeoutRef.current = null;
+      }
+      pointerIdRef.current = null;
+      previewRef.current = null;
+    },
+    []
+  );
+
+  // 跨音軌的 seek 不會馬上回報新進度。這幾百毫秒若直接顯示舊位置，放手的瞬間
+  // 會閃回原處再跳過去。先留住剛才放手的位置，等進度追上或逾時再放開。
+  useEffect(() => {
+    if (settleTarget === null) return;
+    if (Math.abs(progress - settleTarget) <= 0.75) {
+      clearSettleTimer();
+      setSettleTarget(null);
+    }
+  }, [progress, settleTarget, clearSettleTimer]);
+
+  const commitSeek = useCallback(
+    (seconds) => {
+      const target = clampTime(seconds, duration);
+      if (target === null) return;
+      setSettleTarget(target);
+      clearSettleTimer();
+      settleTimeoutRef.current = window.setTimeout(() => {
+        settleTimeoutRef.current = null;
+        setSettleTarget(null);
+      }, 1200);
+      onSeek(target);
+    },
+    [clearSettleTimer, duration, onSeek]
+  );
+
+  const previewFromEvent = useCallback(
+    (event) => {
+      const ratio = ratioFromPointer(event.clientX, barRef.current?.getBoundingClientRect());
+      if (ratio === null) return null;
+      return timeFromRatio(ratio, duration);
+    },
+    [duration]
+  );
+
+  const handlePointerDown = useCallback(
+    (event) => {
+      if (!seekable) return;
+      // 只吃主鍵，右鍵選單和中鍵不算拖曳。
+      if (event.button !== undefined && event.button !== 0) return;
+      // 已經有一根手指在拖，第二根不要插隊。
+      if (pointerIdRef.current !== null) return;
+
+      const next = previewFromEvent(event);
+      if (next === null) return;
+
+      pointerIdRef.current = event.pointerId;
+      try {
+        // 手指滑出軌道範圍時不要斷掉。
+        barRef.current?.setPointerCapture(event.pointerId);
+      } catch {
+        // 不支援 capture 也還能用，只是滑出去會失去追蹤。
+      }
+      previewRef.current = next;
+      setPreview(next);
+      // 放手之後左右鍵可以直接微調，不用再 Tab 回來。
+      barRef.current?.focus?.({ preventScroll: true });
+    },
+    [previewFromEvent, seekable]
+  );
+
+  const handlePointerMove = useCallback(
+    (event) => {
+      if (pointerIdRef.current !== event.pointerId) return;
+      const next = previewFromEvent(event);
+      if (next === null) return;
+      previewRef.current = next;
+      setPreview(next);
+    },
+    [previewFromEvent]
+  );
+
+  const handlePointerUp = useCallback(
+    (event) => {
+      if (pointerIdRef.current !== event.pointerId) return;
+      const target = previewRef.current;
+      // 先把拖曳狀態收乾，再提交；順序反了會多畫一格舊位置。
+      cancelPreview();
+      if (!seekable) return;
+      if (target === null) return;
+      commitSeek(target);
+    },
+    [cancelPreview, commitSeek, seekable]
+  );
+
+  const handlePointerCancel = useCallback(
+    (event) => {
+      if (pointerIdRef.current !== event.pointerId) return;
+      // 取消就是取消：不 seek。
+      cancelPreview();
+    },
+    [cancelPreview]
+  );
+
+  const displayProgress = preview ?? settleTarget ?? progress;
+  const boundedProgress = seekable
+    ? Math.min(Math.max(Number.isFinite(displayProgress) ? displayProgress : 0, 0), duration)
+    : 0;
+
+  const handleKeyDown = useCallback(
+    (event) => {
+      if (!seekable) return;
+      const target = resolveKeyboardSeek(event, boundedProgress, duration);
+      if (target === null) return;
+      // 只有真的處理了才吃掉事件，Tab 與 Escape 要能繼續往外傳。
+      event.preventDefault();
+      commitSeek(target);
+    },
+    [boundedProgress, commitSeek, duration, seekable]
+  );
+
+  return {
+    barRef,
+    displayProgress: boundedProgress,
+    percent: percentFromTime(boundedProgress, duration),
+    barProps: {
+      role: "slider",
+      tabIndex: seekable ? 0 : -1,
+      "aria-orientation": "horizontal",
+      "aria-valuemin": 0,
+      "aria-valuemax": seekable ? Math.round(duration) : 0,
+      "aria-valuenow": Math.round(boundedProgress),
+      "aria-valuetext": `${formatTime(boundedProgress)} / ${formatTime(seekable ? duration : 0)}`,
+      "aria-disabled": seekable ? undefined : true,
+      "data-scrubbing": preview !== null ? "true" : "false",
+      onPointerDown: handlePointerDown,
+      onPointerMove: handlePointerMove,
+      onPointerUp: handlePointerUp,
+      onPointerCancel: handlePointerCancel,
+      onKeyDown: handleKeyDown,
+    },
+  };
 }
 
 function isSameTrack(left, right) {
@@ -129,7 +344,6 @@ export default function GlobalPlayer({ onClose }) {
     dismissForever: dismissWellbeingForever,
   } = usePlaybackWellbeing();
 
-  const progressBarRef = useRef(null);
   const [overlayBackground, setOverlayBackground] = useState("");
   // 每則回應的「⋯ → 檢舉」。這原本只存在於陪伴模式自己的清單，現在跟著清單一起
   // 收進播放器，底部播放列與沉浸畫面共用同一份。
@@ -264,8 +478,16 @@ export default function GlobalPlayer({ onClose }) {
   const effectiveDuration = hasQueue
     ? Math.max(queueDuration, queueProgress, hasTrack ? duration : 0)
     : 0;
-  const safeDuration = effectiveDuration > 0 ? effectiveDuration : 1;
-  const progressPercent = Math.min(Math.max((effectiveProgress / safeDuration) * 100, 0), 100);
+  // 底部播放列與沉浸畫面各自渲染（互斥），但共用同一份進度條行為。
+  const scrubber = useQueueScrubber({
+    progress: effectiveProgress,
+    duration: effectiveDuration,
+    trackKey: currentTrack?.id ?? null,
+    onSeek: seekQueue,
+  });
+  // 拖曳中要顯示的是手指的位置，不是播放到哪裡；時間文字也跟著同一個值。
+  const displayProgress = scrubber.displayProgress;
+  const progressPercent = scrubber.percent;
 
   // 陪伴模式是「使用者按了聆聽大家的禱告」，不是「剛好在詳情頁播放」——
   // 首頁與 /prayfor/[id] 走同一個旗標，於是兩邊拿到同一個沉浸畫面。
@@ -386,13 +608,6 @@ export default function GlobalPlayer({ onClose }) {
       document.body.classList.remove(COMPANION_OVERLAY_CLASS);
     };
   }, [showCompanionOverlay]);
-
-  const handleProgressClick = (event) => {
-    if (!hasQueue || !progressBarRef.current || effectiveDuration <= 0) return;
-    const rect = progressBarRef.current.getBoundingClientRect();
-    const percent = Math.min(Math.max((event.clientX - rect.left) / rect.width, 0), 1);
-    seekQueue(percent * effectiveDuration);
-  };
 
   const handleTogglePlay = useCallback(
     (event) => {
@@ -766,9 +981,9 @@ export default function GlobalPlayer({ onClose }) {
             <footer className="companion-overlay__transport">
               <div
                 className="companion-overlay__progress"
-                onClick={handleProgressClick}
-                ref={progressBarRef}
-                role="presentation"
+                ref={scrubber.barRef}
+                aria-label="播放進度"
+                {...scrubber.barProps}
               >
                 <div
                   className="companion-overlay__progress-fill"
@@ -776,7 +991,7 @@ export default function GlobalPlayer({ onClose }) {
                 />
               </div>
               <div className="companion-overlay__times">
-                <span>{formatTime(effectiveProgress)}</span>
+                <span>{formatTime(displayProgress)}</span>
                 <span className="companion-overlay__position">{queuePositionText}</span>
                 <span>{formatTime(effectiveDuration)}</span>
               </div>
@@ -860,14 +1075,14 @@ export default function GlobalPlayer({ onClose }) {
           <div className="player-progress">
             <div
               className="progress-bar"
-              onClick={handleProgressClick}
-              ref={progressBarRef}
-              role="presentation"
+              ref={scrubber.barRef}
+              aria-label="播放進度"
+              {...scrubber.barProps}
             >
               <div className="progress-fill" style={{ width: `${progressPercent}%` }} />
             </div>
             <div className="player-times">
-              <span>{formatTime(effectiveProgress)}</span>
+              <span>{formatTime(displayProgress)}</span>
               <span>{formatTime(effectiveDuration)}</span>
             </div>
           </div>
