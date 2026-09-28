@@ -2,7 +2,7 @@
 
 **日期：** 2026-09-28
 **分支：** `codex/batch6a-caption-decisions`（獨立 worktree，基底 `main` = `43bea6b`）
-**狀態：** 待 review。本階段**不改任何程式碼**、不動公開 API、不套資料庫。
+**狀態：** 6A 決策已 review 修訂，供 6B 施工；本階段**不改任何程式碼**、不動公開 API、不套資料庫。
 **依據：** [`apple-fluid-motion-batches-2-6-handoff.md`](./apple-fluid-motion-batches-2-6-handoff.md) 批次 6A、[`apple-fluid-motion-plan.md`](./apple-fluid-motion-plan.md)
 **與批次 1 的關係：** 無交集。6A 不碰 `GlobalPlayer.js`、`theme-modern.css`。
 
@@ -51,21 +51,21 @@ if (edited !== r.transcript) {
 
 ## 二、已核對的程式碼事實
 
-| 項目 | 事實 | 位置 |
-| --- | --- | --- |
-| 手機不啟用辨識 | `captionsOnRef.current = Boolean(SRRef.current) && !isMobileBrowser()`。理由：辨識會第二次開麥克風，Android 系統辨識器獨占輸入會讓**錄音本身變無聲** | `VoicePrayerOverlay.js:86`、`recorder-utils.js:77-88` |
-| 桌面片段來源 | `recog.onresult` 內 `push({ s, e, t })`，時間取自 `performance.now() - recStartMs`，即**辨識結果抵達時間**，非音訊解碼位置 | `VoicePrayerOverlay.js:291-305` |
-| 片段目前被丟棄 | `onComplete(file, r.transcript)` 只傳攤平字串 | `VoicePrayerOverlay.js:630` |
-| 字幕落地為 `message` | `submitResponse({ audioOverride: file, textOverride: transcript \|\| "" })` | `Comments.js:436` |
-| `message` 是必填 | `message String`（非 nullable） | `prisma/schema.prisma` PrayerResponse |
-| 表名 | `@@map("prayerresponse")` —— migration SQL 要用這個名字，不是 `PrayerResponse` | 同上 |
-| 文字限制 | `MAX_MESSAGE_LENGTH = 2000`；無音檔時 `MIN_MESSAGE_LENGTH_WITHOUT_AUDIO = 8` | `api/responses/route.js:30-40` |
-| 送出頻率限制 | 會員 8 則／訪客 5 則（`RECENT_WINDOW_MINUTES = 10`），同卡冷卻 2 分鐘 | 同上 |
-| 自動送審規則 | `moderationStatus = !session && (recentResponsesCount >= 3 \|\| linkCount >= 2) ? "PENDING" : "APPROVED"`，`linkCount` 只數 `message` 裡的 `https?://` | `api/responses/route.js:287-290` |
-| 公開 GET 的三道閘門 | `isBlocked: false`、`moderationStatus: "APPROVED"`、`voiceModerationStatus: { in: ["APPROVED", "NOT_APPLICABLE"] }` | `api/responses/[homeCardId]/route.js` |
-| 卡片層 | 卡片 `isBlocked` 或 `isPrivate` → 整個 404 | 同上 |
-| 帳號封鎖**沒有**被過濾 | `responder.isBlocked` 有被 `select`，但 `where` 完全沒有用到它 | 同上 |
-| 公開序列化是**黑名單** | `toPublicPrayerResponse` 用 `delete` 拔掉 `guestSessionHash`／`ipHash`／`moderationStatus`。真正的白名單是查詢層的 `SAFE_RESPONSE_SELECT` | `lib/anonymous-prayer-avatar.js` |
+| 項目                   | 事實                                                                                                                                                   | 位置                                                  |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------- |
+| 手機不啟用辨識         | `captionsOnRef.current = Boolean(SRRef.current) && !isMobileBrowser()`。理由：辨識會第二次開麥克風，Android 系統辨識器獨占輸入會讓**錄音本身變無聲**   | `VoicePrayerOverlay.js:86`、`recorder-utils.js:77-88` |
+| 桌面片段來源           | `recog.onresult` 內 `push({ s, e, t })`，時間取自 `performance.now() - recStartMs`，即**辨識結果抵達時間**，非音訊解碼位置                             | `VoicePrayerOverlay.js:291-305`                       |
+| 片段目前被丟棄         | `onComplete(file, r.transcript)` 只傳攤平字串                                                                                                          | `VoicePrayerOverlay.js:630`                           |
+| 字幕落地為 `message`   | `submitResponse({ audioOverride: file, textOverride: transcript \|\| "" })`                                                                            | `Comments.js:436`                                     |
+| `message` 是必填       | `message String`（非 nullable）                                                                                                                        | `prisma/schema.prisma` PrayerResponse                 |
+| 表名                   | `@@map("prayerresponse")` —— migration SQL 要用這個名字，不是 `PrayerResponse`                                                                         | 同上                                                  |
+| 文字限制               | `MAX_MESSAGE_LENGTH = 2000`；無音檔時 `MIN_MESSAGE_LENGTH_WITHOUT_AUDIO = 8`                                                                           | `api/responses/route.js:30-40`                        |
+| 送出頻率限制           | 會員 8 則／訪客 5 則（`RECENT_WINDOW_MINUTES = 10`），同卡冷卻 2 分鐘                                                                                  | 同上                                                  |
+| 自動送審規則           | `moderationStatus = !session && (recentResponsesCount >= 3 \|\| linkCount >= 2) ? "PENDING" : "APPROVED"`，`linkCount` 只數 `message` 裡的 `https?://` | `api/responses/route.js:287-290`                      |
+| 公開 GET 的三道閘門    | `isBlocked: false`、`moderationStatus: "APPROVED"`、`voiceModerationStatus: { in: ["APPROVED", "NOT_APPLICABLE"] }`                                    | `api/responses/[homeCardId]/route.js`                 |
+| 卡片層                 | 卡片 `isBlocked` 或 `isPrivate` → 整個 404                                                                                                             | 同上                                                  |
+| 帳號封鎖**沒有**被過濾 | `responder.isBlocked` 有被 `select`，但 `where` 完全沒有用到它                                                                                         | 同上                                                  |
+| 公開序列化是**黑名單** | `toPublicPrayerResponse` 用 `delete` 拔掉 `guestSessionHash`／`ipHash`／`moderationStatus`。真正的白名單是查詢層的 `SAFE_RESPONSE_SELECT`              | `lib/anonymous-prayer-avatar.js`                      |
 
 > **這一條特別重要：** 因為序列化是黑名單，新欄位只要被加進 `SAFE_RESPONSE_SELECT` 就會直接出現在公開回應裡。控制點只有那一個 select，6B 的 review 要盯著它。
 
@@ -88,7 +88,7 @@ if (edited !== r.transcript) {
 桌面片段可以保留，但時間只是近似（§二）。因此：
 
 - **拔掉**「編輯後依標點平均分配時間」那段邏輯（§一.3）。使用者一旦編輯過文字，桌面片段的對應關係就已經不可信 → 降級為 `kind: "manual"`。
-- 只有**未經編輯**且通過 §七 合理性檢查的辨識片段才存成 `kind: "asr"` 並做逐句 highlight。
+- 只有**未經編輯**且通過 §七 格式檢查的辨識片段才有資格存成 `kind: "asr"`。格式檢查不能證明時間與聲音真的對齊；6B 還要以實際音檔檢查首／中／尾的高亮偏移。若無法證明可接受，先保留完整文字並停用逐句高亮，不把近似時間宣稱為已同步。
 - 任一檢查不過 → 存成 `kind: "manual"`（保留文字，丟掉時間），或整筆 `NULL`。**寧可沒有同步，不要錯的同步。**
 
 ### 決策 3：只有沉浸畫面做逐句同步；其他入口一律提供完整文字
@@ -103,16 +103,16 @@ if (edited !== r.transcript) {
 
 ### 決策 5：字幕文字與 `message` 的關係 —— 同一段文字，不是第二個自由欄位
 
-**這是最需要 review 拍板的一條。** 兩個選項：
+review 後採 A；比較兩個選項的原因如下：
 
-| | A：字幕文字 = `message`（建議） | B：字幕獨立於 `message` |
-| --- | --- | --- |
-| 儲存 | `message` 照舊存攤平文字；`transcriptJson` 只存**時間切分**，其 `text` 必須是 `message` 的切片 | `transcriptJson.text` 可與 `message` 不同 |
-| 審核 | 沿用既有的長度／連結／PENDING 規則，**零繞過風險** | 必須為第二個欄位重做一整套檢查 |
-| 現行相容 | 與目前「辨識結果當成 `message` 送出」完全一致 | 要改變既有回應的顯示語意 |
-| 風險 | 切片必須驗證確實來自 `message`，否則等於 B | 多一個能繞過 `linkCount` 與 2000 字上限的公開文字欄位 |
+|          | A：字幕文字 = `message`（建議）                                                                | B：字幕獨立於 `message`                               |
+| -------- | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| 儲存     | `message` 照舊存攤平文字；`transcriptJson` 只存**時間切分**，其 `text` 必須是 `message` 的切片 | `transcriptJson.text` 可與 `message` 不同             |
+| 審核     | 沿用既有的長度／連結／PENDING 規則，前提是伺服器嚴格核對片段文字與 `message`                   | 必須為第二個欄位重做一整套檢查                        |
+| 現行相容 | 與目前「辨識結果當成 `message` 送出」完全一致                                                  | 要改變既有回應的顯示語意                              |
+| 風險     | 切片必須驗證確實來自 `message`，否則等於 B                                                     | 多一個能繞過 `linkCount` 與 2000 字上限的公開文字欄位 |
 
-**建議採 A。** 理由：`linkCount` 只數 `message`（`api/responses/route.js:287`），若字幕是獨立文字欄位，貼連結的內容可以完全避開自動送審。採 A 之後，伺服器只要驗證「所有 segment 的 `text` 串接後等於 `message` 的正規化形式」，就自動繼承全部既有規則。
+**採 A。** 理由：`linkCount` 只數 `message`（`api/responses/route.js:287`），若字幕是獨立文字欄位，貼連結的內容可以完全避開自動送審。對 `kind: "asr"`，錄音端目前用 `segments.map((s) => s.t).join("，")` 建立 `message`；伺服器必須以**保留標點與 URL 符號的精確字串比對**確認送來的片段組合等於已驗證的 `message`。不能「去標點」或寬鬆正規化：`message` 中的 `httpa` 與字幕中的 `http://a` 若被視為相等，就會繞過只檢查 `message` 的連結規則。對 `kind: "manual"`，`segments` 必須為空，播放文字只取已驗證的 `message`，不從 JSON 讀取第二份文字。
 
 ### 決策 6：公開邊界照現況，不順手改政策
 
@@ -121,7 +121,7 @@ if (edited !== r.transcript) {
 兩點要說清楚、不要寫成既有保障：
 
 1. **`NOT_APPLICABLE` 是為舊資料開的門**（程式碼註解明載）。新回應不會拿到它。字幕只在 `APPROVED` 時輸出會更嚴格，但會讓舊的純文字回應連帶看不到字幕 —— 由於舊回應本來就沒有 `transcriptJson`，實務上無差異，**建議沿用既有的 `in` 條件**以免引入不一致。
-2. **帳號被封鎖（`responder.isBlocked`）目前不是過濾條件。** 公開 GET 會照常輸出被封鎖帳號的回應（僅在匿名時隱藏身分）。這是**現況**，不是字幕造成的。6A 不改它，但把它列為未決事項 §十.1，因為「封鎖的回應」與「封鎖的回應者」是兩件事，值得產品面決定。
+2. **帳號被封鎖（`responder.isBlocked`）目前不是過濾條件。** 公開 GET 會照常輸出被封鎖帳號的回應（僅在匿名時隱藏身分）。這是**現況**，不是字幕造成的。6B 沿用現況；公開政策另案處理，見 §十.1。
 
 ---
 
@@ -140,9 +140,8 @@ audioDurationSeconds  Float?
 
 ```prisma
 enum TranscriptStatus {
-  ASR_SYNCED   // 桌面辨識、未經編輯、通過合理性檢查 → 可逐句同步
+  ASR_SYNCED   // 桌面辨識、未經編輯；格式與實際播放對齊均驗證後才開啟逐句同步
   MANUAL_TEXT  // 手動輸入或編輯過 → 只有文字，不同步
-  NONE         // 明確沒有文字（保留給「曾經嘗試但失敗」與 NULL 區分）
 }
 ```
 
@@ -161,13 +160,13 @@ enum TranscriptStatus {
 
 四種狀態的表示法：
 
-| 情況 | `transcriptJson` | `transcriptStatus` | `message` |
-| --- | --- | --- | --- |
-| 桌面辨識、未編輯、檢查通過 | `{version:1, kind:"asr", segments:[…]}` | `ASR_SYNCED` | 片段串接後的文字 |
-| 桌面辨識但使用者編輯過 | `{version:1, kind:"manual", segments:[]}` | `MANUAL_TEXT` | 編輯後的文字 |
-| 手機手動補字 | `{version:1, kind:"manual", segments:[]}` | `MANUAL_TEXT` | 手打的文字 |
-| 手機沒補字／辨識失敗／純語音 | `NULL` | `NULL` | `""`（現行允許：有音檔時 message 可為空） |
-| **2026-09-28 之前的所有舊回應** | `NULL` | `NULL` | 原值不動 |
+| 情況                            | `transcriptJson`                          | `transcriptStatus` | `message`                                 |
+| ------------------------------- | ----------------------------------------- | ------------------ | ----------------------------------------- |
+| 桌面辨識、未編輯、檢查通過      | `{version:1, kind:"asr", segments:[…]}`   | `ASR_SYNCED`       | 片段串接後的文字                          |
+| 桌面辨識但使用者編輯過          | `{version:1, kind:"manual", segments:[]}` | `MANUAL_TEXT`      | 編輯後的文字                              |
+| 手機手動補字                    | `{version:1, kind:"manual", segments:[]}` | `MANUAL_TEXT`      | 手打的文字                                |
+| 手機沒補字／辨識失敗／純語音    | `NULL`                                    | `NULL`             | `""`（現行允許：有音檔時 message 可為空） |
+| **2026-09-28 之前的所有舊回應** | `NULL`                                    | `NULL`             | 原值不動                                  |
 
 `kind: "manual"` 仍寫 `segments: []` 而不是省略，讓播放端只需判斷陣列長度，不必分辨「沒有欄位」與「空陣列」。
 
@@ -202,25 +201,25 @@ enum TranscriptStatus {
 
 **A. 走共用佇列 → `GlobalPlayer`（自訂 UI，可做同步）**
 
-| 入口 | 檔案 |
-| --- | --- |
-| 首頁／禱告牆卡片播放 | `HomePrayerExplorer.js:357,366` |
-| 詳情頁佇列 | `prayer-detail/DetailAudioQueueBootstrap.js:101,107` |
-| 陪伴（沉浸）模式 | `prayer-interaction/usePrayerInteraction.js:87` |
-| 全球禱告室抽屜 | `GlobalPrayerRoom.js:4586` |
-| `PrayerAudioPlayer` | `PrayerAudioPlayer.js:83` |
+| 入口                 | 檔案                                                 |
+| -------------------- | ---------------------------------------------------- |
+| 首頁／禱告牆卡片播放 | `HomePrayerExplorer.js:357,366`                      |
+| 詳情頁佇列           | `prayer-detail/DetailAudioQueueBootstrap.js:101,107` |
+| 陪伴（沉浸）模式     | `prayer-interaction/usePrayerInteraction.js:87`      |
+| 全球禱告室抽屜       | `GlobalPrayerRoom.js:4586`                           |
+| `PrayerAudioPlayer`  | `PrayerAudioPlayer.js:83`                            |
 
-→ **第一階段只有沉浸畫面做逐句同步**；底部播放列先不做（空間不足），但其來源回應在 B 區都有完整文字。
+→ **第一階段只有沉浸畫面做逐句同步**；沉浸畫面也必須提供當前回應的完整靜態 `message`，不能只顯示截短的播放器摘要。底部播放列先不做同步（空間不足）；使用者仍可到對應回應頁閱讀完整文字。若佇列音訊不是 `PrayerResponse`，不假設它有本批的字幕欄位。
 
 **B. 原生 `controls`（無同步掛點）—— 完整文字必須在這裡看得到**
 
-| 入口 | 檔案 | 完整文字放哪 |
-| --- | --- | --- |
-| 回應清單的每則語音 | `Comments.js:601` | **主要位置**：音訊下方顯示 `message`（現行已顯示），標示為字幕來源 |
-| 送出成功的「重聽」 | `Comments.js:632` | 自己剛錄的，沿用確認畫面已顯示的文字 |
-| 首頁 hero 卡片語音 | `HomePrayerHero.js:346` | 卡片既有文字區 |
-| 送出前預聽 | `VoicePrayerOverlay.js:772` | 確認畫面的 textarea 本身 |
-| 錄音器預聽 | `CardVoiceRecorder.js:139,243`、`PrayerRecorder.js:509` | 送出前，尚無公開字幕 |
+| 入口               | 檔案                                                    | 完整文字放哪                                                                                   |
+| ------------------ | ------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| 回應清單的每則語音 | `Comments.js:601`                                       | **主要位置**：音訊相鄰顯示 `message`（現行已顯示），標示為字幕來源                             |
+| 送出成功的「重聽」 | `Comments.js:632`                                       | **6B 須在成功畫面保留剛送出的 `message`**；現況只有音訊與通用成功文案，確認畫面此時已關閉      |
+| 首頁 hero 卡片語音 | `HomePrayerHero.js:346`                                 | 這是卡片的 `voiceHref`，不是 `PrayerResponse` 語音；卡片描述不保證是逐字稿，本批不宣稱已有字幕 |
+| 送出前預聽         | `VoicePrayerOverlay.js:772`                             | 確認畫面的 textarea 本身                                                                       |
+| 錄音器預聽         | `CardVoiceRecorder.js:139,243`、`PrayerRecorder.js:509` | 其他錄音流程，尚無 `PrayerResponse` 公開字幕                                                   |
 
 **C. 非代禱回應（不在字幕範圍）**
 
@@ -236,36 +235,36 @@ enum TranscriptStatus {
 
 前端傳來的都當成不可信。以下任一不過 → **降級**（丟掉 segments，保留文字，`transcriptStatus = MANUAL_TEXT`），不整筆拒絕，避免使用者辛苦錄的音因為字幕格式問題而送不出去。
 
-| # | 規則 | 不過的處置 |
-| --- | --- | --- |
-| 1 | 頂層必須是物件，`version === 1`，`kind ∈ {"asr","manual"}`，`segments` 是陣列 | 降級 |
-| 2 | `segments.length <= 200` | 降級 |
-| 3 | 每段 `text` 是字串且 `trim()` 後非空；所有 `text` 長度總和 `<= MAX_MESSAGE_LENGTH`(2000) | 降級 |
-| 4 | 每段 `start`／`end` 是有限非負數（拒絕 `NaN`／`Infinity`／負值／字串） | 降級 |
-| 5 | 每段 `start < end` | 降級 |
-| 6 | 陣列依 `start` 遞增且不重疊（`segments[i].end <= segments[i+1].start`） | 降級 |
-| 7 | `end <= audioDurationSeconds * 1.05`（5% 容差給編碼誤差） | 降級 |
-| 8 | `audioDurationSeconds` 有限、`> 0`、`<= 監管上限`（依現行 `MIN_AUDIO_SECONDS` 與錄音上限校準） | 降級並清空該欄位 |
-| 9 | **沒有音檔就不能有字幕**（純文字回應 `transcriptJson` 必須是 `NULL`） | 丟棄字幕 |
-| 10 | **決策 5-A 的核心檢查**：所有 `text` 串接正規化後必須等於 `message` 的正規化形式（去空白、統一標點） | 降級為 `MANUAL_TEXT` |
+| #   | 規則                                                                                                                                                          | 不過的處置           |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------- |
+| 1   | 頂層必須是物件，`version === 1`，`kind ∈ {"asr","manual"}`，`segments` 是陣列                                                                                 | 降級                 |
+| 2   | `kind: "asr"` 時 `1 <= segments.length <= 200`；`kind: "manual"` 時必須為空陣列                                                                               | 降級                 |
+| 3   | 每段 `text` 是字串且 `trim()` 後非空；所有 `text` 長度總和 `<= MAX_MESSAGE_LENGTH`(2000)                                                                      | 降級                 |
+| 4   | 每段 `start`／`end` 是有限非負數（拒絕 `NaN`／`Infinity`／負值／字串）                                                                                        | 降級                 |
+| 5   | 每段 `start < end`                                                                                                                                            | 降級                 |
+| 6   | 陣列依 `start` 遞增且不重疊（`segments[i].end <= segments[i+1].start`）                                                                                       | 降級                 |
+| 7   | `end <= 伺服器可信音檔時長 * 1.05`（5% 容差給編碼誤差）；拿不到可信時長就不能建立有時間的片段                                                                 | 降級                 |
+| 8   | `audioDurationSeconds` 有限、`> 0`，並以伺服器可解析的音檔時長為準；前端值只供比較，不能獨自證明時長                                                          | 降級並清空該欄位     |
+| 9   | **沒有音檔就不能有字幕**（純文字回應 `transcriptJson` 必須是 `NULL`）                                                                                         | 丟棄字幕             |
+| 10  | **只對 `kind: "asr"`：** `segments.map((s) => s.text).join("，")` 必須與已通過現有檢查的 `message` 精確相等；保留標點、斜線與冒號，不做會改變連結語意的正規化 | 降級為 `MANUAL_TEXT` |
 
-`kind: "manual"` 時只需通過 1、3、9、10（`segments` 必為空陣列）。
+`kind: "manual"` 時 `segments` 必須為空陣列，文字只讀取已通過現有長度／連結／送審檢查的 `message`；**不套用第 10 條**，因為空陣列不可能拼出非空 `message`。若欄位格式壞掉，可以丟棄字幕 metadata，仍依原流程送出文字與音檔。
 
-**不得只信前端**：`audioDurationSeconds` 應以伺服器端既有的音檔解析結果為準（`api/responses/route.js` 已有 `MIN_AUDIO_SECONDS` 的時長判斷邏輯可沿用），前端傳來的值只作交叉檢查。
+**不得只信前端**：`api/responses/route.js` 目前只能從 WebM 解析時長；其他接受的格式會回 `null`。有可信伺服器時長時才可用它驗證片段終點；沒有時長時不能把前端宣稱的秒數當證據，須降級為無時間文字。`audioDurationSeconds` 不得直接採信客戶端傳值。
 
 ---
 
 ## 八、審核矩陣
 
-| 狀態 | 音訊 | `message` | 字幕 |
-| --- | --- | --- | --- |
-| 卡片 `isPrivate` 或 `isBlocked` | 整個 404 | 404 | 404 |
-| 回應 `isBlocked: true` | 不輸出 | 不輸出 | 不輸出 |
-| `moderationStatus: PENDING`（訪客連發或含 2 個以上連結） | 不輸出 | 不輸出 | **不輸出** |
-| `voiceModerationStatus: PENDING / REJECTED` | 不輸出 | 不輸出 | **不輸出** |
-| `voiceModerationStatus: NOT_APPLICABLE`（舊資料） | 輸出 | 輸出 | 輸出（舊資料本來就沒有字幕，實務上為 NULL） |
-| 全部通過 | 輸出 | 輸出 | 輸出 |
-| 回應者帳號 `isBlocked: true` | **目前照常輸出** | 照常輸出 | 照常輸出（現況，見 §十.1） |
+| 狀態                                                     | 音訊             | `message` | 字幕                                        |
+| -------------------------------------------------------- | ---------------- | --------- | ------------------------------------------- |
+| 卡片 `isPrivate` 或 `isBlocked`                          | 整個 404         | 404       | 404                                         |
+| 回應 `isBlocked: true`                                   | 不輸出           | 不輸出    | 不輸出                                      |
+| `moderationStatus: PENDING`（訪客連發或含 2 個以上連結） | 不輸出           | 不輸出    | **不輸出**                                  |
+| `voiceModerationStatus: PENDING / REJECTED`              | 不輸出           | 不輸出    | **不輸出**                                  |
+| `voiceModerationStatus: NOT_APPLICABLE`（舊資料）        | 輸出             | 輸出      | 輸出（舊資料本來就沒有字幕，實務上為 NULL） |
+| 全部通過                                                 | 輸出             | 輸出      | 輸出                                        |
+| 回應者帳號 `isBlocked: true`                             | **目前照常輸出** | 照常輸出  | 照常輸出（現況，見 §十.1）                  |
 
 **Admin 端：** `admin/prayerresponse` 的詳情目前只播音訊 + 顯示 `message`。既然字幕文字 = `message`（決策 5-A），審核員看到的內容不會有缺口；若日後改採選項 B，admin 必須同步顯示第二個文字欄位，否則會出現「審核員沒看過但公開得到」的內容。
 
@@ -290,7 +289,6 @@ model PrayerResponse {
 enum TranscriptStatus {
   ASR_SYNCED
   MANUAL_TEXT
-  NONE
 }
 ```
 
@@ -310,10 +308,11 @@ enum TranscriptStatus {
 --   SELECT COUNT(*) FROM `prayerresponse`;
 --   SELECT COUNT(*) FROM `prayerresponse` WHERE `voiceUrl` IS NOT NULL;
 --
--- ADD COLUMN ... NULL 在 MySQL 8 是 online operation，服務中可執行。
+-- ALTER TABLE 的鎖定與執行方式取決於正式庫版本、表大小與設定；
+-- 本草案不宣稱它一定是 online operation。正式套用須按 migration runbook 預檢。
 ALTER TABLE `prayerresponse`
   ADD COLUMN `transcriptJson` JSON NULL,
-  ADD COLUMN `transcriptStatus` ENUM('ASR_SYNCED', 'MANUAL_TEXT', 'NONE') NULL,
+  ADD COLUMN `transcriptStatus` ENUM('ASR_SYNCED', 'MANUAL_TEXT') NULL,
   ADD COLUMN `audioDurationSeconds` DOUBLE NULL;
 ```
 
@@ -323,28 +322,26 @@ ALTER TABLE `prayerresponse`
 
 ---
 
-## 十、未決事項（需要 review 拍板）
+## 十、留給其他工作的事項（不阻擋 6B）
 
-1. **帳號被封鎖的人，他過去的回應要不要繼續公開？** 目前 `responder.isBlocked` 有被 select 但沒被過濾。這是既有政策問題，字幕只是讓它更顯眼。**6A 不改**，但建議獨立決定。
-2. **決策 5 選 A 還是 B？** 建議 A（字幕文字 = `message`）。選 B 要接受多一個能繞過 `linkCount` 自動送審的公開文字欄位，並為它補一整套檢查與 admin 顯示。
-3. **`transcriptStatus = NONE` 要不要留？** 目前設計 `NULL` 與 `NONE` 都代表沒有文字。若不需要區分「從未嘗試」與「嘗試過但失敗」，可以砍掉 `NONE` 只留兩個值。
-4. **底部播放列要不要也做同步？** 第一階段不做。空間只有一行，且它常駐於所有頁面。
-5. **`VoiceWallPlayer.js` 死碼清除** —— 416 行，無人 import。建議另開一批處理，不混進字幕。
+1. **帳號被封鎖的人，他過去的回應要不要繼續公開？** 目前 `responder.isBlocked` 有被 select 但沒被過濾。這是既有政策問題，字幕只是讓它更顯眼。**6B 沿用現況，不改公開政策**；後續另案決定。
+2. **底部播放列要不要也做同步？** 第一階段不做。空間只有一行，且它常駐於所有頁面。
+3. **`VoiceWallPlayer.js` 死碼清除** —— 416 行，無人 import。建議另開一批處理，不混進字幕。
 
 ---
 
 ## 十一、6A 交付清單對照
 
-| 交接文件要求 | 本文件 |
-| --- | --- |
-| 資料流圖或簡表 | §五 |
-| 格式範例 | §四 |
-| 手機有／無手動文字兩條流程 | §三決策 1、§四狀態表 |
-| 每個播放入口的完整文字位置 | §六 |
-| 審核矩陣 | §八 |
-| 伺服器驗證規則 | §七 |
-| schema／migration 草案 | §九 |
-| 舊資料退路 | §四狀態表末列、§九 migration 註解 |
-| 未決事項 | §十 |
+| 交接文件要求               | 本文件                            |
+| -------------------------- | --------------------------------- |
+| 資料流圖或簡表             | §五                               |
+| 格式範例                   | §四                               |
+| 手機有／無手動文字兩條流程 | §三決策 1、§四狀態表              |
+| 每個播放入口的完整文字位置 | §六                               |
+| 審核矩陣                   | §八                               |
+| 伺服器驗證規則             | §七                               |
+| schema／migration 草案     | §九                               |
+| 舊資料退路                 | §四狀態表末列、§九 migration 註解 |
+| 未決事項                   | §十                               |
 
 **未驗證項目：** 本文件全部結論來自讀 working tree（`43bea6b`）。沒有跑過 migration、沒有實機錄音、沒有讀屏測試、沒有對公開 API 發過請求 —— 這些都屬於 6B 的驗收，不在 6A。
