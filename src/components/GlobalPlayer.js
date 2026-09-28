@@ -46,6 +46,12 @@ const TYPEWRITER_MIN_CHAR_DELAY_MS = 18;
 const TYPEWRITER_MAX_CHAR_DELAY_MS = 60;
 const TYPEWRITER_TARGET_DURATION_MS = 2200;
 
+// 跨音軌 seek 之後，新的進度要等音軌載入才會回報。這段空窗若直接顯示舊位置，
+// 放手的瞬間會閃回原處再跳過去，所以先留住剛提交的位置。
+// 進度追到這個誤差內就放開；真的一直沒追上（seek 被中止）也有逾時保底。
+const SEEK_SETTLE_TOLERANCE_SECONDS = 0.75;
+const SEEK_SETTLE_TIMEOUT_MS = 1200;
+
 function logGlobalPlayer(event, details = {}) {
   console.log(`${GLOBAL_PLAYER_DEBUG_TAG} ${event}`, details);
 }
@@ -87,6 +93,10 @@ function useQueueScrubber({ progress, duration, trackKey, onSeek }) {
   const pointerIdRef = useRef(null);
   const previewRef = useRef(null);
   const settleTimeoutRef = useRef(null);
+  // 這次 settle 是我們自己的 seek 造成的嗎？跨音軌 seek 會順帶換 currentTrack，
+  // 那一次換軌要留住剛提交的位置；其他原因的換軌（按下一首、自動接下一則）
+  // 則要立刻收掉。用完就丟，只擋第一次。
+  const seekTrackChangeRef = useRef(false);
   const [preview, setPreview] = useState(null);
   const [settleTarget, setSettleTarget] = useState(null);
 
@@ -98,6 +108,13 @@ function useQueueScrubber({ progress, duration, trackKey, onSeek }) {
       settleTimeoutRef.current = null;
     }
   }, []);
+
+  // 收掉這次的防閃爍保留，連同那個「換軌是我造成的」旗標一起。
+  const resolveSettle = useCallback(() => {
+    clearSettleTimer();
+    seekTrackChangeRef.current = false;
+    setSettleTarget(null);
+  }, [clearSettleTimer]);
 
   // 放棄這次預覽，不提交 seek。
   const cancelPreview = useCallback(() => {
@@ -115,20 +132,30 @@ function useQueueScrubber({ progress, duration, trackKey, onSeek }) {
   }, []);
 
   // 切歌：這次拖曳的位置對新音軌沒有意義，丟掉，不要拿舊位置去 seek。
-  //
-  // 這裡只收預覽，不收下面的 settleTarget —— 跨音軌的 seek 本身就會換 currentTrack，
-  // 兩個一起清的話，剛提交的位置會在同一輪被抹掉，那段防閃爍就永遠不會生效。
   useEffect(() => {
     cancelPreview();
-  }, [trackKey, cancelPreview]);
+    // 跨音軌的 seek 自己就會換 currentTrack。那一次要留住剛提交的位置，不然
+    // 下面那段防閃爍永遠不會生效；但只留這一次 —— 使用者接著按「下一首」時，
+    // 舊目標對新歌沒有意義，不能繼續掛在畫面上。
+    if (seekTrackChangeRef.current) {
+      seekTrackChangeRef.current = false;
+      return;
+    }
+    resolveSettle();
+  }, [trackKey, cancelPreview, resolveSettle]);
 
-  // 時長變成未知或 0（音檔還在載、佇列被清空）：不能算比例，收掉預覽。
+  // 時長改變就放掉這次預覽。不只是變成 0 或未知：佇列裡其他音軌的 metadata 晚一點
+  // 才載完時，總長會從一個有效值變成另一個有效值，同一個比例對應到的秒數就跟著變。
+  // 手上那個預覽已經不代表使用者當初指的位置，不能拿去 seek。
+  useEffect(() => {
+    cancelPreview();
+  }, [duration, cancelPreview]);
+
+  // 時長變成未知或 0（音檔還在載、佇列被清空）：連保留中的目標也一併收掉。
   useEffect(() => {
     if (seekable) return;
-    cancelPreview();
-    clearSettleTimer();
-    setSettleTarget(null);
-  }, [seekable, cancelPreview, clearSettleTimer]);
+    resolveSettle();
+  }, [seekable, resolveSettle]);
 
   // 卸載：只清 ref 與計時器，這時不能再 setState。
   useEffect(
@@ -147,22 +174,25 @@ function useQueueScrubber({ progress, duration, trackKey, onSeek }) {
   // 會閃回原處再跳過去。先留住剛才放手的位置，等進度追上或逾時再放開。
   useEffect(() => {
     if (settleTarget === null) return;
-    if (Math.abs(progress - settleTarget) <= 0.75) {
-      clearSettleTimer();
-      setSettleTarget(null);
+    if (Math.abs(progress - settleTarget) <= SEEK_SETTLE_TOLERANCE_SECONDS) {
+      resolveSettle();
     }
-  }, [progress, settleTarget, clearSettleTimer]);
+  }, [progress, settleTarget, resolveSettle]);
 
   const commitSeek = useCallback(
     (seconds) => {
       const target = clampTime(seconds, duration);
       if (target === null) return;
       setSettleTarget(target);
+      // 同一軌內的 seek 會同步回報新進度，上面那個效果馬上就把旗標收掉；
+      // 只有跨音軌的 seek 會真的用到它。
+      seekTrackChangeRef.current = true;
       clearSettleTimer();
       settleTimeoutRef.current = window.setTimeout(() => {
         settleTimeoutRef.current = null;
+        seekTrackChangeRef.current = false;
         setSettleTarget(null);
-      }, 1200);
+      }, SEEK_SETTLE_TIMEOUT_MS);
       onSeek(target);
     },
     [clearSettleTimer, duration, onSeek]
