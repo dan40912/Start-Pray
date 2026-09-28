@@ -21,7 +21,8 @@ const en = {
       frontPage: "Public site",
     },
     footer: {
-      tagline: "A quiet place to share a need, leave a prayer, and help someone know they are not alone.",
+      tagline:
+        "A quiet place to share a need, leave a prayer, and help someone know they are not alone.",
       trust: "Trust",
       accountHelp: "Account and Help",
       terms: "Terms",
@@ -74,10 +75,12 @@ const en = {
       reportFailed: "Could not complete the report right now. Please try again shortly.",
       retry: "Try again",
       anonymousLabel: "Anonymous prayer",
-      switchBlockedUploading: "This prayer is still sending — please wait a moment before switching.",
+      switchBlockedUploading:
+        "This prayer is still sending — please wait a moment before switching.",
       switchBlockedCountdown: "Countdown in progress — cancel it first before switching.",
       switchBlockedRecording: "Recording in progress — stop recording first before switching.",
-      switchBlockedRequesting: "Requesting microphone access — please wait a moment before switching.",
+      switchBlockedRequesting:
+        "Requesting microphone access — please wait a moment before switching.",
       switchBlockedGeneric: "Cannot switch right now. Please try again shortly.",
       discardConfirmTitle: "This recording has not been sent yet.",
       discardConfirmBody: "Discard the recording and see the next one?",
@@ -129,7 +132,8 @@ const en = {
       pause: "Pause",
       rerecord: "Record again",
       nextStepAnonymous: "Send anonymously",
-      prototypeSubmitNotice: "Your recording is ready. Anonymous sending will be connected in the next stage.",
+      prototypeSubmitNotice:
+        "Your recording is ready. Anonymous sending will be connected in the next stage.",
       uploading: "Sending your prayer…",
       successTitle: "Your prayer has been left.",
       successBody: "Someone will listen, and pray for you.",
@@ -137,9 +141,11 @@ const en = {
       stayHere: "Stay on this prayer",
       autoNextCountdown: "Moving to the next prayer in {seconds}s",
       submitErrorRateLimited: "A lot of prayers were just sent. Please try again shortly.",
-      submitErrorRejected: "This recording could not be sent. Please record again and try once more.",
+      submitErrorRejected:
+        "This recording could not be sent. Please record again and try once more.",
       submitErrorServer: "Could not send right now. Please try again shortly.",
-      submitErrorNetwork: "Your connection was interrupted. Please check your network and try again.",
+      submitErrorNetwork:
+        "Your connection was interrupted. Please check your network and try again.",
       retrySubmit: "Retry",
       rerecordConfirmTitle: "Record again?",
       rerecordConfirmBody: "This recording will be discarded.",
@@ -151,16 +157,19 @@ const en = {
       errorEmptyTitle: "This recording could not be saved.",
       errorEmptyBody: "Please record again.",
       errorSilentTitle: "This recording picked up no sound.",
-      errorSilentBody: "The microphone may be muted, in use by another app, or the system may have selected an input that is not listening. Please check and record again.",
+      errorSilentBody:
+        "The microphone may be muted, in use by another app, or the system may have selected an input that is not listening. Please check and record again.",
       errorStreamLostTitle: "The microphone connection was lost.",
-      errorStreamLostBody: "Please make sure no other app is using your microphone, then try again.",
+      errorStreamLostBody:
+        "Please make sure no other app is using your microphone, then try again.",
       playbackError: "This recording could not be played. Please record again.",
     },
     globeHero: {
       eyebrow: "Global Prayer Room",
       kicker: "Pray and bless together",
       headline: "Let the world’s needs be gently remembered",
-      subheadline: "Each light is a need, a blessing, or someone waiting to be held in prayer. Look quietly, then leave one simple prayer or blessing.",
+      subheadline:
+        "Each light is a need, a blessing, or someone waiting to be held in prayer. Look quietly, then leave one simple prayer or blessing.",
       primaryCta: "Write my prayer",
       guestPrimaryCta: "Pray for someone",
       roomCta: "Enter the Global Prayer Room",
@@ -188,7 +197,8 @@ const en = {
       modalCopySuffix: "prayers. Read a little first, then open the full page when you are ready.",
       modalDetailLink: "View prayer",
       modalEmptyTitle: "No public details yet",
-      modalEmptyCopy: "Even without public details, this place can still be blessed. Pray quietly for the people here.",
+      modalEmptyCopy:
+        "Even without public details, this place can still be blessed. Pray quietly for the people here.",
       prayerFallbackTitle: "A prayer waiting to be held",
       privateTitle: "Anonymous prayer",
       defaultTitle: "Untitled prayer",
@@ -201,9 +211,11 @@ const en = {
     },
     entryEyebrow: "New to Start Pray",
     entryTitle: "Begin with one prayer",
-    entryCopy: "You do not need to learn the whole site first. Write a need, or begin by blessing someone else.",
+    entryCopy:
+      "You do not need to learn the whole site first. Write a need, or begin by blessing someone else.",
     entryNeedTitle: "I want prayer",
-    entryNeedCopy: "Write what you are carrying. You can begin anonymously and keep private details hidden.",
+    entryNeedCopy:
+      "Write what you are carrying. You can begin anonymously and keep private details hidden.",
     entryNeedCta: "Write a prayer",
     entryPrayTitle: "I want to pray",
     entryPrayCopy: "Visit the Prayer Wall and leave one prayer or blessing for a real need.",
@@ -213,14 +225,24 @@ const en = {
     entryLookCta: "See global lights",
     proofEyebrow: "Prayers happening now",
     proofTitle: "Every response leaves a blessing behind",
-    proofCopy: "Start Pray gathers prayers, blessings, voice prayers, and approximate locations in a quiet place where people can watch over one another.",
+    proofCopy:
+      "Start Pray gathers prayers, blessings, voice prayers, and approximate locations in a quiet place where people can watch over one another.",
     proofPrimary: "Write my prayer",
     proofSecondary: "Listen to prayer voices",
     promiseTitle: "A quieter way to share a need",
     promises: [
-      ["Begin anonymously", "You do not need an account first. You can write one prayer need with a softer first step."],
-      ["Private details stay private", "A private prayer may show only an anonymous approximate light, not its title, description, image, or owner."],
-      ["Blessings stay close", "Written and voice responses gather under the prayer card so the person can return to them later."],
+      [
+        "Begin anonymously",
+        "You do not need an account first. You can write one prayer need with a softer first step.",
+      ],
+      [
+        "Private details stay private",
+        "A private prayer may show only an anonymous approximate light, not its title, description, image, or owner.",
+      ],
+      [
+        "Blessings stay close",
+        "Written and voice responses gather under the prayer card so the person can return to them later.",
+      ],
     ],
     proofStats: {
       totalPrayerCards: ["Public prayers", "Prayers that can be seen and answered"],
@@ -231,30 +253,37 @@ const en = {
       categories: ["Prayer themes", "Themes that help people find where to pray"],
     },
     finalCtaTitle: "Turn this moment into a prayer",
-    finalCtaCopy: "You can begin anonymously, or log in to manage your prayer card. Start with one thing you want to be blessed today.",
+    finalCtaCopy:
+      "You can begin anonymously, or log in to manage your prayer card. Start with one thing you want to be blessed today.",
     finalCtaPrimary: "Write a prayer",
     finalCtaSecondary: "Pray now",
     explorerEyebrow: "Begin with a blessing",
     explorerTitle: "Find one need you are willing to hold in prayer",
-    explorerCopy: "Search by theme, switch categories, or begin with prayers that already have responses.",
+    explorerCopy:
+      "Search by theme, switch categories, or begin with prayers that already have responses.",
     explorerPrimary: "Write a prayer",
     explorerSecondary: "View all prayers",
     trustTitle: "A quiet place for prayer",
     aboutTitle: "About Start Pray",
-    aboutCopy: "Start Pray helps needs be seen and lets every prayer or blessing become gentle support.",
+    aboutCopy:
+      "Start Pray helps needs be seen and lets every prayer or blessing become gentle support.",
     howtoTitle: "How to participate",
-    howtoCopy: "Write a prayer, leave a blessing, and let your care become part of the global prayer map.",
+    howtoCopy:
+      "Write a prayer, leave a blessing, and let your care become part of the global prayer map.",
     policyTitle: "Trust and safety",
-    policyCopy: "Anonymous prayer, privacy controls, and reporting tools help keep this space quiet, warm, and trustworthy.",
+    policyCopy:
+      "Anonymous prayer, privacy controls, and reporting tools help keep this space quiet, warm, and trustworthy.",
     learnMore: "Learn more",
     guide: "Read the guide",
     terms: "Read the terms",
     metadataTitle: "Start Pray",
-    metadataDescription: "Start Pray helps people share prayer needs, respond with words or voice, and see needs being carried across the world.",
+    metadataDescription:
+      "Start Pray helps people share prayer needs, respond with words or voice, and see needs being carried across the world.",
   },
   prayerWall: {
     metadataTitle: "Prayer Wall",
-    metadataDescription: "Browse public prayer cards on Start Pray and leave a written or voice response for someone who needs companionship.",
+    metadataDescription:
+      "Browse public prayer cards on Start Pray and leave a written or voice response for someone who needs companionship.",
     sortOptions: {
       responses: ["Most answered", "Prayers with the most responses"],
       recent: ["Newest", "Recently created needs"],
@@ -276,7 +305,8 @@ const en = {
     headingLatest: "Newest prayer needs",
     headingCards: "Prayer Cards",
     defaultIntroTitle: "Find a prayer you can carry with someone",
-    defaultIntroCopy: "Search by topic, switch categories, or start with prayer cards that already have responses.",
+    defaultIntroCopy:
+      "Search by topic, switch categories, or start with prayer cards that already have responses.",
     searchTitle: "Search prayer topics",
     searchHelper: "Type a keyword or choose a quick tag below",
     searchLabel: "Search prayer topics",
@@ -310,7 +340,8 @@ const en = {
   auth: {
     login: {
       metadataTitle: "Log in",
-      metadataDescription: "Log in to Start Pray to manage your prayer cards, responses, and profile.",
+      metadataDescription:
+        "Log in to Start Pray to manage your prayer cards, responses, and profile.",
       title: "Welcome back",
       copy: "After logging in, you can create prayer cards, leave responses, and use your voice to pray for people who need care.",
       trustBullets: [
@@ -338,14 +369,28 @@ const en = {
     },
     signup: {
       metadataTitle: "Sign up",
-      metadataDescription: "Create a Start Pray account to share prayer cards and respond with care.",
+      metadataDescription:
+        "Create a Start Pray account to share prayer cards and respond with care.",
       badge: "STEP 1 · Share your need",
       heroTitle: "Let your need be seen",
-      heroCopy: "In a few minutes, you can share a prayer need and receive written responses from people willing to care.",
+      heroCopy:
+        "In a few minutes, you can share a prayer need and receive written responses from people willing to care.",
       steps: [
-        ["1", "Share your need", "Write clearly about the thing you most want prayer for right now."],
-        ["2", "Someone can see it", "Your need does not have to sit alone. People can respond with prayer and care."],
-        ["3", "Walk with one another", "Written responses create a gentle thread of companionship."],
+        [
+          "1",
+          "Share your need",
+          "Write clearly about the thing you most want prayer for right now.",
+        ],
+        [
+          "2",
+          "Someone can see it",
+          "Your need does not have to sit alone. People can respond with prayer and care.",
+        ],
+        [
+          "3",
+          "Walk with one another",
+          "Written responses create a gentle thread of companionship.",
+        ],
       ],
       title: "Create a Start Pray account",
       copy: "After signing up, you can create prayer cards, manage your content, and receive written responses.",
@@ -356,7 +401,8 @@ const en = {
       accountInfo: "Account information",
       fullName: "Display name (nickname is fine)",
       fullNamePlaceholder: "Example: Joyful Friend. Please do not use sensitive personal details.",
-      fullNameHelper: "This appears publicly. Use a nickname instead of your real name if that feels safer.",
+      fullNameHelper:
+        "This appears publicly. Use a nickname instead of your real name if that feels safer.",
       username: "Username",
       usernamePlaceholder: "Letters and numbers, at least 4 characters",
       usernameHelper: "Used for your profile and sharing link. A nickname format is okay.",
@@ -367,8 +413,10 @@ const en = {
       faithHelper: "You can skip this and update it later.",
       country: "Region",
       countryPlaceholder: "Type a country or region, for example Taiwan or Japan",
-      countryHelper: "You can type in Chinese or English. We normalize it after you leave the field.",
-      privacyNote: "Public pages only show the display name and public content you choose. Your email is never shown publicly.",
+      countryHelper:
+        "You can type in Chinese or English. We normalize it after you leave the field.",
+      privacyNote:
+        "Public pages only show the display name and public content you choose. Your email is never shown publicly.",
       email: "Email",
       password: "Password",
       passwordPlaceholder: "At least 8 characters; symbols are recommended",
@@ -390,9 +438,11 @@ const en = {
   },
   globalRoom: {
     metadataTitle: "Global Prayer Room",
-    metadataDescription: "See prayer lights, recent needs, and voice prayers from around the world, and pray for cities, families, churches, and urgent situations.",
+    metadataDescription:
+      "See prayer lights, recent needs, and voice prayers from around the world, and pray for cities, families, churches, and urgent situations.",
     structuredName: "Global Prayer Room",
-    structuredDescription: "See prayer lights, recent needs, and voice prayers from around the world.",
+    structuredDescription:
+      "See prayer lights, recent needs, and voice prayers from around the world.",
     latestListName: "Recent global prayers",
     cityPrayer: "City prayer",
     locationCount: "Prayer locations",
@@ -407,7 +457,8 @@ const en = {
     globeLoadErrorFallback: "The global prayer globe could not load. Please try again later.",
     eyebrow: "Global Prayer Room",
     title: "See the world being held in prayer",
-    intro: "See anonymous prayer lights around the world, find a city, listen to voice prayers, and join in care.",
+    intro:
+      "See anonymous prayer lights around the world, find a city, listen to voice prayers, and join in care.",
     createPrayer: "New Prayer",
     guideDrag: "Drag the globe",
     guideClick: "Tap a light",
@@ -419,7 +470,8 @@ const en = {
     searchLabel: "Search a place or prayer",
     searchPlaceholder: "Search a country, city, or prayer topic",
     searchSubmit: "Go",
-    searchNotFound: "No matching country, city, or prayer was found. Try Taiwan, Japan, USA, or Healing.",
+    searchNotFound:
+      "No matching country, city, or prayer was found. Try Taiwan, Japan, USA, or Healing.",
     searchLocated: "{location} is in focus.",
     searchLocatedWithPrayers: "{location} is in focus. Related prayers are shown here.",
     taiwan: "Taiwan",
@@ -429,11 +481,13 @@ const en = {
     hotspotView: "Hotspots",
     mapControlsLabel: "Map controls",
     audio: "Voice",
-    privateAudioNotice: "This is an anonymous prayer light, so no public voice prayer is available.",
+    privateAudioNotice:
+      "This is an anonymous prayer light, so no public voice prayer is available.",
     noAudioNotice: "There are no voice prayers to play yet.",
     playingNotice: "Playing voice prayers for this prayer card.",
     audioFailed: "Voice prayers could not be loaded right now. Please try again later.",
-    privateReplyNotice: "This is an anonymous prayer light and cannot receive a public response. Please pray quietly for this area.",
+    privateReplyNotice:
+      "This is an anonymous prayer light and cannot receive a public response. Please pray quietly for this area.",
     loginRequired: "Please log in before leaving a prayer response.",
     responseSent: "Your prayer response has been sent.",
     responseFailed: "Your response could not be sent. Please try again later.",
@@ -457,7 +511,8 @@ const en = {
     respond: "Respond",
     share: "Share",
     report: "Report",
-    reportNotice: "Reports follow the existing detail-page permission and review rules. The API was not changed.",
+    reportNotice:
+      "Reports follow the existing detail-page permission and review rules. The API was not changed.",
     responseTypeLabel: "Response type",
     responseModes: {
       pray: "I prayed",
@@ -483,26 +538,28 @@ const en = {
     unnamed: "Unnamed",
     loginRequired: "Your login has expired. Please log in again and resend.",
     loginAction: "Log in",
-    cooldown: "You already responded to this prayer. Please wait about {minutes} minute(s) before sending another response.",
+    cooldown:
+      "You already responded to this prayer. Please wait about {minutes} minute(s) before sending another response.",
     responseFailed: "We could not send your response right now. Please try again later.",
     loadFailed: "We could not load the responses.",
     reportLogin: "Please log in before reporting a response.",
     reportMissing: "We could not find the response to report.",
     reportReasonRequired: "Please choose a report reason.",
     reportFailed: "The report could not be sent. Please try again later.",
-    reportSuccess: "Report received. This voice or written response is hidden while it is reviewed.",
+    reportSuccess:
+      "Report received. This voice or written response is hidden while it is reviewed.",
     shareInvite: "Please take a look at this prayer response",
     shareReady: "Share link is ready.",
     linkCopied: "Link copied.",
     shareFailed: "Sharing is not available right now. Please try again later.",
-    cooldownNotice: "You already responded to this prayer. Please wait about {minutes} minute(s) before trying again.",
-    audioTooLarge: "This audio file is too large. Please use a file under 12MB, or record a shorter prayer.",
+    cooldownNotice:
+      "You already responded to this prayer. Please wait about {minutes} minute(s) before trying again.",
+    audioTooLarge:
+      "This audio file is too large. Please use a file under 12MB, or record a shorter prayer.",
     voiceSuccess: "Your voice prayer has been sent.",
     textSuccess: "Your prayer response has been sent.",
     submitFailed: "We could not send your response. Please try again later.",
     reviewCount: "{count} response(s) under review",
-    title: "Prayer responses",
-    subtitle: "Leave a written response and become part of someone’s support.",
     loading: "Loading responses...",
     empty: "Be the first person to leave a response.",
     reportBadge: "Reported {count} time(s)",
@@ -510,17 +567,19 @@ const en = {
     share: "Share",
     moreActions: "More response actions",
     reportThis: "Report this response",
-    composerTitle: "Pray now",
-    guestTextNotice: "No login is needed. Written and voice prayers are sent as an anonymous visitor.",
-    textRules: "Written prayers must be 8–2000 characters. Your text stays here if sending fails.",
+    composerTitle: "Leave a prayer",
+    voiceAction: "Use voice instead",
+    guestTextNotice: "No login needed. Visitor responses appear anonymously.",
+    textRules: "8–2000 characters. Your text stays here if sending fails.",
     emptyResponse: "Write your prayer first, then select “Send written prayer.”",
-    networkError: "You appear to be offline. Your prayer was not sent, and your text is still here. Check your connection and try again.",
+    networkError:
+      "You appear to be offline. Your prayer was not sent, and your text is still here. Check your connection and try again.",
     successTitle: "Your prayer has been sent.",
     successBody: "Today, someone was remembered.",
     pendingSuccessTitle: "Your prayer has been sent.",
     pendingSuccessBody: "To protect this space, it will appear after review.",
     prayAgain: "Pray for another person",
-    writeAgain: "Send another written prayer",
+    writeAgain: "Leave another prayer",
     textPlaceholder: "Write a quiet prayer that helps carry this need.",
     anonymousPost: "Send prayer anonymously",
     anonymousHint: "Hidden automatically if reported",
@@ -531,7 +590,8 @@ const en = {
     submit: "Send written prayer",
     closeReport: "Close report dialog",
     reportTitle: "Report this response",
-    reportHint: "Choose a report reason. If you are willing, add context to help the admin review it.",
+    reportHint:
+      "Choose a report reason. If you are willing, add context to help the admin review it.",
     reportTarget: "Reported response",
     noMessage: "This response has no written message.",
     reportReasonLegend: "Report reason",
@@ -557,19 +617,9 @@ const en = {
     backToWall: "Back to Prayer Wall",
     leavePrayer: "Leave a prayer",
     shareGroup: "Share with a group",
-    copyShareLink: "Copy share link",
     createdAt: "Created",
     uploader: "Shared by",
-    nextStepEyebrow: "A gentle next step",
-    nextStepTitle: "How you can pray for this person",
-    nextStepCopy: "It does not need to be long. A short prayer, a brief voice note, or sharing this need with trusted people can become support.",
-    textPrayerTitle: "Leave a written prayer",
-    textPrayerCopy: "A blessing, a short verse, or one honest sentence is enough.",
-    voicePrayerTitle: "Record a voice prayer",
-    voicePrayerCopy: "After logging in, you can leave a short voice prayer so the person can hear someone praying for them.",
-    groupShareTitle: "Share with a group",
-    groupShareCopy: "Bring this link to trusted people and pray together.",
-    responsesTitle: "Messages and prayer responses",
+    responsesTitle: "Prayer responses",
     adjacentLabel: "Previous and next prayer",
     continueBrowse: "Keep browsing",
     previous: "Previous",
@@ -581,9 +631,6 @@ const en = {
     prayerCategoryFallback: "Prayer",
     author: "By",
     responsesSuffix: "responses",
-    quickActions: "Quick ways to respond",
-    recordVoice: "Record voice",
-    loginToRespond: "Log in to respond",
   },
   wellbeing: {
     title: "May you be comforted",

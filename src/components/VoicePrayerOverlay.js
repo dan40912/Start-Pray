@@ -641,10 +641,8 @@ export default function VoicePrayerOverlay({ onComplete, onCancel }) {
         {phase === "vperm" && (
           <div className="vpo-center">
             <div className="vpo-icon" aria-hidden="true">🎙</div>
-            <h3 className="vpo-title">用你的聲音，留下一段祝福。</h3>
-            <p className="vpo-body">
-              我們只會儲存這次禱告，不會公開你的身份。
-            </p>
+            <h3 className="vpo-title">用聲音留下禱告</h3>
+            <p className="vpo-body">送出前可以重聽，也可以補上文字。</p>
             <button type="button" className="vpo-btn vpo-btn--primary" onClick={askMic}>
               開啟麥克風
             </button>
@@ -653,8 +651,8 @@ export default function VoicePrayerOverlay({ onComplete, onCancel }) {
             </button>
             <p className="vpo-hint">
               {captionsOn
-                ? "字幕使用瀏覽器內建語音辨識（免費）。不支援的瀏覽器仍可錄音，錄完可自行補上文字。"
-                : "為了確保錄音完整，錄音時不會同步產生字幕；錄完可以自己補上文字。"}
+                ? "若沒有即時字幕，錄完仍可自己補上文字。"
+                : "錄音時不會自動產生字幕；錄完可自己補上文字。"}
             </p>
           </div>
         )}

@@ -145,7 +145,7 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
 
   const reportTargetName = reportTarget ? getDisplayName(reportTarget, commentsText) : "";
   const reportPreviewMessage = reportTarget?.message
-    ? `${reportTarget.message.slice(0, 200)}${reportTarget.message.length > 200 ? '...' : ''}`
+    ? `${reportTarget.message.slice(0, 200)}${reportTarget.message.length > 200 ? "..." : ""}`
     : "";
 
   const closeReportModal = useCallback(() => {
@@ -157,114 +157,130 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
     setReportFeedback("");
   }, [reportSubmitting]);
 
-  const openReportModal = useCallback((response) => {
-    if (!authUser) {
-      setActionNotice(commentsText.reportLogin);
-      setActionNoticeType("error");
-      setActionNoticeLoginHref(buildLoginHref(requestId, locale));
-      return;
-    }
-    setReportTarget(response);
-    setReportReason("");
-    setReportRemarks("");
-    setReportError("");
-    setReportFeedback("");
-  }, [authUser, commentsText.reportLogin, locale, requestId]);
+  const openReportModal = useCallback(
+    (response) => {
+      if (!authUser) {
+        setActionNotice(commentsText.reportLogin);
+        setActionNoticeType("error");
+        setActionNoticeLoginHref(buildLoginHref(requestId, locale));
+        return;
+      }
+      setReportTarget(response);
+      setReportReason("");
+      setReportRemarks("");
+      setReportError("");
+      setReportFeedback("");
+    },
+    [authUser, commentsText.reportLogin, locale, requestId]
+  );
 
   const toggleActionMenu = useCallback((responseId) => {
     setOpenActionMenuId((prev) => (prev === responseId ? null : responseId));
   }, []);
 
-  const handleShareResponse = useCallback(async (response) => {
-    if (typeof window === "undefined") return;
-    const baseUrl = window.location.href.split("#")[0];
-    const shareUrl = `${baseUrl}#prayer-response-${response.id}`;
-    const shareText = response.message ? response.message.slice(0, 120) : commentsText.shareInvite;
-    try {
-      if (navigator.share) {
-        await navigator.share({
-          title: document.title,
-          text: shareText,
-          url: shareUrl,
-        });
-        setActionNotice(commentsText.shareReady);
-        setActionNoticeType("success");
-      } else if (navigator.clipboard) {
-        await navigator.clipboard.writeText(shareUrl);
-        setActionNotice(commentsText.linkCopied);
-        setActionNoticeType("success");
-      } else {
-        const textarea = document.createElement("textarea");
-        textarea.value = shareUrl;
-        textarea.setAttribute("readonly", "");
-        textarea.style.position = "absolute";
-        textarea.style.left = "-9999px";
-        document.body.appendChild(textarea);
-        textarea.select();
-        try {
-          document.execCommand("copy");
+  const handleShareResponse = useCallback(
+    async (response) => {
+      if (typeof window === "undefined") return;
+      const baseUrl = window.location.href.split("#")[0];
+      const shareUrl = `${baseUrl}#prayer-response-${response.id}`;
+      const shareText = response.message
+        ? response.message.slice(0, 120)
+        : commentsText.shareInvite;
+      try {
+        if (navigator.share) {
+          await navigator.share({
+            title: document.title,
+            text: shareText,
+            url: shareUrl,
+          });
+          setActionNotice(commentsText.shareReady);
+          setActionNoticeType("success");
+        } else if (navigator.clipboard) {
+          await navigator.clipboard.writeText(shareUrl);
           setActionNotice(commentsText.linkCopied);
           setActionNoticeType("success");
-        } catch (_copyErr) {
-          throw new Error(commentsText.shareFailed);
-        } finally {
-          textarea.remove();
+        } else {
+          const textarea = document.createElement("textarea");
+          textarea.value = shareUrl;
+          textarea.setAttribute("readonly", "");
+          textarea.style.position = "absolute";
+          textarea.style.left = "-9999px";
+          document.body.appendChild(textarea);
+          textarea.select();
+          try {
+            document.execCommand("copy");
+            setActionNotice(commentsText.linkCopied);
+            setActionNoticeType("success");
+          } catch (_copyErr) {
+            throw new Error(commentsText.shareFailed);
+          } finally {
+            textarea.remove();
+          }
         }
+      } catch (err) {
+        if (err?.name === "AbortError") return;
+        setActionNotice(err?.message || commentsText.shareFailed);
+        setActionNoticeType("error");
       }
-    } catch (err) {
-      if (err?.name === "AbortError") return;
-      setActionNotice(err?.message || commentsText.shareFailed);
-      setActionNoticeType("error");
-    }
-  }, [commentsText]);
+    },
+    [commentsText]
+  );
 
-  const handleReportSubmit = useCallback(async (event) => {
-    event.preventDefault();
-    if (!reportTarget) {
-      setReportError(commentsText.reportMissing);
-      return;
-    }
-    if (!reportReason) {
-      setReportError(commentsText.reportReasonRequired);
-      return;
-    }
-    setReportSubmitting(true);
-    setReportError("");
-    setReportFeedback("");
-
-    try {
-      const response = await fetch("/api/prayer-response/report", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          responseId: reportTarget.id,
-          reason: reportReason,
-          remarks: reportRemarks,
-        }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        throw new Error(data?.message || commentsText.reportFailed);
+  const handleReportSubmit = useCallback(
+    async (event) => {
+      event.preventDefault();
+      if (!reportTarget) {
+        setReportError(commentsText.reportMissing);
+        return;
       }
+      if (!reportReason) {
+        setReportError(commentsText.reportReasonRequired);
+        return;
+      }
+      setReportSubmitting(true);
+      setReportError("");
+      setReportFeedback("");
 
-      setResponses((prev) =>
-        prev.map((item) =>
-          item.id === reportTarget.id
-            ? { ...item, reportCount: (item.reportCount || 0) + 1, isBlocked: true, reviewStatus: "pending" }
-            : item
-        )
-      );
-      setReportFeedback(commentsText.reportSuccess);
-      window.setTimeout(() => {
-        closeReportModal();
-      }, 1500);
-    } catch (err) {
-      setReportError(err?.message || commentsText.reportFailed);
-    } finally {
-      setReportSubmitting(false);
-    }
-  }, [commentsText, reportTarget, reportReason, reportRemarks, closeReportModal]);
+      try {
+        const response = await fetch("/api/prayer-response/report", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            responseId: reportTarget.id,
+            reason: reportReason,
+            remarks: reportRemarks,
+          }),
+        });
+
+        if (!response.ok) {
+          const data = await response.json().catch(() => ({}));
+          throw new Error(data?.message || commentsText.reportFailed);
+        }
+
+        setResponses((prev) =>
+          prev.map((item) =>
+            item.id === reportTarget.id
+              ? {
+                  ...item,
+                  reportCount: (item.reportCount || 0) + 1,
+                  isBlocked: true,
+                  reviewStatus: "pending",
+                }
+              : item
+          )
+        );
+        setReportFeedback(commentsText.reportSuccess);
+        window.setTimeout(() => {
+          closeReportModal();
+        }, 1500);
+      } catch (err) {
+        setReportError(err?.message || commentsText.reportFailed);
+      } finally {
+        setReportSubmitting(false);
+      }
+    },
+    [commentsText, reportTarget, reportReason, reportRemarks, closeReportModal]
+  );
 
   const [submittingResponse, setSubmittingResponse] = useState(false);
   const [showVoiceOverlay, setShowVoiceOverlay] = useState(false);
@@ -357,7 +373,11 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
 
     if (submittingResponse) return false;
     if (isCoolingDown) {
-      setActionNotice(formatMessage(commentsText.cooldownNotice, { minutes: Math.ceil(cooldownRemainingSeconds / 60) }));
+      setActionNotice(
+        formatMessage(commentsText.cooldownNotice, {
+          minutes: Math.ceil(cooldownRemainingSeconds / 60),
+        })
+      );
       setActionNoticeType("error");
       setActionNoticeLoginHref("");
       return false;
@@ -398,9 +418,14 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
         }
         setActionNotice(details.message);
         setActionNoticeType("error");
-        setActionNoticeLoginHref(details.action?.href || (details.needsLogin ? buildLoginHref(requestId, locale) : ""));
-        setActionNoticeLabel(details.action?.label || (details.needsLogin ? commentsText.loginAction : ""));
-        if (["EMPTY_RESPONSE", "TEXT_TOO_SHORT", "TEXT_TOO_LONG"].includes(details.code)) textareaRef.current?.focus();
+        setActionNoticeLoginHref(
+          details.action?.href || (details.needsLogin ? buildLoginHref(requestId, locale) : "")
+        );
+        setActionNoticeLabel(
+          details.action?.label || (details.needsLogin ? commentsText.loginAction : "")
+        );
+        if (["EMPTY_RESPONSE", "TEXT_TOO_SHORT", "TEXT_TOO_LONG"].includes(details.code))
+          textareaRef.current?.focus();
         return false;
       }
 
@@ -463,13 +488,13 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
 
   return (
     <section className="comments card">
-      <div className="comments__header">
-        {pendingReviewCount ? (
-          <span className="comments__review-status">{formatMessage(commentsText.reviewCount, { count: pendingReviewCount })}</span>
-        ) : null}
-        <h3>{commentsText.title}</h3>
-        <p className="comments__subtitle">{commentsText.subtitle}</p>
-      </div>
+      {pendingReviewCount ? (
+        <div className="comments__header">
+          <span className="comments__review-status">
+            {formatMessage(commentsText.reviewCount, { count: pendingReviewCount })}
+          </span>
+        </div>
+      ) : null}
 
       {actionNotice ? (
         <p
@@ -480,7 +505,10 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
         >
           {actionNoticeLoginHref ? (
             <>
-              {actionNotice} <Link href={actionNoticeLoginHref}>{actionNoticeLabel || commentsText.loginAction}</Link>
+              {actionNotice}{" "}
+              <Link href={actionNoticeLoginHref}>
+                {actionNoticeLabel || commentsText.loginAction}
+              </Link>
             </>
           ) : (
             actionNotice
@@ -489,133 +517,143 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
       ) : null}
 
       <div className="comments__list" aria-live="polite">
-          {loading ? (
-            <p>{commentsText.loading}</p>
-          ) : error ? (
-            <p className="cp-alert cp-alert--error">{error}</p>
-          ) : visibleResponses.length === 0 ? (
-            <p className="cp-helper">{commentsText.empty}</p>
-          ) : (
-            shownResponses.map((response) => {
-                const anonCode = anonymousLabels.get(response.id);
-                const name = getDisplayName(response, commentsText, anonCode);
-                const avatarUrl = getAvatarUrl(response);
-                const avatarFallback = response.isAnonymous
-                  ? anonCode || "祈"
-                  : getAvatarFallback(name);
-                const avatarStyle = response.isAnonymous
-                  ? getAnonymousAvatarStyle(anonCode)
-                  : undefined;
-                const profileHref = getResponderProfileHref(response);
-                const isActionMenuOpen = openActionMenuId === response.id;
-                return (
-                  <article
-                    key={response.id}
-                    id={`prayer-response-${response.id}`}
-                    className={`comment-item${response.reportCount > 0 ? " has-reports" : ""}`}
-                  >
-                    <div className="comment-item__header">
-                        <div className="comment-item__identity">
-                          {profileHref ? (
-                            <Link href={profileHref} prefetch={false} className="comment-item__avatar-link">
-                                <div className="comment-item__avatar" aria-hidden style={avatarStyle}>
-                                  {avatarUrl ? (
-                                    <img src={avatarUrl} alt={name} loading="lazy" />
-                                  ) : (
-                                    <span>{avatarFallback}</span>
-                                  )}
-                                </div>
-                            </Link>
+        {loading ? (
+          <p>{commentsText.loading}</p>
+        ) : error ? (
+          <p className="cp-alert cp-alert--error">{error}</p>
+        ) : visibleResponses.length === 0 ? (
+          <p className="cp-helper">{commentsText.empty}</p>
+        ) : (
+          shownResponses.map((response) => {
+            const anonCode = anonymousLabels.get(response.id);
+            const name = getDisplayName(response, commentsText, anonCode);
+            const avatarUrl = getAvatarUrl(response);
+            const avatarFallback = response.isAnonymous
+              ? anonCode || "祈"
+              : getAvatarFallback(name);
+            const avatarStyle = response.isAnonymous
+              ? getAnonymousAvatarStyle(anonCode)
+              : undefined;
+            const profileHref = getResponderProfileHref(response);
+            const isActionMenuOpen = openActionMenuId === response.id;
+            return (
+              <article
+                key={response.id}
+                id={`prayer-response-${response.id}`}
+                className={`comment-item${response.reportCount > 0 ? " has-reports" : ""}`}
+              >
+                <div className="comment-item__header">
+                  <div className="comment-item__identity">
+                    {profileHref ? (
+                      <Link
+                        href={profileHref}
+                        prefetch={false}
+                        className="comment-item__avatar-link"
+                      >
+                        <div className="comment-item__avatar" aria-hidden style={avatarStyle}>
+                          {avatarUrl ? (
+                            <img src={avatarUrl} alt={name} loading="lazy" />
                           ) : (
-                            <div className="comment-item__avatar" aria-hidden style={avatarStyle}>
-                                {avatarUrl ? (
-                                  <img src={avatarUrl} alt={name} loading="lazy" />
-                                ) : (
-                                  <span>{avatarFallback}</span>
-                                )}
-                            </div>
-                          )}
-                          {profileHref ? (
-                            <Link href={profileHref} prefetch={false} className="comment-item__name">
-                                {name}
-                            </Link>
-                          ) : (
-                            <strong>{name}</strong>
+                            <span>{avatarFallback}</span>
                           )}
                         </div>
-                        <div className="comment-item__meta-actions">
-                          {response.reportCount > 0 ? (
-                            <span
-                              className="comment-item__report-badge"
-                              title={formatMessage(commentsText.reportBadge, { count: response.reportCount })}
-                            >
-                              {formatMessage(commentsText.reportBadgeShort, { count: response.reportCount })}
-                            </span>
-                          ) : null}
-                          <div className="comment-item__actions">
+                      </Link>
+                    ) : (
+                      <div className="comment-item__avatar" aria-hidden style={avatarStyle}>
+                        {avatarUrl ? (
+                          <img src={avatarUrl} alt={name} loading="lazy" />
+                        ) : (
+                          <span>{avatarFallback}</span>
+                        )}
+                      </div>
+                    )}
+                    {profileHref ? (
+                      <Link href={profileHref} prefetch={false} className="comment-item__name">
+                        {name}
+                      </Link>
+                    ) : (
+                      <strong>{name}</strong>
+                    )}
+                  </div>
+                  <div className="comment-item__meta-actions">
+                    {response.reportCount > 0 ? (
+                      <span
+                        className="comment-item__report-badge"
+                        title={formatMessage(commentsText.reportBadge, {
+                          count: response.reportCount,
+                        })}
+                      >
+                        {formatMessage(commentsText.reportBadgeShort, {
+                          count: response.reportCount,
+                        })}
+                      </span>
+                    ) : null}
+                    <div className="comment-item__actions">
+                      <button
+                        type="button"
+                        className="comment-item__action-btn comment-item__action-btn--share"
+                        onClick={() => handleShareResponse(response)}
+                      >
+                        {commentsText.share}
+                      </button>
+                      <div
+                        className={`comment-item__menu-wrap${isActionMenuOpen ? " is-open" : ""}`}
+                      >
+                        <button
+                          type="button"
+                          className="comment-item__menu-trigger"
+                          aria-label={commentsText.moreActions}
+                          aria-haspopup="menu"
+                          aria-expanded={isActionMenuOpen}
+                          aria-controls={`comment-action-menu-${response.id}`}
+                          onClick={() => toggleActionMenu(response.id)}
+                        >
+                          ...
+                        </button>
+                        {isActionMenuOpen ? (
+                          <div
+                            id={`comment-action-menu-${response.id}`}
+                            className="comment-item__action-menu"
+                            role="menu"
+                          >
                             <button
                               type="button"
-                              className="comment-item__action-btn comment-item__action-btn--share"
-                              onClick={() => handleShareResponse(response)}
+                              role="menuitem"
+                              className="comment-item__action-menu-item comment-item__action-menu-item--danger"
+                              onClick={() => {
+                                setOpenActionMenuId(null);
+                                openReportModal(response);
+                              }}
                             >
-                              {commentsText.share}
+                              {commentsText.reportThis}
                             </button>
-                            <div className={`comment-item__menu-wrap${isActionMenuOpen ? " is-open" : ""}`}>
-                              <button
-                                type="button"
-                                className="comment-item__menu-trigger"
-                                aria-label={commentsText.moreActions}
-                                aria-haspopup="menu"
-                                aria-expanded={isActionMenuOpen}
-                                aria-controls={`comment-action-menu-${response.id}`}
-                                onClick={() => toggleActionMenu(response.id)}
-                              >
-                                ...
-                              </button>
-                              {isActionMenuOpen ? (
-                                <div
-                                  id={`comment-action-menu-${response.id}`}
-                                  className="comment-item__action-menu"
-                                  role="menu"
-                                >
-                                  <button
-                                    type="button"
-                                    role="menuitem"
-                                    className="comment-item__action-menu-item comment-item__action-menu-item--danger"
-                                    onClick={() => {
-                                      setOpenActionMenuId(null);
-                                      openReportModal(response);
-                                    }}
-                                  >
-                                    {commentsText.reportThis}
-                                  </button>
-                                </div>
-                              ) : null}
-                            </div>
                           </div>
-                        </div>
+                        ) : null}
+                      </div>
                     </div>
-                    {response.message ? <p>{response.message}</p> : null}
-                    {response.voiceUrl ? (
-                        <div className="comment-item__audio">
-                          <GainAudio src={response.voiceUrl} controls preload="metadata" />
-                        </div>
-                    ) : null}
-                  </article>
-                );
-            })
-          )}
+                  </div>
+                </div>
+                {response.message ? <p>{response.message}</p> : null}
+                {response.voiceUrl ? (
+                  <div className="comment-item__audio">
+                    <GainAudio src={response.voiceUrl} controls preload="metadata" />
+                  </div>
+                ) : null}
+              </article>
+            );
+          })
+        )}
 
-          {hiddenResponseCount > 0 ? (
-            <button
-              type="button"
-              className="comments__show-more"
-              onClick={() => setShowAllResponses(true)}
-            >
-              {commentsText.showMore.replace("{count}", String(hiddenResponseCount))}
-            </button>
-          ) : null}
-        </div>
+        {hiddenResponseCount > 0 ? (
+          <button
+            type="button"
+            className="comments__show-more"
+            onClick={() => setShowAllResponses(true)}
+          >
+            {commentsText.showMore.replace("{count}", String(hiddenResponseCount))}
+          </button>
+        ) : null}
+      </div>
       {showVoiceOverlay && (
         <VoicePrayerOverlay
           onComplete={handleVoiceComplete}
@@ -625,17 +663,28 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
 
       {showSuccess ? (
         <div className="comments__success" role="status" aria-live="polite">
-          <div className="comments__success-star" aria-hidden="true">✦</div>
-          <h3 className="comments__success-title">{successPendingReview ? commentsText.pendingSuccessTitle : commentsText.successTitle}</h3>
-          <p className="comments__success-body">{successPendingReview ? commentsText.pendingSuccessBody : commentsText.successBody}</p>
+          <div className="comments__success-star" aria-hidden="true">
+            ✦
+          </div>
+          <h3 className="comments__success-title">
+            {successPendingReview ? commentsText.pendingSuccessTitle : commentsText.successTitle}
+          </h3>
+          <p className="comments__success-body">
+            {successPendingReview ? commentsText.pendingSuccessBody : commentsText.successBody}
+          </p>
           {successHasVoice && successBlobUrlRef.current ? (
             <GainAudio
               className="comments__success-audio"
               src={successBlobUrlRef.current}
               controls
-              aria-label="重聽剛才的語音祝福" />
+              aria-label="重聽剛才的語音祝福"
+            />
           ) : null}
-          <Link href={localizePath("/prayfor/one", locale)} className="comments__success-btn comments__success-btn--primary" prefetch={false}>
+          <Link
+            href={localizePath("/prayfor/one", locale)}
+            className="comments__success-btn comments__success-btn--primary"
+            prefetch={false}
+          >
             {commentsText.prayAgain}
           </Link>
           <button
@@ -657,8 +706,8 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
 
       {!showSuccess ? (
         <>
-          <h3 className="comments__composer-title">{commentsText.composerTitle}</h3>
-          <div className="comments__voice-cta">
+          <div className="comments__composer-head" id="response-composer">
+            <h3 className="comments__composer-title">{commentsText.composerTitle}</h3>
             <button
               type="button"
               className="comments__voice-btn"
@@ -667,12 +716,14 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
               // the only place on the site that asked for an account to record.
               onClick={() => setShowVoiceOverlay(true)}
             >
-              <span aria-hidden="true">🎙</span> 語音禱告
+              <i className="fa-solid fa-microphone" aria-hidden="true" />
+              {commentsText.voiceAction}
             </button>
-            <span className="comments__voice-or">或</span>
           </div>
-          <form className="comment-form" id="response-composer" onSubmit={handleSubmit} noValidate>
-            {!authUser ? <p className="comments__guest-note">{commentsText.guestTextNotice}</p> : null}
+          <form className="comment-form" onSubmit={handleSubmit} noValidate>
+            {!authUser ? (
+              <p className="comments__guest-note">{commentsText.guestTextNotice}</p>
+            ) : null}
             {authUser ? (
               <label className={`comment-form__anon-switch${isAnonymous ? " is-on" : ""}`}>
                 <input
@@ -704,7 +755,9 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
               maxLength={2000}
               aria-describedby="response-text-help"
             />
-            <small id="response-text-help" className="comment-form__rules">{commentsText.textRules}</small>
+            <small id="response-text-help" className="comment-form__rules">
+              {commentsText.textRules}
+            </small>
             <div className="record-toolbar">
               <button
                 type="submit"
@@ -712,15 +765,18 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
                 disabled={submittingResponse || isCoolingDown}
                 style={{ marginTop: "10px" }}
               >
-                {submittingResponse ? commentsText.submitting : isCoolingDown ? formatMessage(commentsText.waitSeconds, { seconds: cooldownRemainingSeconds }) : commentsText.submit}
+                {submittingResponse
+                  ? commentsText.submitting
+                  : isCoolingDown
+                    ? formatMessage(commentsText.waitSeconds, { seconds: cooldownRemainingSeconds })
+                    : commentsText.submit}
               </button>
             </div>
           </form>
         </>
       ) : null}
 
-
-        {reportTarget ? (
+      {reportTarget ? (
         <div className="comment-report-modal" role="dialog" aria-modal="true">
           <div className="comment-report-modal__backdrop" onClick={closeReportModal} />
           <div className="comment-report-modal__card">
@@ -734,16 +790,16 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
               ×
             </button>
             <h4>{commentsText.reportTitle}</h4>
-            <p className="comment-report-modal__hint">
-              {commentsText.reportHint}
-            </p>
+            <p className="comment-report-modal__hint">{commentsText.reportHint}</p>
             <div className="comment-report-modal__preview">
               <p className="comment-report-modal__preview-label">{commentsText.reportTarget}</p>
               <strong>{reportTargetName || commentsText.unnamed}</strong>
               {reportPreviewMessage ? (
                 <p className="comment-report-modal__preview-message">{reportPreviewMessage}</p>
               ) : (
-                <p className="comment-report-modal__preview-message muted">{commentsText.noMessage}</p>
+                <p className="comment-report-modal__preview-message muted">
+                  {commentsText.noMessage}
+                </p>
               )}
             </div>
             <form onSubmit={handleReportSubmit} className="comment-report-modal__form">
@@ -776,7 +832,9 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
               </label>
 
               {reportError ? <p className="cp-alert cp-alert--error">{reportError}</p> : null}
-              {reportFeedback ? <p className="cp-alert cp-alert--success">{reportFeedback}</p> : null}
+              {reportFeedback ? (
+                <p className="cp-alert cp-alert--success">{reportFeedback}</p>
+              ) : null}
 
               <div className="comment-report-modal__actions">
                 <button
@@ -795,7 +853,6 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
           </div>
         </div>
       ) : null}
-
     </section>
   );
 }
