@@ -37,13 +37,16 @@ export function buildPageMetadata({
   description,
   path = "/",
   image = DEFAULT_OG_IMAGE,
+  imageWidth,
+  imageHeight,
   type = "website",
   noIndex = false,
   keywords = [],
   locale = path === "/en" || path.startsWith("/en/") ? "en" : "zh-TW",
 } = {}) {
   const resolvedTitle = title || SITE_NAME;
-  const displayTitle = typeof resolvedTitle === "string" ? resolvedTitle : resolvedTitle?.default || SITE_NAME;
+  const displayTitle =
+    typeof resolvedTitle === "string" ? resolvedTitle : resolvedTitle?.default || SITE_NAME;
   const resolvedDescription = plainText(description || DEFAULT_DESCRIPTION, 160);
   const url = absoluteUrl(path);
   const zhPath = stripEnglishPrefix(path);
@@ -74,8 +77,7 @@ export function buildPageMetadata({
       images: [
         {
           url: imageUrl,
-          width: 1200,
-          height: 630,
+          ...(imageWidth && imageHeight ? { width: imageWidth, height: imageHeight } : {}),
           alt: displayTitle,
         },
       ],

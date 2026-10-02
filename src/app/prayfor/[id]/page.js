@@ -73,7 +73,9 @@ export async function generateMetadata({ params }) {
     title: card.title ? `${card.title} - 禱告內容` : "禱告內容",
     description: buildPrayerMetaDescription(card.description),
     path: `/prayfor/${card.id}`,
-    image: card.image || "/img/categories/popular.jpg",
+    image: `/api/prayer-og/${card.id}?v=${new Date(card.updatedAt || card.createdAt).getTime()}`,
+    imageWidth: 1200,
+    imageHeight: 630,
     type: "article",
   });
 }
@@ -118,7 +120,7 @@ export default async function PrayerDetailPage({ params, locale: localeProp = "z
   const descriptionHtml = sanitizeHtmlForDisplay(
     card.description || `<p>${text.emptyDescription}</p>`
   );
-  const responseCount = Number(card?._count?.responses || 0);
+
   const normalizedVoiceHref = resolveServerAudioUrl(card.voiceHref);
   const initialTrack = normalizedVoiceHref
     ? {
@@ -172,13 +174,25 @@ export default async function PrayerDetailPage({ params, locale: localeProp = "z
         )}
 
         <div className="pdv2-shell">
-          <Link href={localizePath("/prayfor", locale)} prefetch={false} className="pdv2-back-link">
-            <i className="fa-solid fa-chevron-left" aria-hidden="true" />
-            {text.backToWall}
-          </Link>
-
           <article className="pdv2-hero-card">
             <div className="pdv2-hero-image-wrap">
+              <Link
+                href={localizePath("/prayfor", locale)}
+                prefetch={false}
+                className="pdv2-back-link"
+                aria-label={text.backToWall}
+                title={text.backToWall}
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path
+                    d="m14 6-6 6 6 6"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </Link>
               <img src={detailImage} alt={card.title} loading="eager" />
             </div>
 
@@ -201,14 +215,9 @@ export default async function PrayerDetailPage({ params, locale: localeProp = "z
               </div>
 
               <div className="pdv2-meta-row">
-                {/* <span>更新日期：{updatedDisplay}</span> */}
                 <span>
-                  {text.createdAt}: {createdDisplay}
+                  {ownerName} · {createdDisplay}
                 </span>
-                <span>
-                  {text.uploader}: {ownerName}
-                </span>
-                {/* <span>回應數：{responseCount}</span> */}
               </div>
             </div>
           </article>
@@ -237,58 +246,23 @@ export default async function PrayerDetailPage({ params, locale: localeProp = "z
           ) : null}
 
           <section className="pdv2-comments-card" id="responses-panel">
-            <div className="pdv2-comments-head">
-              <h2>{text.responsesTitle}</h2>
-              <DetailPrayerListenButton
-                prayerId={card.id}
-                locale={locale}
-                prayerTitle={card.title || ""}
-                coverImage={detailImage}
-              />
-            </div>
             <Comments
+              responseHeader={
+                <div className="pdv2-comments-head">
+                  <h2>{text.responsesTitle}</h2>
+                  <DetailPrayerListenButton
+                    prayerId={card.id}
+                    locale={locale}
+                    prayerTitle={card.title || ""}
+                    coverImage={detailImage}
+                  />
+                </div>
+              }
               requestId={String(card.id)}
               ownerId={owner?.id}
               prayerTitle={card.title}
               locale={locale}
             />
-          </section>
-
-          <section className="pdv2-adjacent" aria-label={text.adjacentLabel}>
-            <h2>{text.continueBrowse}</h2>
-            <div className="pdv2-adjacent-grid">
-              {previousCard ? (
-                <Link
-                  href={localizePath(`/prayfor/${previousCard.id}`, locale)}
-                  prefetch={false}
-                  className="pdv2-adjacent-card"
-                >
-                  <span className="pdv2-adjacent-card__label">{text.previous}</span>
-                  <strong>{previousCard.title}</strong>
-                </Link>
-              ) : (
-                <div className="pdv2-adjacent-card is-disabled" aria-disabled="true">
-                  <span className="pdv2-adjacent-card__label">{text.previous}</span>
-                  <strong>{text.noPrevious}</strong>
-                </div>
-              )}
-
-              {nextCard ? (
-                <Link
-                  href={localizePath(`/prayfor/${nextCard.id}`, locale)}
-                  prefetch={false}
-                  className="pdv2-adjacent-card"
-                >
-                  <span className="pdv2-adjacent-card__label">{text.next}</span>
-                  <strong>{nextCard.title}</strong>
-                </Link>
-              ) : (
-                <div className="pdv2-adjacent-card is-disabled" aria-disabled="true">
-                  <span className="pdv2-adjacent-card__label">{text.next}</span>
-                  <strong>{text.noNext}</strong>
-                </div>
-              )}
-            </div>
           </section>
 
           {relatedCards?.length ? (

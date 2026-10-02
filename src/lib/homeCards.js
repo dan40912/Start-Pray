@@ -95,7 +95,7 @@ export async function readHomeCards(options = {}) {
 export async function readHomeCard(id) {
   console.log("[homeCards] readHomeCard", { id });
   const card = await prisma.homePrayerCard.findFirst({
-    where: { id: Number(id), isBlocked: false, isPrivate: false },
+    where: { id: Number(id), isBlocked: false, isPrivate: false, needsReview: false },
     include: {
       category: true,
       owner: { select: { id: true, name: true, avatarUrl: true, bio: true } },

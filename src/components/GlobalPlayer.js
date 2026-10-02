@@ -1092,17 +1092,6 @@ export default function GlobalPlayer({ onClose }) {
         <div
           className={`global-player glass-panel${isPrayerDetailPage ? " is-prayer-detail" : ""}`}
         >
-          {onClose ? (
-            <button
-              type="button"
-              className="global-player__close"
-              onClick={onClose}
-              aria-label="關閉播放器"
-              title="關閉播放器"
-            >
-              <i className="fa-solid fa-xmark" aria-hidden="true" />
-            </button>
-          ) : null}
           <div className="player-progress">
             <div
               className="progress-bar"
@@ -1120,7 +1109,15 @@ export default function GlobalPlayer({ onClose }) {
 
           <div className={`player-controls-container ${hasQueue ? "" : "is-idle"}`}>
             {hasQueue ? (
-              <section className="player-now" aria-live="polite">
+              <button
+                type="button"
+                className="player-now"
+                aria-label={locale === "en" ? "Open player controls" : "開啟完整播放器"}
+                onClick={() => {
+                  setIsCompanion(true);
+                  setIsExpanded(false);
+                }}
+              >
                 {displayTrack.avatarUrl ? (
                   <img
                     src={displayTrack.avatarUrl}
@@ -1144,9 +1141,11 @@ export default function GlobalPlayer({ onClose }) {
                     <span className="player-now__chip is-secondary">{queuePositionText}</span>
                   </div>
                   <p className="player-now__meta">{nowMetaPrimary}</p>
-                  <p className="player-now__sub">{nowMetaSecondary}</p>
+                  <p className="player-now__sub">
+                    {nowMetaSecondary} · {locale === "en" ? "Controls ›" : "播放控制 ›"}
+                  </p>
                 </div>
-              </section>
+              </button>
             ) : null}
 
             <div className="player-core">
@@ -1200,6 +1199,24 @@ export default function GlobalPlayer({ onClose }) {
                 </div>
               ) : null}
             </div>
+            {onClose ? (
+              <button
+                type="button"
+                className="global-player__close"
+                onClick={onClose}
+                aria-label="關閉播放器"
+                title="關閉播放器"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path
+                    d="m6 6 12 12M18 6 6 18"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
+            ) : null}
           </div>
 
           {showPlaybackNotice ? (

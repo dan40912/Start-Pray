@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 
 import { useAudio } from "@/context/AudioContext";
 import { PRAYER_RESPONSE_CREATED } from "@/lib/events";
@@ -24,7 +24,13 @@ function normalizePrimaryTrack(track, prayerTitle, homeCardId = null) {
   };
 }
 
-function normalizeResponseTrack(item, index, prayerTitle, fallbackCoverImage = "", homeCardId = null) {
+function normalizeResponseTrack(
+  item,
+  index,
+  prayerTitle,
+  fallbackCoverImage = "",
+  homeCardId = null
+) {
   const voiceUrl = normalizeAudioUrl(item?.voiceUrl);
   if (!voiceUrl) return null;
   const isAnonymous = Boolean(item.isAnonymous);
@@ -73,6 +79,7 @@ export default function DetailAudioQueueBootstrap({
   prayerTitle = "",
 }) {
   const { setQueue, setIsExpanded } = useAudio();
+  const queueRequestRef = useRef(null);
 
   const primaryTrack = useMemo(
     () => normalizePrimaryTrack(initialTrack, prayerTitle, requestId),
@@ -80,18 +87,31 @@ export default function DetailAudioQueueBootstrap({
   );
 
   const loadQueue = useCallback(async () => {
+    queueRequestRef.current?.abort();
+    const controller = new AbortController();
+    queueRequestRef.current = controller;
     try {
-      const response = await fetch(`/api/responses/${requestId}`, { cache: "no-store" });
+      const response = await fetch(`/api/responses/${requestId}`, {
+        cache: "no-store",
+        signal: controller.signal,
+      });
       if (!response.ok) {
         throw new Error("Failed to load response tracks.");
       }
       const data = await response.json();
+      if (controller.signal.aborted) return;
 
       const responseTracks = Array.isArray(data)
         ? data
             .filter(isValidResponse)
             .map((item, index) =>
-              normalizeResponseTrack(item, index, prayerTitle, primaryTrack?.coverImage || "", requestId)
+              normalizeResponseTrack(
+                item,
+                index,
+                prayerTitle,
+                primaryTrack?.coverImage || "",
+                requestId
+              )
             )
             .filter(Boolean)
         : [];
@@ -99,15 +119,14 @@ export default function DetailAudioQueueBootstrap({
       const queue = dedupeTracks([primaryTrack, ...responseTracks]);
       // Keep queue available but do not auto start, so global player stays collapsed by default.
       setQueue(queue, -1);
-      setIsExpanded(false);
     } catch (error) {
+      if (controller.signal.aborted) return;
       console.error("DetailAudioQueueBootstrap loadQueue failed", error);
       // Keep primary prayer audio playable even if response API fails.
       const fallbackQueue = primaryTrack ? [primaryTrack] : [];
       setQueue(fallbackQueue, -1);
-      setIsExpanded(false);
     }
-  }, [requestId, primaryTrack, prayerTitle, setQueue, setIsExpanded]);
+  }, [requestId, primaryTrack, prayerTitle, setQueue]);
 
   useEffect(() => {
     setIsExpanded(false);
@@ -115,6 +134,7 @@ export default function DetailAudioQueueBootstrap({
 
   useEffect(() => {
     loadQueue();
+    return () => queueRequestRef.current?.abort();
   }, [loadQueue]);
 
   useEffect(() => {

@@ -35,7 +35,7 @@ export default async function sitemap() {
 
   const [cards, users] = await Promise.all([
     prisma.homePrayerCard.findMany({
-      where: { isBlocked: false, isPrivate: false },
+      where: { isBlocked: false, isPrivate: false, needsReview: false },
       orderBy: { updatedAt: "desc" },
       take: 5000,
       select: {

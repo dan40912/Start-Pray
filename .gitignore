@@ -3,6 +3,9 @@ node_modules/
 
 # Next.js
 .next/
+.next-verification/
+.next-ogqa/
+output/og-qa/
 out/
 
 # macOS

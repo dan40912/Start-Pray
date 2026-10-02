@@ -5,50 +5,21 @@ import { usePathname } from "next/navigation";
 
 import GlobalPlayer from "@/components/GlobalPlayer";
 import { useAudio } from "@/context/AudioContext";
+import { getPlayerRouteState, shouldShowPlayer } from "@/lib/player-visibility.mjs";
 
 const DISMISS_KEY = "startpray:player-dismissed";
 
-function isPath(pathname, target) {
-  return pathname === target || pathname.startsWith(`${target}/`);
-}
-
 export default function GlobalPlayerGate() {
   const pathname = usePathname() || "/";
-  const { playlist, currentTrack, isPlaying, pause } = useAudio();
+  const { playlist, currentTrack, isPlaying, isCompanion, pause } = useAudio();
 
   const hasQueue = Array.isArray(playlist) && playlist.length > 0;
-  const inPrayerList = isPath(pathname, "/prayfor");
-  // 單則代禱的詳情頁。這一頁的佇列是 DetailAudioQueueBootstrap 為「這一則代禱」
-  // 鋪的，不會是別張卡片留下來的殘留。
-  const inPrayerDetail = /^\/(?:en\/)?prayfor\/[^/]+$/.test(pathname);
-  // 播放列以前只要「佇列非空」就出現，而首頁一載入就用 setQueue(tracks, -1)
-  // 預先鋪好佇列 —— 於是第一次進站、什麼都還沒按，螢幕底部就被一個播放列佔掉，
-  // 播的還是別張卡的語音。改看 currentTrack 修掉了那個，但也連帶把詳情頁的語音
-  // 藏了起來：明明有人留了聲音，畫面上什麼都看不到。
-  // 詳情頁的佇列既然是這一則自己的，就讓它有東西可播時直接顯示。
+  const {
+    supported: supportedByRoute,
+    blocked: blockedByRoute,
+    inPrayerDetail,
+  } = getPlayerRouteState(pathname);
   const hasPlaybackState = Boolean(currentTrack) || (inPrayerDetail && hasQueue);
-  const inOvercomer = isPath(pathname, "/overcomer");
-  const inCustomerPortal = pathname === "/me";
-  const inGlobalPrayerRoom = isPath(pathname, "/global-prayer-room");
-  // Homepage companion mode (docs/obsidian/25-Companion-Mode-Reuse-Audit.md) reuses
-  // this same shared queue, so it needs to be on the supported list too — otherwise
-  // the effect below immediately pauses any homepage-initiated playback.
-  const inHome = pathname === "/" || pathname === "/en";
-  const supportedByRoute =
-    inPrayerList || inOvercomer || inCustomerPortal || inGlobalPrayerRoom || inHome;
-
-  const blockedByRoute =
-    isPath(pathname, "/about") ||
-    isPath(pathname, "/howto") ||
-    isPath(pathname, "/terms") ||
-    isPath(pathname, "/whitepaper") ||
-    isPath(pathname, "/login") ||
-    isPath(pathname, "/signup") ||
-    isPath(pathname, "/forgot-password") ||
-    isPath(pathname, "/reset-password") ||
-    isPath(pathname, "/admin") ||
-    isPath(pathname, "/me/create") ||
-    isPath(pathname, "/me/edit");
 
   useEffect(() => {
     if (!blockedByRoute && supportedByRoute) return;
@@ -79,7 +50,25 @@ export default function GlobalPlayerGate() {
     }
   }, [pause, trackKey]);
 
-  const shouldShowByRoute = supportedByRoute && hasPlaybackState && dismissedKey !== trackKey;
+  // A previous dismissal must never hide an explicitly reopened or playing player.
+  useEffect(() => {
+    if (!isPlaying && !isCompanion) return;
+    setDismissedKey(null);
+    try {
+      window.sessionStorage.removeItem(DISMISS_KEY);
+    } catch {
+      /* Storage is optional. */
+    }
+  }, [isPlaying, isCompanion]);
+
+  const shouldShowByRoute = shouldShowPlayer({
+    supported: supportedByRoute,
+    hasPlaybackState,
+    dismissedKey,
+    trackKey,
+    isPlaying,
+    isCompanion,
+  });
 
   if (!shouldShowByRoute) {
     return null;

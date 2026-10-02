@@ -117,7 +117,7 @@ async function readResponseError(response, text) {
 }
 
 // ===== Component =====
-export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
+export default function Comments({ requestId, responseHeader, locale: localeProp = "zh-TW" }) {
   const locale = normalizeLocale(localeProp);
   const commentsText = getDictionary(locale).comments;
   const authUser = useAuthSession();
@@ -284,6 +284,7 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
 
   const [submittingResponse, setSubmittingResponse] = useState(false);
   const [showVoiceOverlay, setShowVoiceOverlay] = useState(false);
+  const [responseMode, setResponseMode] = useState("text");
   const [showSuccess, setShowSuccess] = useState(false);
   const [successHasVoice, setSuccessHasVoice] = useState(false);
   const [successPendingReview, setSuccessPendingReview] = useState(false);
@@ -518,6 +519,157 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
         </p>
       ) : null}
 
+      {showVoiceOverlay && (
+        <VoicePrayerOverlay
+          onComplete={handleVoiceComplete}
+          onCancel={() => setShowVoiceOverlay(false)}
+          submissionError={actionNoticeType === "error" ? actionNotice : ""}
+        />
+      )}
+
+      {showSuccess ? (
+        <div className="comments__success" role="status" aria-live="polite">
+          <div className="comments__success-star" aria-hidden="true">
+            ✦
+          </div>
+          <h3 className="comments__success-title">
+            {successPendingReview ? commentsText.pendingSuccessTitle : commentsText.successTitle}
+          </h3>
+          {successPendingReview ? (
+            <p className="comments__success-body">{commentsText.pendingSuccessBody}</p>
+          ) : null}
+          {successHasVoice && successBlobUrlRef.current ? (
+            <GainAudio
+              className="comments__success-audio"
+              src={successBlobUrlRef.current}
+              controls
+              aria-label="重聽剛才的語音祝福"
+            />
+          ) : null}
+          <Link
+            href={localizePath("/prayfor/one", locale)}
+            className="comments__success-btn comments__success-btn--primary"
+            prefetch={false}
+          >
+            {commentsText.prayAgain}
+          </Link>
+          <button
+            type="button"
+            className="comments__success-btn comments__success-btn--ghost"
+            onClick={() => {
+              setShowSuccess(false);
+              setSuccessHasVoice(false);
+              if (successBlobUrlRef.current) {
+                URL.revokeObjectURL(successBlobUrlRef.current);
+                successBlobUrlRef.current = null;
+              }
+            }}
+          >
+            {commentsText.writeAgain}
+          </button>
+        </div>
+      ) : null}
+
+      {!showSuccess ? (
+        <>
+          <div className="comments__composer-head" id="response-composer">
+            <h3 className="comments__composer-title">{commentsText.composerTitle}</h3>
+            <div
+              className="comments__input-options"
+              role="group"
+              aria-label={commentsText.composerTitle}
+            >
+              <button
+                type="button"
+                className="comments__voice-btn"
+                aria-pressed={responseMode === "text"}
+                onClick={() => setResponseMode("text")}
+              >
+                {commentsText.textAction}
+              </button>
+              <button
+                type="button"
+                className="comments__voice-btn"
+                aria-pressed={responseMode === "voice"}
+                onClick={() => setResponseMode("voice")}
+              >
+                {commentsText.voiceAction}
+              </button>
+            </div>
+          </div>
+          {responseMode === "voice" ? (
+            <div className="comments__voice-panel">
+              <p className="comments__guest-note">{commentsText.voicePrivacyNotice}</p>
+              <button
+                type="button"
+                className="comments__voice-btn"
+                disabled={submittingResponse || isCoolingDown}
+                onClick={() => setShowVoiceOverlay(true)}
+              >
+                <i className="fa-solid fa-microphone" aria-hidden="true" />
+                {isCoolingDown
+                  ? formatMessage(commentsText.waitSeconds, { seconds: cooldownRemainingSeconds })
+                  : commentsText.recordAction}
+              </button>
+            </div>
+          ) : (
+            <form className="comment-form" onSubmit={handleSubmit} noValidate>
+              {!authUser ? (
+                <p className="comments__guest-note">{commentsText.guestTextNotice}</p>
+              ) : null}
+              {authUser ? (
+                <label className={`comment-form__anon-switch${isAnonymous ? " is-on" : ""}`}>
+                  <input
+                    type="checkbox"
+                    role="switch"
+                    checked={isAnonymous}
+                    onChange={(event) => setIsAnonymous(event.target.checked)}
+                  />
+                  <span className="comment-form__anon-track" aria-hidden="true">
+                    <span className="comment-form__anon-thumb" />
+                  </span>
+                  <span className="comment-form__anon-copy">
+                    <strong>{commentsText.anonymousPost}</strong>
+                  </span>
+                </label>
+              ) : null}
+
+              <textarea
+                ref={textareaRef}
+                value={text}
+                onChange={(event) => setText(event.target.value)}
+                placeholder={commentsText.textPlaceholder}
+                rows={4}
+                minLength={8}
+              maxLength={2000}
+              aria-label={commentsText.composerTitle}
+                aria-describedby="response-text-help"
+              />
+              <small id="response-text-help" className="comment-form__rules">
+                {commentsText.textRules}
+              </small>
+              <div className="record-toolbar">
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={submittingResponse || isCoolingDown}
+                  style={{ marginTop: "10px" }}
+                >
+                  {submittingResponse
+                    ? commentsText.submitting
+                    : isCoolingDown
+                      ? formatMessage(commentsText.waitSeconds, {
+                          seconds: cooldownRemainingSeconds,
+                        })
+                      : commentsText.submit}
+                </button>
+              </div>
+            </form>
+          )}
+        </>
+      ) : null}
+
+      {responseHeader}
       <div className="comments__list" aria-live="polite">
         {loading ? (
           <p>{commentsText.loading}</p>
@@ -656,131 +808,6 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
           </button>
         ) : null}
       </div>
-      {showVoiceOverlay && (
-        <VoicePrayerOverlay
-          onComplete={handleVoiceComplete}
-          onCancel={() => setShowVoiceOverlay(false)}
-          submissionError={actionNoticeType === "error" ? actionNotice : ""}
-        />
-      )}
-
-      {showSuccess ? (
-        <div className="comments__success" role="status" aria-live="polite">
-          <div className="comments__success-star" aria-hidden="true">
-            ✦
-          </div>
-          <h3 className="comments__success-title">
-            {successPendingReview ? commentsText.pendingSuccessTitle : commentsText.successTitle}
-          </h3>
-          <p className="comments__success-body">
-            {successPendingReview ? commentsText.pendingSuccessBody : commentsText.successBody}
-          </p>
-          {successHasVoice && successBlobUrlRef.current ? (
-            <GainAudio
-              className="comments__success-audio"
-              src={successBlobUrlRef.current}
-              controls
-              aria-label="重聽剛才的語音祝福"
-            />
-          ) : null}
-          <Link
-            href={localizePath("/prayfor/one", locale)}
-            className="comments__success-btn comments__success-btn--primary"
-            prefetch={false}
-          >
-            {commentsText.prayAgain}
-          </Link>
-          <button
-            type="button"
-            className="comments__success-btn comments__success-btn--ghost"
-            onClick={() => {
-              setShowSuccess(false);
-              setSuccessHasVoice(false);
-              if (successBlobUrlRef.current) {
-                URL.revokeObjectURL(successBlobUrlRef.current);
-                successBlobUrlRef.current = null;
-              }
-            }}
-          >
-            {commentsText.writeAgain}
-          </button>
-        </div>
-      ) : null}
-
-      {!showSuccess ? (
-        <>
-          <div className="comments__composer-head" id="response-composer">
-            <h3 className="comments__composer-title">{commentsText.composerTitle}</h3>
-            <button
-              type="button"
-              className="comments__voice-btn"
-              disabled={submittingResponse || isCoolingDown}
-              // Open to guests, same as the homepage recorder: /api/responses has
-              // always accepted anonymous voice uploads, and the login gate here was
-              // the only place on the site that asked for an account to record.
-              onClick={() => setShowVoiceOverlay(true)}
-            >
-              <i className="fa-solid fa-microphone" aria-hidden="true" />
-              {isCoolingDown
-                ? formatMessage(commentsText.waitSeconds, { seconds: cooldownRemainingSeconds })
-                : commentsText.voiceAction}
-            </button>
-          </div>
-          <form className="comment-form" onSubmit={handleSubmit} noValidate>
-            {!authUser ? (
-              <p className="comments__guest-note">{commentsText.guestTextNotice}</p>
-            ) : null}
-            {authUser ? (
-              <label className={`comment-form__anon-switch${isAnonymous ? " is-on" : ""}`}>
-                <input
-                  type="checkbox"
-                  role="switch"
-                  checked={isAnonymous}
-                  onChange={(event) => setIsAnonymous(event.target.checked)}
-                />
-                <span className="comment-form__anon-track" aria-hidden="true">
-                  <span className="comment-form__anon-thumb" />
-                </span>
-                <span className="comment-form__anon-copy">
-                  <strong>{commentsText.anonymousPost}</strong>
-                  <small>（{commentsText.anonymousHint}）</small>
-                </span>
-                <span className="comment-form__anon-state">
-                  {isAnonymous ? commentsText.anonymousStateOn : commentsText.anonymousStateOff}
-                </span>
-              </label>
-            ) : null}
-
-            <textarea
-              ref={textareaRef}
-              value={text}
-              onChange={(event) => setText(event.target.value)}
-              placeholder={commentsText.textPlaceholder}
-              rows={4}
-              minLength={8}
-              maxLength={2000}
-              aria-describedby="response-text-help"
-            />
-            <small id="response-text-help" className="comment-form__rules">
-              {commentsText.textRules}
-            </small>
-            <div className="record-toolbar">
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={submittingResponse || isCoolingDown}
-                style={{ marginTop: "10px" }}
-              >
-                {submittingResponse
-                  ? commentsText.submitting
-                  : isCoolingDown
-                    ? formatMessage(commentsText.waitSeconds, { seconds: cooldownRemainingSeconds })
-                    : commentsText.submit}
-              </button>
-            </div>
-          </form>
-        </>
-      ) : null}
 
       {reportTarget ? (
         <div className="comment-report-modal" role="dialog" aria-modal="true">

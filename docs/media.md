@@ -63,6 +63,25 @@ The generated image is intentionally simple: dark background, white title text, 
 
 This keeps card creation lightweight while still giving every card a usable visual preview.
 
+## Prayer Share Images
+
+Public prayer detail pages use `/api/prayer-og/[id]` for Open Graph and Twitter
+images instead of reusing the page cover. The endpoint returns a 1200 × 630 PNG
+rendered by Sharp with the bundled Noto Sans TC font in `assets/fonts/`.
+
+The title uses large type in a central 600px area so it remains readable in small
+and square previews. Only the image title is shortened to 21 characters; the page
+heading and metadata retain the full title. Uploaded photos are not reused in
+the share image, keeping text contrast predictable.
+
+Private, blocked, pending-review, missing, and invalid cards return 404. Images
+must revalidate on every request; metadata also includes the card update timestamp
+in the URL to distinguish revisions. Sharing services may retain their own cached
+previews, so verify actual mobile previews again after deployment.
+
+`src/lib/seo.js` only declares image dimensions when supplied explicitly. Other
+images no longer claim to be 1200 × 630 regardless of their actual dimensions.
+
 ## Gallery Metadata
 
 Prayer card gallery images are stored in the card `meta` array using a prefix:
@@ -80,6 +99,29 @@ src/lib/card-meta.js
 The helper parses normal info lines and gallery image references into separate lists.
 
 ## Voice
+
+### Global player controls
+
+The compact player uses three separate grid columns for the track details, play
+controls, and close button. Keep the close button in normal layout flow: an
+absolute close button previously overlapped the mobile play button, so tapping
+play actually dismissed the player. The track details button opens the shared
+companion controls; no additional audio engine is created.
+
+`player-visibility.mjs` applies the same route rules to Chinese and English URLs.
+A stored dismissal hides idle playback, but must not hide active playback or an
+explicitly opened companion session. Playback errors and completion notices stay
+visible in the compact player.
+
+The detail queue bootstrap aborts obsolete requests on page changes and refreshes.
+An old response must not replace the new page's queue or collapse a queue the user
+has already opened. Route/dismissal regressions: `tests/player-visibility.test.mjs`.
+
+Mobile verification (2026-10-02): play/pause, advancing progress, opening full
+controls, next track, closing and reopening, and English detail playback passed.
+At viewport widths 320, 375, 414 and 1280, hit-testing the play button centre returns
+the play button itself rather than the close button. Verify again on real iOS and
+Android devices after deployment; the local browser check is not a device test.
 
 Voice fields are currently stored as URLs on prayer cards or responses.
 

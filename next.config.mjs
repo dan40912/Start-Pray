@@ -1,6 +1,13 @@
 /** @type {import("next").NextConfig} */
 const nextConfig = {
   reactStrictMode: false,
+  // Allow verification builds while the local dev server stays open.
+  distDir: process.env.NEXT_BUILD_DIR || ".next",
+  experimental: {
+    outputFileTracingIncludes: {
+      "/api/prayer-og/*": ["./assets/fonts/NotoSansTC.ttf"],
+    },
+  },
   images: {
     remotePatterns: [
       {

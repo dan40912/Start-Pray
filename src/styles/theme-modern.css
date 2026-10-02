@@ -3319,7 +3319,7 @@ body.has-global-player {
 
 .global-player .player-controls-container {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 0.75rem;
   padding: 0.58rem 0.8rem 0.78rem;
@@ -3337,7 +3337,21 @@ body.has-global-player {
   padding: 0;
   background: transparent;
   box-shadow: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  min-height: 44px;
 }
+
+.global-player .player-now:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+
+.global-player .player-now:active { opacity: 0.8; }
 
 .global-player .track-avatar {
   width: 42px;
@@ -3402,7 +3416,7 @@ body.has-global-player {
 .global-player .player-notice,
 .global-player .player-ended-cta,
 .global-player .player-empty-hint {
-  display: none;
+  display: block;
 }
 
 @media (max-width: 768px) {
@@ -3417,7 +3431,7 @@ body.has-global-player {
   }
 
   .global-player .player-controls-container {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto auto;
     padding: 0.54rem 0.62rem 0.72rem;
   }
 
@@ -3472,15 +3486,14 @@ body.has-global-player {
 /* 播放列的關閉鈕。之前整條播放列沒有任何關閉控制：它固定佔住行動版約 13%
    的視窗高度、蓋住留言，而使用者第一個念頭就是把它關掉。 */
 .global-player__close {
-  position: absolute;
-  top: 6px;
-  right: 8px;
+  position: static;
   z-index: 3;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
   padding: 0;
   border: none;
   border-radius: var(--radius-pill);

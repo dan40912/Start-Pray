@@ -43,7 +43,9 @@ export async function generateMetadata({ params }) {
     title: card.title ? `${card.title} - Prayer detail` : "Prayer detail",
     description: buildDescription(card.description),
     path: `/en/prayfor/${card.id}`,
-    image: card.image || "/img/categories/popular.jpg",
+    image: `/api/prayer-og/${card.id}?v=${new Date(card.updatedAt || card.createdAt).getTime()}`,
+    imageWidth: 1200,
+    imageHeight: 630,
     type: "article",
     locale: "en",
   });
