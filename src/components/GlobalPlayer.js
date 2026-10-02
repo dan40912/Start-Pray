@@ -301,6 +301,7 @@ function useQueueScrubber({ progress, duration, trackKey, onSeek }) {
       onPointerMove: handlePointerMove,
       onPointerUp: handlePointerUp,
       onPointerCancel: handlePointerCancel,
+      onLostPointerCapture: handlePointerCancel,
       onKeyDown: handleKeyDown,
     },
   };

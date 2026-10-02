@@ -457,8 +457,9 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
   };
 
   const handleVoiceComplete = async (file, transcript) => {
-    setShowVoiceOverlay(false);
     const ok = await submitResponse({ audioOverride: file, textOverride: transcript || "" });
+    if (!ok) return false;
+    setShowVoiceOverlay(false);
     if (ok && file) {
       // The overlay revokes its own blob URL on unmount, so build a fresh one
       // from the File for the "listen again" player on the success screen.
@@ -466,6 +467,7 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
       successBlobUrlRef.current = URL.createObjectURL(file);
       setSuccessHasVoice(true);
     }
+    return true;
   };
 
   // The server (/api/responses/[homeCardId]) only ever returns approved, unblocked
@@ -658,6 +660,7 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
         <VoicePrayerOverlay
           onComplete={handleVoiceComplete}
           onCancel={() => setShowVoiceOverlay(false)}
+          submissionError={actionNoticeType === "error" ? actionNotice : ""}
         />
       )}
 
@@ -711,13 +714,16 @@ export default function Comments({ requestId, locale: localeProp = "zh-TW" }) {
             <button
               type="button"
               className="comments__voice-btn"
+              disabled={submittingResponse || isCoolingDown}
               // Open to guests, same as the homepage recorder: /api/responses has
               // always accepted anonymous voice uploads, and the login gate here was
               // the only place on the site that asked for an account to record.
               onClick={() => setShowVoiceOverlay(true)}
             >
               <i className="fa-solid fa-microphone" aria-hidden="true" />
-              {commentsText.voiceAction}
+              {isCoolingDown
+                ? formatMessage(commentsText.waitSeconds, { seconds: cooldownRemainingSeconds })
+                : commentsText.voiceAction}
             </button>
           </div>
           <form className="comment-form" onSubmit={handleSubmit} noValidate>

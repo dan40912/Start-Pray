@@ -68,6 +68,9 @@ export function usePrayerRecorder({ maxDurationSeconds = MAX_DURATION_SECONDS } 
   const finishRecordingRef = useRef(() => {});
   const meterCtxRef = useRef(null);
   const meterRafRef = useRef(0);
+  const mountedRef = useRef(true);
+  const permissionRunRef = useRef(0);
+  const requestingPermissionRef = useRef(false);
 
   const clearAllTimers = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -83,7 +86,7 @@ export function usePrayerRecorder({ maxDurationSeconds = MAX_DURATION_SECONDS } 
     meterCtxRef.current = null;
     if (ctx) {
       try {
-        ctx.close();
+        void ctx.close().catch(() => {});
       } catch {
         // already closed
       }
@@ -99,6 +102,7 @@ export function usePrayerRecorder({ maxDurationSeconds = MAX_DURATION_SECONDS } 
     let ctx;
     try {
       ctx = new Ctor();
+      if (ctx.state === "suspended") void ctx.resume().catch(() => {});
       const source = ctx.createMediaStreamSource(stream);
       const analyser = ctx.createAnalyser();
       analyser.fftSize = 1024;
@@ -132,7 +136,10 @@ export function usePrayerRecorder({ maxDurationSeconds = MAX_DURATION_SECONDS } 
 
   const releaseStream = useCallback(() => {
     if (mediaStreamRef.current) {
-      mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current.getTracks().forEach((track) => {
+        track.onended = null;
+        track.stop();
+      });
       mediaStreamRef.current = null;
     }
   }, []);
@@ -145,7 +152,11 @@ export function usePrayerRecorder({ maxDurationSeconds = MAX_DURATION_SECONDS } 
   }, []);
 
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
+      mountedRef.current = false;
+      permissionRunRef.current += 1;
+      runIdRef.current += 1;
       clearAllTimers();
       stopLevelMeter();
       releaseStream();
@@ -235,10 +246,14 @@ export function usePrayerRecorder({ maxDurationSeconds = MAX_DURATION_SECONDS } 
       recorderDoneRef.current = null;
     };
     recorder.onerror = (event) => {
+      if (runId !== runIdRef.current) return;
       recorderDoneRef.current?.reject(event.error || new Error("MEDIA_RECORDER_ERROR"));
       recorderDoneRef.current = null;
       setErrorReason("device");
       setPhase("error");
+      clearAllTimers();
+      stopLevelMeter();
+      releaseStream();
     };
 
     const audioTrack = mediaStreamRef.current?.getAudioTracks?.()[0];
@@ -271,7 +286,7 @@ export function usePrayerRecorder({ maxDurationSeconds = MAX_DURATION_SECONDS } 
       });
     }, 1000);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clearAllTimers, releaseStream, revokePreviewUrl, maxDurationSeconds]);
+  }, [clearAllTimers, releaseStream, revokePreviewUrl, maxDurationSeconds, startLevelMeter, stopLevelMeter]);
 
   const beginCountdown = useCallback(() => {
     setPhase("countdown");
@@ -290,18 +305,32 @@ export function usePrayerRecorder({ maxDurationSeconds = MAX_DURATION_SECONDS } 
   }, [startRecording]);
 
   const requestPermission = useCallback(async () => {
+    if (requestingPermissionRef.current) return;
     if (!hasRecordingSupport()) {
       setPhase("unsupported");
       return;
     }
+    clearAllTimers();
+    stopLevelMeter();
+    releaseStream();
+    runIdRef.current += 1;
+    const permissionRun = ++permissionRunRef.current;
+    requestingPermissionRef.current = true;
     setPhase("requesting-permission");
     try {
-      mediaStreamRef.current = await navigator.mediaDevices.getUserMedia({ audio: MIC_CONSTRAINTS });
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: MIC_CONSTRAINTS });
+      if (!mountedRef.current || permissionRun !== permissionRunRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      mediaStreamRef.current = stream;
       beginCountdown();
     } catch {
-      setPhase("permission-denied");
+      if (mountedRef.current && permissionRun === permissionRunRef.current) setPhase("permission-denied");
+    } finally {
+      requestingPermissionRef.current = false;
     }
-  }, [beginCountdown]);
+  }, [beginCountdown, clearAllTimers, releaseStream, stopLevelMeter]);
 
   const finishRecording = useCallback(async () => {
     if (isRecordingTooShort(elapsedSeconds)) {
@@ -310,8 +339,11 @@ export function usePrayerRecorder({ maxDurationSeconds = MAX_DURATION_SECONDS } 
     }
     clearAllTimers();
     stopLevelMeter();
+    const runId = runIdRef.current;
     try {
       const blob = await stopRecorderAndWait();
+      if (!mountedRef.current || runId !== runIdRef.current) return;
+      releaseStream();
       if (!blob || blob.size === 0) throw new Error("EMPTY_RECORDING");
 
       // Catch a recording that ran fine but captured nothing — muted input,
@@ -319,6 +351,7 @@ export function usePrayerRecorder({ maxDurationSeconds = MAX_DURATION_SECONDS } 
       // someone submit a prayer nobody can hear.
       // A decode failure (null) is not evidence of silence, so it passes.
       const analysis = await analyzeRecording(blob);
+      if (!mountedRef.current || runId !== runIdRef.current) return;
       if (analysis && isSilentRecording(analysis.peak)) {
         setErrorReason("silent");
         setPhase("error");
@@ -333,8 +366,12 @@ export function usePrayerRecorder({ maxDurationSeconds = MAX_DURATION_SECONDS } 
       releaseStream();
       setPhase("preview");
     } catch {
-      setErrorReason("empty");
-      setPhase("error");
+      if (mountedRef.current && runId === runIdRef.current) {
+        setErrorReason("empty");
+        setPhase("error");
+      }
+    } finally {
+      if (runId === runIdRef.current) releaseStream();
     }
   }, [clearAllTimers, elapsedSeconds, releaseStream, revokePreviewUrl, stopLevelMeter, stopRecorderAndWait]);
   finishRecordingRef.current = finishRecording;
@@ -357,7 +394,10 @@ export function usePrayerRecorder({ maxDurationSeconds = MAX_DURATION_SECONDS } 
   }, [requestPermission, revokePreviewUrl]);
 
   const cancel = useCallback(() => {
+    permissionRunRef.current += 1;
+    runIdRef.current += 1;
     clearAllTimers();
+    stopLevelMeter();
     releaseStream();
     revokePreviewUrl();
     try {
@@ -372,12 +412,12 @@ export function usePrayerRecorder({ maxDurationSeconds = MAX_DURATION_SECONDS } 
     setTransientMessage("");
     setConfirmingRerecord(false);
     setPhase("idle");
-  }, [clearAllTimers, releaseStream, revokePreviewUrl]);
+  }, [clearAllTimers, releaseStream, revokePreviewUrl, stopLevelMeter]);
 
   const retryAfterError = useCallback(() => {
+    cancel();
     setErrorReason("");
-    setPhase("idle");
-  }, []);
+  }, [cancel]);
 
   return {
     phase,

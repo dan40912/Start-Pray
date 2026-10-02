@@ -2727,8 +2727,12 @@
   cursor: pointer;
   transition: background 0.15s ease;
 }
-.comments__voice-btn:hover {
+.comments__voice-btn:hover:not(:disabled) {
   background: rgba(251, 191, 36, 0.22);
+}
+.comments__voice-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 .comments__voice-btn:focus-visible {
   outline: 3px solid var(--accent);

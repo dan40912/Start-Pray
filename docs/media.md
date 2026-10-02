@@ -91,3 +91,25 @@ PrayerResponse.voiceUrl
 ```
 
 The UI reads these values and builds playable queues for the global player and prayer detail views.
+
+### Repeated Recording
+
+Response recording uses `VoicePrayerOverlay` on the detail page and
+`usePrayerRecorder` through the homepage recorder. Each new take must acquire a
+fresh microphone stream. A track whose `readyState` is `live` can still be muted
+or supply silent audio; reusing it is not evidence that the device is recording.
+
+After the final recorder chunks arrive, release the microphone before decoding
+and previewing. Cancel and unmount must also release the stream, close the input
+meter's AudioContext, stop recognition, and invalidate pending permission results.
+Keep the verified Blob until upload succeeds so a failed request can be retried.
+
+The same-card two-minute response cooldown is separate from recording quality.
+The detail-page voice entry shows its countdown before a visitor starts another
+take. A moving timer or animated waveform alone does not prove sound was captured;
+the final audio analysis and preview remain necessary.
+
+Regression checks: `tests/recorder-lifecycle.test.mjs` and
+`tests/voice-submit-retry.test.mjs`. See
+[`recording flow verification`](review-2026-10-02-recording.md) for the controlled
+browser reproduction and actual local guest uploads.

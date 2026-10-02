@@ -73,7 +73,7 @@ const MIC_CONSTRAINTS = {
   noiseSuppression: true,
 };
 
-export default function VoicePrayerOverlay({ onComplete, onCancel }) {
+export default function VoicePrayerOverlay({ onComplete, onCancel, submissionError = "" }) {
   // ── Speech recognition ref ──────────────────────────────────────────────
   // Captions run only where they can share the microphone with the recorder.
   // See isMobileBrowser in recorder-utils for why phones record without them.
@@ -109,9 +109,12 @@ export default function VoicePrayerOverlay({ onComplete, onCancel }) {
   const recorderDoneRef = useRef(null);
   const recordingRunRef = useRef(0);
   const isFinishingRef = useRef(false);
+  const mountedRef = useRef(true);
+  const requestingMicRef = useRef(false);
+  const permissionRunRef = useRef(0);
 
   // ── UI state ────────────────────────────────────────────────────────────
-  // phase: vperm | vdenied | vcount | vrec | vproc | vconfirm | vfail
+  // phase: vperm | vrequest | vdenied | vcount | vrec | vproc | vconfirm | vfail
   const [phase, setPhase] = useState("vperm");
   const [recSec, setRecSec] = useState(0);
   const [countN, setCountN] = useState(3);
@@ -155,27 +158,21 @@ export default function VoicePrayerOverlay({ onComplete, onCancel }) {
     return () => clearTimeout(toastTimerRef.current);
   }, []);
 
-  // ── Cleanup on unmount ──────────────────────────────────────────────────
-  useEffect(() => {
-    return () => {
-      clearTimers();
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      if (mediaStreamRef.current) {
-        mediaStreamRef.current.getTracks().forEach((t) => t.stop());
-      }
-      if (recRef.current.url) URL.revokeObjectURL(recRef.current.url);
-    };
-  }, [clearTimers]);
-
   // ── Stop helpers ─────────────────────────────────────────────────────────
   const stopWaveAndRecog = useCallback(() => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     rafRef.current = null;
+    const context = audioCtxRef.current;
+    audioCtxRef.current = null;
+    if (context) {
+      try { void context.close().catch(() => {}); } catch {}
+    }
     setWaveLive(false);
     if (meterFillRef.current) meterFillRef.current.style.transform = "scaleX(0.02)";
     if (recogRef.current) {
-      try { recogRef.current.stop(); } catch {}
+      const recognition = recogRef.current;
       recogRef.current = null;
+      try { recognition.abort(); } catch { try { recognition.stop(); } catch {} }
     }
   }, []);
 
@@ -229,16 +226,40 @@ export default function VoicePrayerOverlay({ onComplete, onCancel }) {
 
   const releaseMic = useCallback(() => {
     if (mediaStreamRef.current) {
-      mediaStreamRef.current.getTracks().forEach((t) => t.stop());
+      mediaStreamRef.current.getTracks().forEach((t) => {
+        t.onmute = null;
+        t.onunmute = null;
+        t.onended = null;
+        t.stop();
+      });
       mediaStreamRef.current = null;
     }
   }, []);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      permissionRunRef.current += 1;
+      recordingRunRef.current += 1;
+      clearTimers();
+      stopWaveAndRecog();
+      recorderDoneRef.current?.reject(new Error("RECORDER_CANCELLED"));
+      recorderDoneRef.current = null;
+      stopRecorder();
+      releaseMic();
+      if (recRef.current.url) URL.revokeObjectURL(recRef.current.url);
+    };
+  }, [clearTimers, releaseMic, stopRecorder, stopWaveAndRecog]);
 
   // ── Audio waveform analyser ──────────────────────────────────────────────
   const startWave = useCallback(() => {
     try {
       const AC = window.AudioContext || window.webkitAudioContext;
       audioCtxRef.current = audioCtxRef.current || new AC();
+      if (audioCtxRef.current.state === "suspended") {
+        void audioCtxRef.current.resume().catch(() => {});
+      }
       const src = audioCtxRef.current.createMediaStreamSource(mediaStreamRef.current);
       const analyser = audioCtxRef.current.createAnalyser();
       analyser.fftSize = 64;
@@ -284,11 +305,13 @@ export default function VoicePrayerOverlay({ onComplete, onCancel }) {
     const SR = SRRef.current;
     if (!SR) return;
     const recog = new SR();
+    const runId = recordingRunRef.current;
     recogRef.current = recog;
     recog.lang = "zh-TW";
     recog.continuous = true;
     recog.interimResults = true;
     recog.onresult = (ev) => {
+      if (runId !== recordingRunRef.current || recogRef.current !== recog) return;
       let interim = "";
       const now = (performance.now() - recStartMsRef.current) / 1000;
       for (let i = ev.resultIndex; i < ev.results.length; i++) {
@@ -315,7 +338,10 @@ export default function VoicePrayerOverlay({ onComplete, onCancel }) {
     };
     recog.onerror = () => {
       // Recognition is optional. Recording must continue even when subtitles fail.
-      recogRef.current = null;
+      if (recogRef.current === recog) {
+        recogRef.current = null;
+        try { recog.abort(); } catch {}
+      }
     };
     recog.onend = () => {
       if (recogRef.current === recog) recogRef.current = null;
@@ -361,11 +387,16 @@ export default function VoicePrayerOverlay({ onComplete, onCancel }) {
         return;
       }
       isFinishingRef.current = true;
+      const runId = recordingRunRef.current;
       stopWaveAndRecog();
       clearTimers();
       setPhase("vproc");
       try {
         await stopRecorderAndWait();
+        if (!mountedRef.current || runId !== recordingRunRef.current) return;
+        // Capture is finished before decoding/previewing. Do not keep the
+        // device open or reuse a nominally live but muted source for the next take.
+        releaseMic();
         const r = recRef.current;
         if (!r.blob?.size && chunksRef.current.length) {
           r.blob = new Blob(chunksRef.current, {
@@ -375,8 +406,10 @@ export default function VoicePrayerOverlay({ onComplete, onCancel }) {
           setPreviewUrl(r.url);
         }
 
+        const analysis = await analyzeRecording(r.blob);
+        if (!mountedRef.current || runId !== recordingRunRef.current) return;
         const verdict = judgeRecording({
-          analysis: await analyzeRecording(r.blob),
+          analysis,
           blobSize: r.blob?.size || 0,
         });
         if (!verdict.ok) {
@@ -399,12 +432,12 @@ export default function VoicePrayerOverlay({ onComplete, onCancel }) {
         );
         setPhase("vconfirm");
       } catch {
-        failRecording(FAIL_MESSAGES.empty);
+        if (mountedRef.current && runId === recordingRunRef.current) failRecording(FAIL_MESSAGES.empty);
       } finally {
         isFinishingRef.current = false;
       }
     },
-    [clearTimers, failRecording, showToast, stopRecorderAndWait, stopWaveAndRecog]
+    [clearTimers, failRecording, releaseMic, showToast, stopRecorderAndWait, stopWaveAndRecog]
   );
 
   // ── Start recording ──────────────────────────────────────────────────────
@@ -418,6 +451,7 @@ export default function VoicePrayerOverlay({ onComplete, onCancel }) {
     chunkSeenRef.current = false;
     heardSoundRef.current = false;
     setHeardSound(false);
+    if (recRef.current.url) URL.revokeObjectURL(recRef.current.url);
     recRef.current = emptyRecording();
     recStartMsRef.current = performance.now();
     segStartRef.current = 0;
@@ -462,6 +496,7 @@ export default function VoicePrayerOverlay({ onComplete, onCancel }) {
       recorderDoneRef.current = null;
     };
     recorder.onerror = (event) => {
+      if (runId !== recordingRunRef.current) return;
       recorderDoneRef.current?.reject(event.error || new Error("MEDIA_RECORDER_ERROR"));
       recorderDoneRef.current = null;
       showToast("錄音裝置發生錯誤，請重新錄製。");
@@ -477,8 +512,12 @@ export default function VoicePrayerOverlay({ onComplete, onCancel }) {
     const audioTrack = mediaStreamRef.current?.getAudioTracks?.()[0];
     if (audioTrack) {
       audioTrack.onmute = () => {
+        if (runId !== recordingRunRef.current || recorder.state !== "recording") return;
         stopWaveAndRecog();
         showToast("麥克風輸入暫時中斷；請確認沒有其他程式正在使用麥克風。");
+      };
+      audioTrack.onunmute = () => {
+        if (runId === recordingRunRef.current && recorder.state === "recording") startWave();
       };
       // Keep whatever was captured before the track ended — finishRec checks
       // the audio and turns this into a retry if too little was recorded.
@@ -536,40 +575,47 @@ export default function VoicePrayerOverlay({ onComplete, onCancel }) {
 
   // ── Request mic access ────────────────────────────────────────────────────
   const askMic = useCallback(async () => {
+    if (requestingMicRef.current) return;
     if (!navigator.mediaDevices?.getUserMedia) {
       setPhase("vdenied");
       return;
     }
     releaseMic();
+    requestingMicRef.current = true;
+    const runId = ++permissionRunRef.current;
+    setPhase("vrequest");
     try {
-      mediaStreamRef.current = await navigator.mediaDevices.getUserMedia({ audio: MIC_CONSTRAINTS });
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: MIC_CONSTRAINTS });
+      if (!mountedRef.current || runId !== permissionRunRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      mediaStreamRef.current = stream;
       setPhase("vcount");
       runCountdown();
     } catch {
-      setPhase("vdenied");
+      if (mountedRef.current && runId === permissionRunRef.current) setPhase("vdenied");
+    } finally {
+      requestingMicRef.current = false;
     }
   }, [releaseMic, runCountdown]);
 
   // ── Restart recording ────────────────────────────────────────────────────
   const restartRec = useCallback(async () => {
+    if (voiceBusy) return;
     stopWaveAndRecog();
     clearTimers();
     try { await stopRecorderAndWait(); } catch {}
+    if (!mountedRef.current) return;
     recordingRunRef.current += 1;
     if (pvAudioRef.current) pvAudioRef.current.pause();
     setPvPlaying(false);
-    // A stream whose track has ended cannot record again; ask for a new one.
-    const track = mediaStreamRef.current?.getAudioTracks?.()[0];
-    if (!track || track.readyState !== "live") {
-      await askMic();
-      return;
-    }
-    setPhase("vcount");
-    runCountdown();
-  }, [askMic, clearTimers, runCountdown, stopRecorderAndWait, stopWaveAndRecog]);
+    await askMic();
+  }, [askMic, clearTimers, stopRecorderAndWait, stopWaveAndRecog, voiceBusy]);
 
   // ── Cancel / close ────────────────────────────────────────────────────────
   const handleCancel = useCallback(() => {
+    if (voiceBusy) return;
     clearTimers();
     stopWaveAndRecog();
     stopRecorder();
@@ -577,7 +623,7 @@ export default function VoicePrayerOverlay({ onComplete, onCancel }) {
     if (pvAudioRef.current) pvAudioRef.current.pause();
     if (recRef.current.url) URL.revokeObjectURL(recRef.current.url);
     onCancel();
-  }, [clearTimers, onCancel, releaseMic, stopRecorder, stopWaveAndRecog]);
+  }, [clearTimers, onCancel, releaseMic, stopRecorder, stopWaveAndRecog, voiceBusy]);
 
   // ── Preview playback ──────────────────────────────────────────────────────
   const playPreview = useCallback(() => {
@@ -599,7 +645,8 @@ export default function VoicePrayerOverlay({ onComplete, onCancel }) {
   }, [previewUrl, showToast]);
 
   // ── Submit voice ──────────────────────────────────────────────────────────
-  const handleSubmitVoice = useCallback(() => {
+  const handleSubmitVoice = useCallback(async () => {
+    if (voiceBusy) return;
     const r = recRef.current;
     const edited = vcTx.trim();
 
@@ -627,8 +674,17 @@ export default function VoicePrayerOverlay({ onComplete, onCancel }) {
     const file = new File([r.blob], `prayer-voice-${Date.now()}.${ext}`, {
       type: r.blob.type || "audio/webm",
     });
-    onComplete(file, r.transcript);
-  }, [onComplete, releaseMic, showToast, vcTx]);
+    try {
+      const saved = await onComplete(file, r.transcript);
+      if (saved === false) {
+        showToast("尚未送出，錄音已保留，可以稍後重試。");
+      }
+    } catch {
+      showToast("目前無法送出，錄音已保留，請稍後重試。");
+    } finally {
+      setVoiceBusy(false);
+    }
+  }, [onComplete, releaseMic, showToast, vcTx, voiceBusy]);
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -638,6 +694,12 @@ export default function VoicePrayerOverlay({ onComplete, onCancel }) {
         {toastMsg ? <div className="vpo-toast" role="status">{toastMsg}</div> : null}
 
         {/* ── 步驟 1：說明 & 請求麥克風 ── */}
+        {phase === "vrequest" && (
+          <div className="vpo-center" role="status">
+            <p className="vpo-body">正在開啟麥克風，請確認瀏覽器的權限提示。</p>
+            <button type="button" className="vpo-btn vpo-btn--ghost" onClick={handleCancel}>取消</button>
+          </div>
+        )}
         {phase === "vperm" && (
           <div className="vpo-center">
             <div className="vpo-icon" aria-hidden="true">🎙</div>
@@ -724,7 +786,7 @@ export default function VoicePrayerOverlay({ onComplete, onCancel }) {
             >
               完成
             </button>
-            <button type="button" className="vpo-btn vpo-btn--ghost" onClick={restartRec}>
+            <button type="button" className="vpo-btn vpo-btn--ghost" onClick={restartRec} disabled={voiceBusy}>
               重新錄
             </button>
             <button type="button" className="vpo-btn vpo-btn--ghost" onClick={handleCancel}>
@@ -787,6 +849,7 @@ export default function VoicePrayerOverlay({ onComplete, onCancel }) {
               onChange={(e) => setVcTx(e.target.value)}
             />
             <p className="vpo-hint">{vcHint}</p>
+            {submissionError ? <p className="vpo-hint" role="alert">{submissionError}</p> : null}
             <button
               type="button"
               className={`vpo-btn vpo-btn--primary${voiceBusy ? " vpo-loading" : ""}`}
@@ -795,7 +858,7 @@ export default function VoicePrayerOverlay({ onComplete, onCancel }) {
             >
               {voiceBusy ? "送出中…" : "送出語音祝福"}
             </button>
-            <button type="button" className="vpo-btn vpo-btn--ghost" onClick={restartRec}>
+            <button type="button" className="vpo-btn vpo-btn--ghost" onClick={restartRec} disabled={voiceBusy}>
               重新錄
             </button>
           </div>
