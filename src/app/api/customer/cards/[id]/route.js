@@ -1,6 +1,7 @@
 ﻿import { NextResponse } from "next/server";
 
 import { ensureActiveCustomer } from "@/lib/customer-access";
+import { MAX_CARD_DESCRIPTION_LENGTH as MAX_DESCRIPTION_LENGTH } from "@/lib/card-limits";
 import { isDefaultThumbnailUrl } from "@/lib/default-thumbnail";
 import prisma from "@/lib/prisma";
 import { sanitizePrayerLocationPayload } from "@/lib/prayerLocations";
@@ -71,7 +72,7 @@ function sanitizeUpdatePayload(body) {
   }
 
   const title = body.title?.trim();
-  const description = body.description?.trim();
+  const description = body.description?.trim().slice(0, MAX_DESCRIPTION_LENGTH);
   const image = body.image?.trim();
   const alt = body.alt?.trim();
   const slug = body.slug?.trim();
@@ -272,12 +273,19 @@ export async function PUT(request, { params }) {
       return NextResponse.json({ message: "Your account is blocked." }, { status: 403 });
     }
 
+    console.error("PUT /api/customer/cards/[id] error:", error);
+    if (typeof error?.name === "string" && error.name.startsWith("PrismaClient")) {
+      return NextResponse.json(
+        { message: "代禱暫時沒有存成功，請稍後再試一次。你寫的內容還留在頁面上。" },
+        { status: 500 }
+      );
+    }
+
     const message = error instanceof Error ? error.message : "Failed to update prayer card.";
     const status = /required|invalid|provide|title|category|image|gallery|uploaded|thumbnail/i.test(message)
       ? 400
       : 500;
 
-    console.error("PUT /api/customer/cards/[id] error:", error);
     return NextResponse.json({ message }, { status });
   }
 }

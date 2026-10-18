@@ -1,0 +1,379 @@
+/* ============================================================
+   Voice Prayer Overlay  (.vpo-*)
+   Full-screen modal that handles: vperm → vcount → vrec → vproc → vconfirm
+   ============================================================ */
+.vpo-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.vpo-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+}
+
+.vpo-panel {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 520px;
+  background: #111d33;
+  border: 1px solid rgba(251, 191, 36, 0.28);
+  border-bottom: 0;
+  border-radius: 16px 16px 0 0;
+  padding: 28px 24px 40px;
+  box-shadow: 0 -8px 60px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 92dvh;
+  overflow-y: auto;
+}
+
+.vpo-toast {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 13px;
+  text-align: center;
+  padding: 8px 16px;
+  border-radius: 8px;
+}
+
+.vpo-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.vpo-icon {
+  font-size: 44px;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.vpo-title {
+  font-size: 20px;
+  font-weight: 700;
+  font-family: var(--font-display);
+  color: #f4f6fb;
+}
+
+.vpo-body {
+  font-size: 15px;
+  color: #c3cedd;
+  line-height: 1.6;
+}
+
+.vpo-hint {
+  font-size: 13px;
+  color: #aebccf;
+  line-height: 1.6;
+  text-align: center;
+}
+
+/* Buttons */
+.vpo-btn {
+  width: 100%;
+  padding: 14px 20px;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  transition:
+    opacity 0.15s,
+    transform 0.1s;
+}
+.vpo-btn:active {
+  transform: scale(0.97);
+}
+.vpo-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.vpo-btn:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.vpo-btn--primary {
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+.vpo-btn--primary:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
+.vpo-btn--ghost {
+  background: transparent;
+  color: #9aa5b4;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px;
+}
+.vpo-btn--ghost:hover {
+  color: #f4f6fb;
+}
+
+.vpo-loading {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+/* Countdown ring */
+.vpo-breath-ring {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  border: 3px solid var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: vpo-breathe 1s ease-in-out infinite;
+  margin-bottom: 8px;
+}
+@keyframes vpo-breathe {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.36);
+  }
+  50% {
+    box-shadow: 0 0 0 18px rgba(251, 191, 36, 0);
+  }
+}
+
+.vpo-countnum {
+  font-size: 38px;
+  font-weight: 800;
+  color: #f4f6fb;
+}
+
+.vpo-countdown-label {
+  font-size: 18px;
+  font-weight: 700;
+  color: #f4f6fb;
+}
+
+/* Recording header */
+.vpo-rec-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  justify-content: center;
+}
+
+.vpo-rec-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #e53e3e;
+  animation: vpo-blink 1s step-end infinite;
+}
+@keyframes vpo-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+.vpo-rec-timer {
+  font-size: 22px;
+  font-weight: 700;
+  color: #f4f6fb;
+  font-variant-numeric: tabular-nums;
+}
+
+.vpo-rec-remain {
+  font-size: 13px;
+  color: #aebccf;
+}
+
+/* Waveform bars */
+.vpo-wave {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  height: 64px;
+  width: 100%;
+}
+
+.vpo-wave i {
+  display: block;
+  width: 4px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--accent);
+  animation: vpo-wave-idle 1.4s ease-in-out infinite;
+}
+@keyframes vpo-wave-idle {
+  0%,
+  100% {
+    height: 10px;
+    opacity: 0.4;
+  }
+  50% {
+    height: 30px;
+    opacity: 0.8;
+  }
+}
+
+.vpo-wave.live i {
+  /* height is set by JS via analyser data; animation is only ambient fallback */
+  transition: height 60ms ease;
+  background: #fcd570;
+}
+
+/* Input level meter — the bars above keep an idle animation even with no
+   signal, so this is what actually shows the microphone is picking up sound.
+   Matches .prayer-recorder__meter on the homepage. */
+.vpo-meter {
+  width: min(260px, 100%);
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.25);
+  overflow: hidden;
+}
+
+.vpo-meter-fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transform: scaleX(0.02);
+  transform-origin: left center;
+  transition: transform 90ms linear;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vpo-meter-fill {
+    transition: none;
+  }
+}
+
+.vpo-meter-notice {
+  margin: 0;
+  font-size: 13px;
+  color: #fbbf24;
+  text-align: center;
+  line-height: 1.5;
+}
+
+/* Live transcript */
+.vpo-live-transcript {
+  min-height: 56px;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 15px;
+  color: #f4f6fb;
+  text-align: center;
+  line-height: 1.6;
+}
+
+.vpo-pending {
+  color: #aebccf;
+  font-size: 13px;
+}
+
+/* Processing dots */
+.vpo-proc-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #f4f6fb;
+}
+
+.vpo-dots {
+  display: flex;
+  gap: 8px;
+}
+.vpo-dots i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: vpo-dot-bounce 1.2s ease-in-out infinite;
+}
+.vpo-dots i:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.vpo-dots i:nth-child(3) {
+  animation-delay: 0.4s;
+}
+@keyframes vpo-dot-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  50% {
+    transform: translateY(-10px);
+    opacity: 1;
+  }
+}
+
+/* Confirm panel */
+.vpo-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.vpo-confirm-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.vpo-chip {
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: #f4f6fb;
+  font-size: 13px;
+  cursor: pointer;
+}
+.vpo-chip:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.vpo-textarea {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 12px 14px;
+  color: #f4f6fb;
+  font-size: 16px;
+  line-height: 1.6;
+  resize: vertical;
+}
+.vpo-textarea::placeholder {
+  color: #aebccf;
+}
+.vpo-textarea:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+
+.vpo-preview-audio {
+  width: 100%;
+  margin: 0 0 0.85rem;
+}

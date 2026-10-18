@@ -10,6 +10,7 @@ import CardVoiceRecorder from "@/components/prayer-recorder/CardVoiceRecorder";
 import PrayerLocationField from "@/components/PrayerLocationField";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { useAuthSession } from "@/hooks/useAuthSession";
+import { MAX_CARD_DESCRIPTION_LENGTH } from "@/lib/card-limits";
 import { buildCardMetaArray } from "@/lib/card-meta";
 import { buildDefaultThumbnailUrl } from "@/lib/default-thumbnail";
 
@@ -530,9 +531,12 @@ export default function CustomerPortalCreatePage() {
                   onChange={updateFormField("description")}
                   placeholder="請直接輸入代禱內容，清楚描述目前情況、需要代禱與盼望。"
                   rows={7}
+                  maxLength={MAX_CARD_DESCRIPTION_LENGTH}
                   required
                 />
-                <small className="cp-helper">請直接輸入文字即可，不需要填寫多餘欄位。</small>
+                <small className="cp-helper">
+                  請直接輸入文字即可，不需要填寫多餘欄位。（{form.description.length} / {MAX_CARD_DESCRIPTION_LENGTH} 字）
+                </small>
               </label>
             </div>
 

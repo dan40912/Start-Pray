@@ -1,6 +1,7 @@
 ﻿import { NextResponse } from "next/server";
 
 import fallbackCards from "@/data/homeCards.json";
+import { MAX_CARD_DESCRIPTION_LENGTH, MAX_CARD_TITLE_LENGTH } from "@/lib/card-limits";
 import { ensureActiveCustomer } from "@/lib/customer-access";
 import { buildDefaultThumbnailUrl, isDefaultThumbnailUrl } from "@/lib/default-thumbnail";
 import { createHomeCard, readHomeCards } from "@/lib/homeCards";
@@ -20,8 +21,8 @@ import { isLowTrust } from "@/lib/trustScore";
 
 const GALLERY_PREFIX = "gallery::";
 const UPLOADS_PREFIX = "/uploads/";
-const MAX_TITLE_LENGTH = 120;
-const MAX_DESCRIPTION_LENGTH = 3000;
+const MAX_TITLE_LENGTH = MAX_CARD_TITLE_LENGTH;
+const MAX_DESCRIPTION_LENGTH = MAX_CARD_DESCRIPTION_LENGTH;
 const GUEST_CREATE_WINDOW_MS = 60 * 60 * 1000;
 const GUEST_CREATE_LIMIT = 3;
 const guestCreateAttempts = new Map();
@@ -409,6 +410,15 @@ export async function POST(request) {
     console.error("--- CREATE CARD ERROR ---");
     console.error(error);
     console.error("-------------------------");
+    // Prisma's own message ("Invalid `prisma.homePrayerCard.create()`
+    // invocation: ...") is for the log, not for someone who just wrote out
+    // their prayer.
+    if (typeof error?.name === "string" && error.name.startsWith("PrismaClient")) {
+      return NextResponse.json(
+        { message: "代禱暫時沒有存成功，請稍後再試一次。你寫的內容還留在頁面上。" },
+        { status: 500 }
+      );
+    }
     return NextResponse.json(
       { message: error.message || "Failed to create card" },
       { status: 400 }

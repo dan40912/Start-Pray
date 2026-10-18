@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import CardVoiceRecorder from "@/components/prayer-recorder/CardVoiceRecorder";
 import PrayerLocationField from "@/components/PrayerLocationField";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
+import { MAX_CARD_DESCRIPTION_LENGTH } from "@/lib/card-limits";
 import { buildCardMetaArray, parseCardMeta } from "@/lib/card-meta";
 
 const APPROXIMATE_LOCATION_LABEL = "\u5927\u81f4\u4f4d\u7f6e";
@@ -364,7 +365,12 @@ export default function CustomerPortalEditCardPage() {
 
               <label>
                 <span>說明</span>
-                <textarea rows={4} value={form.description} onChange={updateField("description")} />
+                <textarea
+                  rows={4}
+                  value={form.description}
+                  onChange={updateField("description")}
+                  maxLength={MAX_CARD_DESCRIPTION_LENGTH}
+                />
               </label>
 
               <CardVoiceRecorder

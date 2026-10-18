@@ -8,8 +8,9 @@ import {
   isMobileBrowser,
   judgeRecording,
 } from "@/components/prayer-recorder/recorder-utils";
+import "@/styles/voice-prayer-overlay.css";
 
-const REC_MAX = 60;
+const DEFAULT_MAX_SECONDS = 60;
 const REC_MIN = 3;
 
 // MediaRecorder is started with a 1-second timeslice, so a healthy recording
@@ -38,6 +39,11 @@ function fmt(sec) {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
+// "60 秒" / "3 分鐘" — how the time limit reads in the auto-stop notice.
+function limitLabel(sec) {
+  return sec > 60 && sec % 60 === 0 ? `${sec / 60} 分鐘` : `${sec} 秒`;
+}
+
 function WaveBars({ live, refEl }) {
   return (
     <div
@@ -51,6 +57,22 @@ function WaveBars({ live, refEl }) {
     </div>
   );
 }
+
+// Wording for the prayer-response flow on /prayfor. The card voice message on
+// /me/create reuses this same overlay with its own copy (see CardVoiceRecorder),
+// so the two only differ in words, time limit and what happens on submit.
+export const DEFAULT_OVERLAY_COPY = {
+  dialogLabel: "語音禱告",
+  title: "用聲音留下禱告",
+  intro: "送出前可以重聽，也可以補上文字。",
+  dismiss: "改用文字禱告",
+  deniedBody: "你可以改用文字禱告，或到瀏覽器設定開啟麥克風。",
+  countdownHint: "你可以說：「願你今天有平安。」",
+  tooShort: "再多說一句祝福就可以送出",
+  unsupported: "這個瀏覽器無法錄音，請改用文字禱告",
+  submit: "送出語音祝福",
+  submitting: "送出中…",
+};
 
 function emptyRecording() {
   return { blob: null, url: null, duration: 0, transcript: "", segments: [], verified: false };
@@ -73,7 +95,16 @@ const MIC_CONSTRAINTS = {
   noiseSuppression: true,
 };
 
-export default function VoicePrayerOverlay({ onComplete, onCancel, submissionError = "" }) {
+export default function VoicePrayerOverlay({
+  onComplete,
+  onCancel,
+  submissionError = "",
+  maxSeconds = DEFAULT_MAX_SECONDS,
+  withTranscript = true,
+  copy: copyOverrides,
+}) {
+  const copy = { ...DEFAULT_OVERLAY_COPY, ...copyOverrides };
+  const REC_MAX = maxSeconds;
   // ── Speech recognition ref ──────────────────────────────────────────────
   // Captions run only where they can share the microphone with the recorder.
   // See isMobileBrowser in recorder-utils for why phones record without them.
@@ -83,9 +114,9 @@ export default function VoicePrayerOverlay({ onComplete, onCancel, submissionErr
   useEffect(() => {
     if (typeof window === "undefined") return;
     SRRef.current = window.SpeechRecognition || window.webkitSpeechRecognition || null;
-    captionsOnRef.current = Boolean(SRRef.current) && !isMobileBrowser();
+    captionsOnRef.current = withTranscript && Boolean(SRRef.current) && !isMobileBrowser();
     setCaptionsOn(captionsOnRef.current);
-  }, []);
+  }, [withTranscript]);
 
   // ── Recording infrastructure refs ───────────────────────────────────────
   const mediaStreamRef = useRef(null);
@@ -383,7 +414,7 @@ export default function VoicePrayerOverlay({ onComplete, onCancel, submissionErr
     async (force) => {
       if (isFinishingRef.current) return;
       if (!force && recSecRef.current < REC_MIN) {
-        showToast("再多說一句祝福就可以送出");
+        showToast(copy.tooShort);
         return;
       }
       isFinishingRef.current = true;
@@ -437,7 +468,7 @@ export default function VoicePrayerOverlay({ onComplete, onCancel, submissionErr
         isFinishingRef.current = false;
       }
     },
-    [clearTimers, failRecording, releaseMic, showToast, stopRecorderAndWait, stopWaveAndRecog]
+    [clearTimers, failRecording, releaseMic, showToast, stopRecorderAndWait, stopWaveAndRecog, copy.tooShort]
   );
 
   // ── Start recording ──────────────────────────────────────────────────────
@@ -472,7 +503,7 @@ export default function VoicePrayerOverlay({ onComplete, onCancel, submissionErr
         ? new MediaRecorder(mediaStreamRef.current, { mimeType })
         : new MediaRecorder(mediaStreamRef.current);
     } catch {
-      showToast("這個瀏覽器無法錄音，請改用文字禱告");
+      showToast(copy.unsupported);
       onCancel();
       return;
     }
@@ -545,11 +576,11 @@ export default function VoicePrayerOverlay({ onComplete, onCancel, submissionErr
       }
 
       if (recSecRef.current >= REC_MAX) {
-        showToast("已達 60 秒上限，已自動保存錄音");
+        showToast(`已達 ${limitLabel(REC_MAX)}上限，已自動保存錄音`);
         void finishRec(true);
       }
     }, 1000);
-  }, [addTimer, finishRec, onCancel, showToast, startRecog, startWave, stopWaveAndRecog]);
+  }, [addTimer, finishRec, onCancel, showToast, startRecog, startWave, stopWaveAndRecog, REC_MAX, copy.unsupported]);
 
   // ── Countdown then record ─────────────────────────────────────────────────
   const runCountdown = useCallback(() => {
@@ -688,7 +719,7 @@ export default function VoicePrayerOverlay({ onComplete, onCancel, submissionErr
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="vpo-overlay" role="dialog" aria-modal="true" aria-label="語音禱告">
+    <div className="vpo-overlay" role="dialog" aria-modal="true" aria-label={copy.dialogLabel}>
       <div className="vpo-backdrop" onClick={handleCancel} />
       <div className="vpo-panel">
         {toastMsg ? <div className="vpo-toast" role="status">{toastMsg}</div> : null}
@@ -703,19 +734,21 @@ export default function VoicePrayerOverlay({ onComplete, onCancel, submissionErr
         {phase === "vperm" && (
           <div className="vpo-center">
             <div className="vpo-icon" aria-hidden="true">🎙</div>
-            <h3 className="vpo-title">用聲音留下禱告</h3>
-            <p className="vpo-body">送出前可以重聽，也可以補上文字。</p>
+            <h3 className="vpo-title">{copy.title}</h3>
+            <p className="vpo-body">{copy.intro}</p>
             <button type="button" className="vpo-btn vpo-btn--primary" onClick={askMic}>
               開啟麥克風
             </button>
             <button type="button" className="vpo-btn vpo-btn--ghost" onClick={handleCancel}>
-              改用文字禱告
+              {copy.dismiss}
             </button>
-            <p className="vpo-hint">
-              {captionsOn
-                ? "若沒有即時字幕，錄完仍可自己補上文字。"
-                : "錄音時不會自動產生字幕；錄完可自己補上文字。"}
-            </p>
+            {withTranscript ? (
+              <p className="vpo-hint">
+                {captionsOn
+                  ? "若沒有即時字幕，錄完仍可自己補上文字。"
+                  : "錄音時不會自動產生字幕；錄完可自己補上文字。"}
+              </p>
+            ) : null}
           </div>
         )}
 
@@ -723,11 +756,9 @@ export default function VoicePrayerOverlay({ onComplete, onCancel, submissionErr
         {phase === "vdenied" && (
           <div className="vpo-center">
             <div className="vpo-icon" aria-hidden="true">🔇</div>
-            <p className="vpo-body">
-              你可以改用文字禱告，<br />或到瀏覽器設定開啟麥克風。
-            </p>
+            <p className="vpo-body">{copy.deniedBody}</p>
             <button type="button" className="vpo-btn vpo-btn--primary" onClick={handleCancel}>
-              改用文字禱告
+              {copy.dismiss}
             </button>
             <button type="button" className="vpo-btn vpo-btn--ghost" onClick={askMic}>
               再試一次
@@ -742,7 +773,7 @@ export default function VoicePrayerOverlay({ onComplete, onCancel, submissionErr
               <span className="vpo-countnum">{countN}</span>
             </div>
             <p className="vpo-countdown-label">深呼吸，慢慢說。</p>
-            <p className="vpo-hint">你可以說：「願你今天有平安。」</p>
+            <p className="vpo-hint">{copy.countdownHint}</p>
             <button type="button" className="vpo-btn vpo-btn--ghost" onClick={handleCancel}>
               取消
             </button>
@@ -770,15 +801,17 @@ export default function VoicePrayerOverlay({ onComplete, onCancel, submissionErr
                 還沒有收到聲音，檢查一下麥克風是不是被靜音了。
               </p>
             ) : null}
-            <div className="vpo-live-transcript" aria-live="polite">
-              {liveText || (
-                <span className="vpo-pending">
-                  {captionsOn
-                    ? "開始說話，字幕會出現在這裡…"
-                    : "開始說話吧，錄完可以自己補上文字"}
-                </span>
-              )}
-            </div>
+            {withTranscript ? (
+              <div className="vpo-live-transcript" aria-live="polite">
+                {liveText || (
+                  <span className="vpo-pending">
+                    {captionsOn
+                      ? "開始說話，字幕會出現在這裡…"
+                      : "開始說話吧，錄完可以自己補上文字"}
+                  </span>
+                )}
+              </div>
+            ) : null}
             <button
               type="button"
               className="vpo-btn vpo-btn--primary"
@@ -815,7 +848,7 @@ export default function VoicePrayerOverlay({ onComplete, onCancel, submissionErr
               重新錄製
             </button>
             <button type="button" className="vpo-btn vpo-btn--ghost" onClick={handleCancel}>
-              改用文字禱告
+              {copy.dismiss}
             </button>
           </div>
         )}
@@ -840,15 +873,19 @@ export default function VoicePrayerOverlay({ onComplete, onCancel, submissionErr
               onEnded={() => setPvPlaying(false)}
               onError={() => showToast("瀏覽器無法讀取這段錄音，請重新錄製。")}
             />
-            <textarea
-              className="vpo-textarea"
-              rows={4}
-              aria-label="逐字稿（可修改）"
-              placeholder="可以在這裡補上文字祝福，或直接送出純語音"
-              value={vcTx}
-              onChange={(e) => setVcTx(e.target.value)}
-            />
-            <p className="vpo-hint">{vcHint}</p>
+            {withTranscript ? (
+              <>
+                <textarea
+                  className="vpo-textarea"
+                  rows={4}
+                  aria-label="逐字稿（可修改）"
+                  placeholder="可以在這裡補上文字祝福，或直接送出純語音"
+                  value={vcTx}
+                  onChange={(e) => setVcTx(e.target.value)}
+                />
+                <p className="vpo-hint">{vcHint}</p>
+              </>
+            ) : null}
             {submissionError ? <p className="vpo-hint" role="alert">{submissionError}</p> : null}
             <button
               type="button"
@@ -856,7 +893,7 @@ export default function VoicePrayerOverlay({ onComplete, onCancel, submissionErr
               disabled={voiceBusy}
               onClick={handleSubmitVoice}
             >
-              {voiceBusy ? "送出中…" : "送出語音祝福"}
+              {voiceBusy ? copy.submitting : copy.submit}
             </button>
             <button type="button" className="vpo-btn vpo-btn--ghost" onClick={restartRec} disabled={voiceBusy}>
               重新錄

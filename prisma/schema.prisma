@@ -257,7 +257,9 @@ model HomePrayerCard {
   image           String
   alt             String?
   title           String
-  description     String
+  /// TEXT, not the default VARCHAR(191): /api/home-cards accepts up to 3000
+  /// characters, and anything past 191 used to fail on insert.
+  description     String             @db.Text
   tags            Json
   meta            Json
   detailsHref     String
