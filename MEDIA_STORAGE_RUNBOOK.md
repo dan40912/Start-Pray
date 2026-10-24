@@ -59,13 +59,29 @@ CUSTOMER_SESSION_SECRET=...
 location /voices/ {
   alias /home/startpraynow/prayer-coin-data/voices/;
   try_files $uri =404;
+  # 只放行音檔副檔名，避免使用者上傳的 .html/.svg 被當成網頁執行（XSS）
+  location ~* \.(webm|m4a|mp3|mp4|ogg|oga|opus|wav|aac|flac)$ {
+    add_header X-Content-Type-Options nosniff always;
+    add_header Content-Security-Policy "default-src 'none'; media-src 'self'; sandbox" always;
+  }
+  location ~ . { return 404; }
 }
 
 location /uploads/ {
   alias /home/startpraynow/prayer-coin-data/uploads/;
   try_files $uri =404;
+  # 只放行點陣圖；不要放行 .svg（SVG 內可以放 JavaScript）
+  location ~* \.(webp|jpg|jpeg|png|gif|avif)$ {
+    add_header X-Content-Type-Options nosniff always;
+    add_header Content-Security-Policy "default-src 'none'; img-src 'self' data:; sandbox" always;
+  }
+  location ~ . { return 404; }
 }
 ```
+
+> 安全說明：不加副檔名限制時，若有人上傳 `evil.html`，Nginx 會以 `text/html`
+> 回傳，等於在本站網域執行攻擊者的 JavaScript。程式端也已改為只用白名單副檔名存檔
+> （`src/lib/audio-upload.js`），兩層一起擋。詳見 `docs/security-hardening.md`。
 
 完成後：
 

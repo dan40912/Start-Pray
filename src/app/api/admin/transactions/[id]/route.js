@@ -148,12 +148,6 @@ export async function PATCH(request, { params }) {
           throw missingUserError;
         }
 
-        if (user.walletBalance.lt(latestTransaction.amount)) {
-          const insufficientBalanceError = new Error("INSUFFICIENT_BALANCE");
-          insufficientBalanceError.code = "INSUFFICIENT_BALANCE";
-          throw insufficientBalanceError;
-        }
-
         const updatedResult = await tx.tokenTransaction.updateMany({
           where: {
             id,
@@ -170,14 +164,25 @@ export async function PATCH(request, { params }) {
           throw transitionConflictError;
         }
 
-        await tx.user.update({
-          where: { id: latestTransaction.userId },
+        // Check-and-decrement in one UPDATE so two withdrawals completed at the
+        // same time cannot both pass a stale balance read and overdraw.
+        const debited = await tx.user.updateMany({
+          where: {
+            id: latestTransaction.userId,
+            walletBalance: { gte: latestTransaction.amount },
+          },
           data: {
             walletBalance: {
               decrement: latestTransaction.amount,
             },
           },
         });
+
+        if (debited.count !== 1) {
+          const insufficientBalanceError = new Error("INSUFFICIENT_BALANCE");
+          insufficientBalanceError.code = "INSUFFICIENT_BALANCE";
+          throw insufficientBalanceError;
+        }
       });
     } else {
       await prisma.tokenTransaction.update({

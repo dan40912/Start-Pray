@@ -20,6 +20,23 @@ const nextConfig = {
       }
     ]
   },
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          // SAMEORIGIN rather than DENY: other sites must not frame this one
+          // (clickjacking), but our own pages may still embed each other.
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          // Microphone stays allowed for our own pages (prayer recorder);
+          // camera and location are never used.
+          { key: "Permissions-Policy", value: "camera=(), geolocation=(), microphone=(self)" },
+        ],
+      },
+    ];
+  },
   async redirects() {
     return [
       // 「Customer Portal」是 B2B SaaS / 電商的說法，而這裡的人不是客戶，

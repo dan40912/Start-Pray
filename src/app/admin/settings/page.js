@@ -23,6 +23,11 @@ export default function SettingsPage() {
   const [settingsLoading, setSettingsLoading] = useState(true);
   const [settingsError, setSettingsError] = useState("");
   const [settingsSubmitting, setSettingsSubmitting] = useState(false);
+  const [totpStatus, setTotpStatus] = useState(null);
+  const [totpSetup, setTotpSetup] = useState(null);
+  const [totpForm, setTotpForm] = useState({ code: "", password: "" });
+  const [totpError, setTotpError] = useState("");
+  const [totpSubmitting, setTotpSubmitting] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -282,6 +287,119 @@ export default function SettingsPage() {
     }
   };
 
+  const loadTotpStatus = useCallback(async () => {
+    if (sessionRole !== "SUPER" && sessionRole !== "ADMIN") return;
+    try {
+      const response = await fetch("/api/admin/2fa", { cache: "no-store" });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || "無法取得 2FA 狀態");
+      }
+      setTotpStatus(await response.json());
+    } catch (err) {
+      console.error("載入 2FA 狀態失敗:", err);
+      setTotpError(err.message || "無法取得 2FA 狀態");
+    }
+  }, [sessionRole]);
+
+  useEffect(() => {
+    if (!sessionChecked) return;
+    loadTotpStatus();
+  }, [sessionChecked, loadTotpStatus]);
+
+  const handleStartTotpSetup = async () => {
+    try {
+      setTotpSubmitting(true);
+      setTotpError("");
+      const response = await fetch("/api/admin/2fa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "setup" }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.message || "無法產生 2FA 設定");
+      }
+      setTotpSetup(data);
+      setTotpForm({ code: "", password: "" });
+    } catch (err) {
+      setTotpError(err.message || "無法產生 2FA 設定");
+    } finally {
+      setTotpSubmitting(false);
+    }
+  };
+
+  const handleConfirmTotp = async (event) => {
+    event.preventDefault();
+    if (!totpSetup) return;
+
+    try {
+      setTotpSubmitting(true);
+      setTotpError("");
+      const response = await fetch("/api/admin/2fa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "confirm",
+          setupToken: totpSetup.setupToken,
+          code: totpForm.code.trim(),
+          password: totpForm.password,
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.message || "2FA 設定失敗");
+      }
+      setTotpSetup(null);
+      setTotpForm({ code: "", password: "" });
+      setTotpStatus(data);
+      if (sessionRole === "SUPER") {
+        await loadAccounts();
+      }
+      notifySuccess("個人 2FA 已啟用，下次登入請使用新的驗證碼");
+    } catch (err) {
+      setTotpError(err.message || "2FA 設定失敗");
+    } finally {
+      setTotpSubmitting(false);
+    }
+  };
+
+  const handleResetTotp = async (account) => {
+    if (sessionRole !== "SUPER") {
+      notifyError("沒有權限執行此操作");
+      return;
+    }
+
+    const shouldContinue = await confirmAction({
+      title: "確認重設個人 2FA",
+      message: `重設後 ${account.username} 會改用共用的 2FA 驗證碼登入，需要重新設定個人 2FA。若伺服器已移除共用密鑰，該帳號將暫時無法登入。`,
+      confirmText: "確認重設",
+      tone: "warning",
+    });
+    if (!shouldContinue) return;
+
+    try {
+      const response = await fetch(`/api/admin/accounts/${account.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ resetTotp: true }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || "重設 2FA 失敗");
+      }
+
+      await loadAccounts();
+      await loadTotpStatus();
+      notifySuccess(`已重設 ${account.username} 的個人 2FA`);
+    } catch (err) {
+      notifyError(err.message || "重設 2FA 失敗");
+    }
+  };
+
   const accountsSummary = useMemo(() => {
     const total = accounts.length;
     const superAdmins = accounts.filter((account) => account.role === "SUPER" && account.isActive).length;
@@ -352,6 +470,99 @@ export default function SettingsPage() {
       <section className="admin-section__card">
         <header className="admin-section__card-header">
           <div>
+            <h2>我的兩步驟驗證（2FA）</h2>
+            <p>為自己的帳號綁定專屬的驗證器 App，不再與其他管理員共用同一組驗證碼。</p>
+          </div>
+        </header>
+
+        {totpStatus ? (
+          <p>
+            目前狀態：
+            {totpStatus.enabled ? (
+              <span className="status-badge status-badge--active">已啟用個人 2FA</span>
+            ) : (
+              <span className="status-badge status-badge--blocked">尚未設定（使用共用驗證碼）</span>
+            )}
+          </p>
+        ) : null}
+
+        {totpSetup ? (
+          <form className="admin-form" onSubmit={handleConfirmTotp}>
+            <p>
+              1. 用 Google Authenticator、1Password 等 App 掃描 QR Code。
+              {totpStatus?.enabled ? "完成後舊的個人驗證器會失效。" : ""}
+            </p>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={totpSetup.qrDataUrl} alt="2FA QR Code" width={220} height={220} />
+            <p>
+              無法掃描時可手動輸入金鑰：<code>{totpSetup.secret}</code>
+            </p>
+            <p>2. 輸入 App 顯示的 6 位數驗證碼與你目前的後台密碼。</p>
+            <div className="admin-form__row admin-form__row--equal">
+              <label className="admin-form__field">
+                <span>驗證碼</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  pattern="\d{6}"
+                  maxLength={6}
+                  value={totpForm.code}
+                  onChange={(event) => setTotpForm((prev) => ({ ...prev, code: event.target.value }))}
+                  disabled={totpSubmitting}
+                  required
+                />
+              </label>
+              <label className="admin-form__field">
+                <span>目前密碼</span>
+                <input
+                  type="password"
+                  autoComplete="current-password"
+                  value={totpForm.password}
+                  onChange={(event) => setTotpForm((prev) => ({ ...prev, password: event.target.value }))}
+                  disabled={totpSubmitting}
+                  required
+                />
+              </label>
+            </div>
+            {totpError ? <p className="error">{totpError}</p> : null}
+            <div className="admin-form__actions">
+              <button type="submit" className="button button--primary" disabled={totpSubmitting}>
+                {totpSubmitting ? "驗證中…" : "確認啟用"}
+              </button>
+              <button
+                type="button"
+                className="link-button"
+                onClick={() => {
+                  setTotpSetup(null);
+                  setTotpError("");
+                }}
+                disabled={totpSubmitting}
+              >
+                取消
+              </button>
+            </div>
+          </form>
+        ) : (
+          <>
+            {totpError ? <p className="error">{totpError}</p> : null}
+            <div className="admin-form__actions">
+              <button
+                type="button"
+                className="button button--primary"
+                onClick={handleStartTotpSetup}
+                disabled={totpSubmitting || !totpStatus}
+              >
+                {totpStatus?.enabled ? "重新綁定驗證器" : "設定個人 2FA"}
+              </button>
+            </div>
+          </>
+        )}
+      </section>
+
+      <section className="admin-section__card">
+        <header className="admin-section__card-header">
+          <div>
             <h2>管理員列表</h2>
             <p>目前共有 {accountsSummary.total} 位管理員，其中 {accountsSummary.superAdmins} 位為啟用中的超級管理員。</p>
           </div>
@@ -368,6 +579,7 @@ export default function SettingsPage() {
                 <th>帳號</th>
                 <th>角色</th>
                 <th>狀態</th>
+                <th>個人 2FA</th>
                 <th>最後登入</th>
                 <th>建立時間</th>
                 <th>操作</th>
@@ -376,7 +588,7 @@ export default function SettingsPage() {
             <tbody>
               {accounts.length === 0 ? (
                 <tr>
-                  <td colSpan={6}>目前尚未建立管理員帳號</td>
+                  <td colSpan={7}>目前尚未建立管理員帳號</td>
                 </tr>
               ) : (
                 accounts.map((account) => (
@@ -402,6 +614,7 @@ export default function SettingsPage() {
                         <span className="status-badge status-badge--blocked">停用</span>
                       )}
                     </td>
+                    <td>{account.totpEnabledAt ? "已設定" : "未設定"}</td>
                     <td>{account.lastLoginAt ? new Date(account.lastLoginAt).toLocaleString() : "—"}</td>
                     <td>{new Date(account.createdAt).toLocaleString()}</td>
                     <td>
@@ -413,6 +626,15 @@ export default function SettingsPage() {
                         >
                           {account.isActive ? "停用" : "啟用"}
                         </button>
+                        {account.totpEnabledAt ? (
+                          <button
+                            type="button"
+                            className="link-button"
+                            onClick={() => handleResetTotp(account)}
+                          >
+                            重設 2FA
+                          </button>
+                        ) : null}
                       </div>
                     </td>
                   </tr>
@@ -450,8 +672,8 @@ export default function SettingsPage() {
                 type="password"
                 value={form.password}
                 onChange={(event) => handleFormChange("password", event.target.value)}
-                placeholder="至少 4 個字元"
-                minLength={4}
+                placeholder="至少 8 個字元"
+                minLength={8}
                 disabled={formSubmitting}
                 required
               />

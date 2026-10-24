@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 
+import {
+  authLimiters,
+  checkAuthLimit,
+  recordAuthAttempt,
+  tooManyAttemptsMessage,
+} from "@/lib/auth-rate-limit";
+import { readClientIp } from "@/lib/client-ip";
 import prisma from "@/lib/prisma";
 import {
   createCustomerSessionToken,
@@ -60,6 +67,17 @@ export async function POST(request) {
     if (!acceptedTerms) {
       return NextResponse.json({ message: "請先閱讀並同意條款。" }, { status: 400 });
     }
+
+    // Counted only once the form is valid, so fixing typos never uses up attempts.
+    const limitKeys = { ip: `ip:${readClientIp(request)}` };
+    const limit = checkAuthLimit(authLimiters.signup, limitKeys);
+    if (!limit.allowed) {
+      return NextResponse.json(
+        { message: tooManyAttemptsMessage(limit.retryAfterSeconds) },
+        { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } }
+      );
+    }
+    recordAuthAttempt(authLimiters.signup, limitKeys);
 
     const existing = await prisma.user.findFirst({
       where: {

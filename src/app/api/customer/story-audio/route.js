@@ -10,15 +10,9 @@ import {
   ensureMediaWriteDirectory,
 } from "@/lib/server-media-storage";
 import { requireSessionUser } from "@/lib/server-session";
+import { ALLOWED_AUDIO_FORMATS_LABEL, buildSafeAudioFileName } from "@/lib/audio-upload";
 
 const MAX_STORY_AUDIO_BYTES = 30 * 1024 * 1024;
-
-function sanitizeFileName(input) {
-  const parsed = path.parse(input ?? "");
-  const extension = parsed.ext?.replace(/[^\w.]+/g, "").slice(0, 12) || ".webm";
-  const base = (parsed.name || "story-audio").replace(/[^\w.-]+/g, "-").slice(0, 80);
-  return `${base || "story-audio"}${extension}`;
-}
 
 export async function POST(request) {
   try {
@@ -40,9 +34,16 @@ export async function POST(request) {
       return NextResponse.json({ message: "故事音訊不可超過 30MB" }, { status: 400 });
     }
 
+    const safeName = buildSafeAudioFileName(file, "story-audio");
+    if (!safeName) {
+      return NextResponse.json(
+        { message: `目前只接受常見音訊格式，例如 ${ALLOWED_AUDIO_FORMATS_LABEL}` },
+        { status: 400 }
+      );
+    }
+
     const folderSegments = ["profile-stories", session.userId];
     const folderPath = await ensureMediaWriteDirectory("voices", folderSegments);
-    const safeName = sanitizeFileName(file.name);
     const filename = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}-${safeName}`;
     const filePath = path.join(folderPath, filename);
     const bytes = Buffer.from(await file.arrayBuffer());

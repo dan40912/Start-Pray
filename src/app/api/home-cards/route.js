@@ -5,6 +5,7 @@ import { ensureActiveCustomer } from "@/lib/customer-access";
 import { buildDefaultThumbnailUrl, isDefaultThumbnailUrl } from "@/lib/default-thumbnail";
 import { createHomeCard, readHomeCards } from "@/lib/homeCards";
 import { toPublicPrayerCard } from "@/lib/anonymous-prayer-avatar";
+import { readClientIp } from "@/lib/client-ip";
 import {
   GUEST_RESPONSE_COOKIE,
   createGuestId,
@@ -91,17 +92,6 @@ function sanitizeCreatePayload(body) {
   };
 }
 
-function getClientKey(request) {
-  const forwarded = request.headers.get("x-forwarded-for") || "";
-  const firstForwarded = forwarded.split(",")[0]?.trim();
-  return (
-    firstForwarded ||
-    request.headers.get("x-real-ip") ||
-    request.headers.get("cf-connecting-ip") ||
-    "unknown"
-  );
-}
-
 function assertGuestCanCreate(request, body, payload) {
   if (typeof body?.website === "string" && body.website.trim()) {
     const error = new Error("目前無法建立這則代禱，請稍後再試。");
@@ -133,7 +123,7 @@ function assertGuestCanCreate(request, body, payload) {
     throw error;
   }
 
-  const key = getClientKey(request);
+  const key = readClientIp(request);
   const now = Date.now();
   const recentAttempts = (guestCreateAttempts.get(key) || []).filter(
     (timestamp) => now - timestamp < GUEST_CREATE_WINDOW_MS

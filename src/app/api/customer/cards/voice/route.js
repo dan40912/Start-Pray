@@ -11,18 +11,13 @@ import {
 } from "@/lib/server-media-storage";
 import { requireSessionUser } from "@/lib/server-session";
 import { MAX_VOICE_FILE_BYTES } from "@/lib/voiceModeration";
+import { ALLOWED_AUDIO_FORMATS_LABEL, buildSafeAudioFileName } from "@/lib/audio-upload";
 
 // Modeled closely on src/app/api/customer/story-audio/route.js — same auth,
 // validation, and storage pattern, just a different folder segment. Only
 // the card owner (an authenticated customer) ever calls this; the resulting
 // URL is stored as HomePrayerCard.voiceHref via the existing create/update
 // endpoints, not written here.
-function sanitizeFileName(input) {
-  const parsed = path.parse(input ?? "");
-  const extension = parsed.ext?.replace(/[^\w.]+/g, "").slice(0, 12) || ".webm";
-  const base = (parsed.name || "card-voice").replace(/[^\w.-]+/g, "-").slice(0, 80);
-  return `${base || "card-voice"}${extension}`;
-}
 
 export async function POST(request) {
   try {
@@ -44,9 +39,16 @@ export async function POST(request) {
       return NextResponse.json({ message: "語音留言不可超過 15MB" }, { status: 400 });
     }
 
+    const safeName = buildSafeAudioFileName(file, "card-voice");
+    if (!safeName) {
+      return NextResponse.json(
+        { message: `目前只接受常見音訊格式，例如 ${ALLOWED_AUDIO_FORMATS_LABEL}` },
+        { status: 400 }
+      );
+    }
+
     const folderSegments = ["prayer-cards", session.userId];
     const folderPath = await ensureMediaWriteDirectory("voices", folderSegments);
-    const safeName = sanitizeFileName(file.name);
     const filename = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}-${safeName}`;
     const filePath = path.join(folderPath, filename);
     const bytes = Buffer.from(await file.arrayBuffer());
