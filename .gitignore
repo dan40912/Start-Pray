@@ -21,6 +21,8 @@ out/
 # Prisma 產生檔
 /src/generated/prisma
 logs/
+# QA 腳本產生的測試帳密（scripts/qa-flow.mjs）
+.qa/
 dev-server*.log
 public/uploads/
 public/voices/

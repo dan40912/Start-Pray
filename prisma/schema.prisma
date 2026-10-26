@@ -366,6 +366,11 @@ model AdminAccount {
   role         AdminRole @default(ADMIN)
   isActive     Boolean   @default(true)
   lastLoginAt  DateTime?
+  // Per-admin 2FA (encrypted, see src/lib/admin-totp.js). NULL = not enrolled,
+  // the account then falls back to the shared ADMIN_TOTP_SECRET.
+  totpSecret       String?   @db.VarChar(255)
+  totpEnabledAt    DateTime?
+  totpLastUsedStep Int?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 

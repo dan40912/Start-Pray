@@ -2,6 +2,10 @@
 
 Updated: 2026-03-22 (Asia/Taipei)
 
+> **2026-10 更新**：現在每位管理員可以在「後台 → 權限設定 → 我的兩步驟驗證」綁定自己的
+> 驗證器。`ADMIN_TOTP_SECRET` 只作為尚未綁定帳號的備援，全部綁定後即可移除。
+> 詳見 `docs/security-hardening.md`。
+
 ## Goal
 
 Enable `/admin` login with:
