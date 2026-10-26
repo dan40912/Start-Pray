@@ -306,7 +306,7 @@ export default async function HomeLandingPage({ locale: localeProp = "zh-TW" } =
               primaryLabel: text.explorerPrimary,
               primaryHref: localizePath("/me/create", locale),
               secondaryLabel: text.explorerSecondary,
-              secondaryHref: localizePath("/prayfor/one", locale),
+              secondaryHref: localizePath("/prayfor", locale),
             }}
             locale={locale}
           />
