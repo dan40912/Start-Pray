@@ -65,6 +65,7 @@ test('overlay releases microphone before decoding a finished recording',async()=
     judgeRecording:()=>({ok:true,durationSeconds:5}),interimTranscriptRef:ref(''),
     setVcDur(){},setVcTx(){},setVcHint(){},captionsOnRef:ref(false),
     failRecording:()=>assert.fail('should not discard sound'),failMessageFor(){},FAIL_MESSAGES:{empty:'empty'},
+    copy:{},
   });
   await finish(false);assert.equal(recording.current.verified,true);assert.equal(phases.at(-1),'vconfirm');
 });

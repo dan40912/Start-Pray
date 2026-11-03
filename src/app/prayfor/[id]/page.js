@@ -302,6 +302,7 @@ export default async function PrayerDetailPage({ params, locale: localeProp = "z
         requestId={String(card.id)}
         prayerTitle={card.title}
         initialTrack={initialTrack}
+        locale={locale}
       />
 
       <SiteFooter locale={locale} />

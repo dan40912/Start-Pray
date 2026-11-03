@@ -533,7 +533,6 @@ const en = {
   },
   comments: {
     anonymousResponder: "Anonymous prayer friend",
-    anonymousResponderShort: "Anonymous",
     showMore: "Show more replies ({count} left)",
     unnamed: "Unnamed",
     loginRequired: "Your login has expired. Please log in again and resend.",

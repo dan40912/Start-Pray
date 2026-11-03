@@ -74,7 +74,7 @@ const zhTW = {
       reportSuccess: "已檢舉，此內容不會再顯示。",
       reportFailed: "目前無法完成檢舉，請稍後再試。",
       retry: "再試一次",
-      anonymousLabel: "匿名的禱告",
+      anonymousLabel: "默默幫您禱告的得勝者",
       switchBlockedUploading: "禱告正在送出，請稍候再切換。",
       switchBlockedCountdown: "倒數進行中，請先取消後再切換。",
       switchBlockedRecording: "正在錄音，請先停止錄音後再切換。",
@@ -485,8 +485,7 @@ const zhTW = {
     visitorFootnote: "訪客目前可瀏覽與分享；回應需登入後送出。",
   },
   comments: {
-    anonymousResponder: "匿名代禱者",
-    anonymousResponderShort: "匿名",
+    anonymousResponder: "默默幫您禱告的得勝者",
     showMore: "看更多回應（還有 {count} 則）",
     unnamed: "未命名",
     loginRequired: "登入狀態已失效，請重新登入後再送出。",

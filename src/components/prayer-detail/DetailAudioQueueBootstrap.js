@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 
 import { useAudio } from "@/context/AudioContext";
 import { PRAYER_RESPONSE_CREATED } from "@/lib/events";
+import { getDictionary, normalizeLocale } from "@/lib/i18n";
 import { normalizeAudioUrl } from "@/lib/media-url";
 
 const FALLBACK_SPEAKER = "Anonymous";
@@ -29,7 +30,8 @@ function normalizeResponseTrack(
   index,
   prayerTitle,
   fallbackCoverImage = "",
-  homeCardId = null
+  homeCardId = null,
+  anonymousSpeaker = FALLBACK_SPEAKER
 ) {
   const voiceUrl = normalizeAudioUrl(item?.voiceUrl);
   if (!voiceUrl) return null;
@@ -39,7 +41,7 @@ function normalizeResponseTrack(
     homeCardId: item.homeCardId ?? homeCardId,
     voiceUrl,
     speaker: isAnonymous
-      ? FALLBACK_SPEAKER
+      ? anonymousSpeaker
       : item.responder?.name?.trim() || item.responder?.username?.trim() || FALLBACK_SPEAKER,
     message: item.message?.trim() || "",
     avatarUrl: isAnonymous
@@ -77,7 +79,9 @@ export default function DetailAudioQueueBootstrap({
   requestId,
   initialTrack = null,
   prayerTitle = "",
+  locale = "zh-TW",
 }) {
+  const anonymousSpeaker = getDictionary(normalizeLocale(locale)).comments.anonymousResponder;
   const { setQueue, setIsExpanded } = useAudio();
   const queueRequestRef = useRef(null);
 
@@ -110,7 +114,8 @@ export default function DetailAudioQueueBootstrap({
                 index,
                 prayerTitle,
                 primaryTrack?.coverImage || "",
-                requestId
+                requestId,
+                anonymousSpeaker
               )
             )
             .filter(Boolean)
@@ -126,7 +131,7 @@ export default function DetailAudioQueueBootstrap({
       const fallbackQueue = primaryTrack ? [primaryTrack] : [];
       setQueue(fallbackQueue, -1);
     }
-  }, [requestId, primaryTrack, prayerTitle, setQueue]);
+  }, [requestId, primaryTrack, prayerTitle, anonymousSpeaker, setQueue]);
 
   useEffect(() => {
     setIsExpanded(false);

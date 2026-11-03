@@ -2844,7 +2844,7 @@ body {
 }
 
 .site-header .nav-links a {
-  color: var(--text-2);
+  color: var(--text-1);
 }
 
 .site-header .nav-links a:hover,
@@ -2875,7 +2875,7 @@ body {
 .site-header .nav-links a.nav-account__login {
   background: transparent;
   border: 1px solid transparent;
-  color: var(--text-2);
+  color: var(--text-1);
 }
 
 .site-header .nav-links a.nav-account__login:hover {
@@ -2896,7 +2896,7 @@ body {
 }
 
 .site-header .nav-account__hint {
-  color: var(--text-3);
+  color: var(--text-2);
 }
 
 /* 頁尾和頁首一樣是站台外框，要跟著 surface 走。它原本鎖死深藍：day 的頁面

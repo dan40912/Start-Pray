@@ -574,9 +574,6 @@ export default function CustomerPortalPage() {
 
   const updateProfileField = (field) => (event) => {
     const value = event.target.value;
-    if (field === "avatarUrl") {
-      resetAvatarFileSelection(value.trim() || defaultAvatar);
-    }
     setProfileForm((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -1604,34 +1601,6 @@ export default function CustomerPortalPage() {
                 使用預設圖片
 
               </button>
-
-            </label>
-
-
-
-            <label className="cp-modal__field">
-
-              <span>圖片網址（選填）</span>
-
-              <input
-
-                type="url"
-
-                value={profileForm.avatarUrl}
-
-                onChange={updateProfileField("avatarUrl")}
-
-                placeholder="可貼上自訂圖片網址"
-
-                disabled={profileSaving}
-
-              />
-
-              <small className="cp-helper">
-
-                若未輸入會使用預設頭像，或是選擇檔案上傳。
-
-              </small>
 
             </label>
 

@@ -394,10 +394,6 @@ export default function CustomerPortalEditCardPage() {
                     ))}
                   </select>
                 </label>
-                <label>
-                  <span>封面圖片 URL</span>
-                  <input type="url" value={form.image} onChange={updateField("image")} />
-                </label>
               </div>
 
               <div className="cp-edit-gallery">
@@ -474,7 +470,7 @@ export default function CustomerPortalEditCardPage() {
                 <label>
                   <span>分享詳情連結</span>
                   <input
-                    type="url"
+                    type="text"
                     value={form.detailsHref}
                     onChange={updateField("detailsHref")}
                   />

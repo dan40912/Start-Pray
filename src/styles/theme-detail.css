@@ -645,9 +645,10 @@
   padding: 0.35rem;
   border-radius: 12px;
   border: 1px solid rgba(248, 113, 113, 0.32);
-  background: rgba(15, 23, 42, 0.95);
+  background: #0f172a;
   box-shadow: 0 18px 30px -18px rgba(0, 0, 0, 0.9);
-  z-index: 5;
+  /* 要蓋過固定在底部的 .global-player（z-index: 200）。 */
+  z-index: 210;
 }
 
 #responses-panel .comment-item__action-menu-item {
@@ -1486,12 +1487,12 @@
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  z-index: 25;
+  z-index: 210;
   min-width: 180px;
   padding: 0.4rem;
   border-radius: 12px;
   border: 1px solid rgba(248, 113, 113, 0.28);
-  background: rgba(15, 23, 42, 0.96);
+  background: #0f172a;
   box-shadow: 0 18px 30px -18px rgba(0, 0, 0, 0.9);
 }
 
@@ -1827,6 +1828,23 @@
 
 .pdv2-home-card-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
+  min-width: 0;
+}
+
+/* Related cards must fit their tracks even when four columns are narrower
+   than the shared card's 4:3 ratio and 210px minimum height allow. */
+.pdv2-home-card-grid > .home-card {
+  min-width: 0;
+  width: 100%;
+  aspect-ratio: auto;
+}
+
+.pdv2-home-card-grid .home-card__content {
+  min-width: 0;
+}
+
+.pdv2-home-card-grid .home-card__title {
+  overflow-wrap: anywhere;
 }
 
 .pdv2-nav-arrow {
@@ -2145,12 +2163,6 @@
   }
 
   .pray-actions__notice,
-  .pdv2-action-menu {
-    left: 0;
-    right: auto;
-    width: 100%;
-  }
-
   .pdv2-meta-row {
     grid-template-columns: 1fr;
   }
@@ -2273,8 +2285,15 @@
   /* 這幾條規則過去讓 header 換行、操作鈕撐成整行 —— 結果「分享 / ⋯」自成
      一列，插在名字與留言內文之間，把閱讀順序切斷。留言的內文必須緊接在名字
      之後；操作鈕收回名字那一行的右端。 */
+  /* 名稱放不下時，操作按鈕換到下一行，不要把名稱截斷或把按鈕擠出卡片。 */
   #responses-panel .comment-item__header {
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  #responses-panel .comment-item__name,
+  #responses-panel .comment-item__identity strong {
+    white-space: normal;
   }
 
   #responses-panel .comment-item__meta-actions {
