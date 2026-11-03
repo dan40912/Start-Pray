@@ -6,6 +6,7 @@ import { requireAdmin, roleSet } from "@/lib/admin-route-auth";
 
 const SUPER_ONLY = roleSet("SUPER");
 const ALLOWED_ROLES = new Set(["SUPER", "ADMIN"]);
+const MIN_PASSWORD_LENGTH = 8;
 
 function sanitizeUsername(username) {
   return username?.trim().toLowerCase();
@@ -24,6 +25,7 @@ export async function GET(request) {
         role: true,
         isActive: true,
         lastLoginAt: true,
+        totpEnabledAt: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -50,6 +52,13 @@ export async function POST(request) {
       return NextResponse.json({ message: "請填寫帳號與密碼" }, { status: 400 });
     }
 
+    if (typeof password !== "string" || password.length < MIN_PASSWORD_LENGTH) {
+      return NextResponse.json(
+        { message: `管理員密碼至少需要 ${MIN_PASSWORD_LENGTH} 個字元` },
+        { status: 400 }
+      );
+    }
+
     if (!ALLOWED_ROLES.has(role)) {
       return NextResponse.json({ message: "不支援的角色" }, { status: 400 });
     }
@@ -59,7 +68,7 @@ export async function POST(request) {
       return NextResponse.json({ message: "帳號已存在" }, { status: 409 });
     }
 
-    const passwordHash = await bcrypt.hash(password, 10);
+    const passwordHash = await bcrypt.hash(password, 12);
 
     const account = await prisma.adminAccount.create({
       data: {
@@ -73,6 +82,7 @@ export async function POST(request) {
         role: true,
         isActive: true,
         lastLoginAt: true,
+        totpEnabledAt: true,
         createdAt: true,
         updatedAt: true,
       },

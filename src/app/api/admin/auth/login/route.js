@@ -1,8 +1,16 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { authenticator } from "otplib";
 
 import { createAdminSessionToken, setAdminSessionCookie } from "@/lib/admin-session";
+import { resolveAdminOtpMethod, verifyAdminOtp } from "@/lib/admin-totp";
+import {
+  authLimiters,
+  checkAuthLimit,
+  recordAuthAttempt,
+  resetAuthAttempts,
+  tooManyAttemptsMessage,
+} from "@/lib/auth-rate-limit";
+import { readClientIp } from "@/lib/client-ip";
 import { logAdminAction } from "@/lib/logger";
 import prisma from "@/lib/prisma";
 
@@ -10,25 +18,15 @@ function sanitizeUsername(input) {
   return typeof input === "string" ? input.trim().toLowerCase() : "";
 }
 
-function verifyOtpCode(code) {
-  const otp = typeof code === "string" ? code.trim() : "";
-  if (!otp) return false;
+const INVALID_CREDENTIALS_MESSAGE = "帳號、密碼或驗證碼錯誤";
 
-  const totpSecret = process.env.ADMIN_TOTP_SECRET?.trim();
-  if (totpSecret) {
-    return authenticator.check(otp, totpSecret);
-  }
-
-  const staticOtp = process.env.ADMIN_LOGIN_OTP?.trim();
-  if (!staticOtp) {
-    return false;
-  }
-
-  return otp === staticOtp;
-}
-
-function hasOtpConfig() {
-  return Boolean(process.env.ADMIN_TOTP_SECRET?.trim() || process.env.ADMIN_LOGIN_OTP?.trim());
+// Compared against when the username does not exist, so a missing account
+// takes as long to reject as a wrong password and usernames cannot be probed
+// by timing.
+let dummyPasswordHash = null;
+function getDummyPasswordHash() {
+  dummyPasswordHash ??= bcrypt.hashSync("start-pray-dummy-password", 10);
+  return dummyPasswordHash;
 }
 
 export async function POST(request) {
@@ -42,28 +40,65 @@ export async function POST(request) {
       return NextResponse.json({ message: "請輸入帳號、密碼與 2FA 驗證碼" }, { status: 400 });
     }
 
-    if (!hasOtpConfig()) {
+    const limitKeys = {
+      account: `account:${username}`,
+      ip: `ip:${readClientIp(request)}`,
+    };
+    const limit = checkAuthLimit(authLimiters.adminLogin, limitKeys);
+    if (!limit.allowed) {
+      return NextResponse.json(
+        { message: tooManyAttemptsMessage(limit.retryAfterSeconds) },
+        { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } }
+      );
+    }
+
+    // Every failure below returns the same message, so a caller cannot tell a
+    // wrong username from a wrong password or a wrong 2FA code.
+    const rejectInvalid = () => {
+      recordAuthAttempt(authLimiters.adminLogin, limitKeys);
+      return NextResponse.json({ message: INVALID_CREDENTIALS_MESSAGE }, { status: 401 });
+    };
+
+    const account = await prisma.adminAccount.findUnique({ where: { username } });
+    const isValid = await bcrypt.compare(
+      password,
+      account?.passwordHash || getDummyPasswordHash()
+    );
+    if (!account || !account.isActive || !isValid) {
+      return rejectInvalid();
+    }
+
+    const otpMethod = resolveAdminOtpMethod(account);
+    if (!otpMethod) {
       return NextResponse.json({ message: "後台登入尚未完成 2FA 設定，請聯絡管理員" }, { status: 503 });
     }
 
-    if (!verifyOtpCode(otp)) {
-      return NextResponse.json({ message: "驗證碼錯誤" }, { status: 401 });
+    const otpResult = verifyAdminOtp(otpMethod, otp);
+    if (!otpResult.ok) {
+      return rejectInvalid();
     }
 
-    const account = await prisma.adminAccount.findUnique({ where: { username } });
-    if (!account || !account.isActive) {
-      return NextResponse.json({ message: "帳號不存在或已停用" }, { status: 401 });
+    if (otpResult.step !== null) {
+      // A TOTP code stays valid for its whole 30-second window; remember the
+      // last accepted step so the same code cannot be replayed for a second login.
+      const claimed = await prisma.adminAccount.updateMany({
+        where: {
+          id: account.id,
+          OR: [{ totpLastUsedStep: null }, { totpLastUsedStep: { lt: otpResult.step } }],
+        },
+        data: { totpLastUsedStep: otpResult.step, lastLoginAt: new Date() },
+      });
+      if (claimed.count !== 1) {
+        return rejectInvalid();
+      }
+    } else {
+      await prisma.adminAccount.update({
+        where: { id: account.id },
+        data: { lastLoginAt: new Date() },
+      });
     }
 
-    const isValid = await bcrypt.compare(password, account.passwordHash);
-    if (!isValid) {
-      return NextResponse.json({ message: "帳號或密碼錯誤" }, { status: 401 });
-    }
-
-    await prisma.adminAccount.update({
-      where: { id: account.id },
-      data: { lastLoginAt: new Date() },
-    });
+    resetAuthAttempts(authLimiters.adminLogin, { account: limitKeys.account });
 
     await logAdminAction({
       action: "admin.login",

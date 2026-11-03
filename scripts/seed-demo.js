@@ -511,6 +511,14 @@ async function rebuildResponses(prisma, userMap, cardMap, options) {
 }
 
 async function main() {
+  // Demo accounts share a password that is published in this repo, so they
+  // must never be created on the production database by accident.
+  if (process.env.NODE_ENV === "production" && !process.argv.includes("--allow-production")) {
+    console.error("[seed:demo] 會建立密碼公開的示範帳號，正式環境需明確加上 --allow-production");
+    process.exitCode = 1;
+    return;
+  }
+
   const options = {
     refreshAudio: process.argv.includes("--refresh-audio"),
   };

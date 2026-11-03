@@ -1,6 +1,14 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 
+import {
+  authLimiters,
+  checkAuthLimit,
+  recordAuthAttempt,
+  resetAuthAttempts,
+  tooManyAttemptsMessage,
+} from "@/lib/auth-rate-limit";
+import { readClientIp } from "@/lib/client-ip";
 import prisma from "@/lib/prisma";
 import {
   createCustomerSessionToken,
@@ -15,7 +23,18 @@ export async function POST(request) {
       return NextResponse.json({ message: "請輸入電子郵件與密碼" }, { status: 400 });
     }
 
-    const normalizedEmail = email.toLowerCase();
+    const normalizedEmail = String(email).toLowerCase();
+    const limitKeys = {
+      account: `account:${normalizedEmail}`,
+      ip: `ip:${readClientIp(request)}`,
+    };
+    const limit = checkAuthLimit(authLimiters.customerLogin, limitKeys);
+    if (!limit.allowed) {
+      return NextResponse.json(
+        { message: tooManyAttemptsMessage(limit.retryAfterSeconds) },
+        { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } }
+      );
+    }
     const user = await prisma.user.findUnique({
       where: { email: normalizedEmail },
       select: {
@@ -33,16 +52,19 @@ export async function POST(request) {
     });
 
     if (!user || !user.passwordHash) {
+      recordAuthAttempt(authLimiters.customerLogin, limitKeys);
       return NextResponse.json({ message: "帳號或密碼不正確" }, { status: 401 });
     }
 
     const isValid = await bcrypt.compare(password, user.passwordHash);
     if (!isValid) {
+      recordAuthAttempt(authLimiters.customerLogin, limitKeys);
       return NextResponse.json({ message: "帳號或密碼不正確" }, { status: 401 });
     }
     if (user.isBlocked) {
       return NextResponse.json({ message: "帳號已被停用" }, { status: 403 });
     }
+    resetAuthAttempts(authLimiters.customerLogin, { account: limitKeys.account });
 
     const response = NextResponse.json({
       user: {

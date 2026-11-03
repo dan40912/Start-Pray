@@ -6,6 +6,7 @@ import { NextResponse } from "next/server";
 import {
   getMediaReadRoots,
   resolveMediaPathFromRoot,
+  MEDIA_SECURITY_HEADERS,
 } from "@/lib/server-media-storage";
 
 const CONTENT_TYPES = {
@@ -43,6 +44,7 @@ async function buildUploadResponse(params, includeBody) {
         "Content-Length": String(fileStat.size),
         "Cache-Control": "public, max-age=0, must-revalidate",
         "Last-Modified": fileStat.mtime.toUTCString(),
+        ...MEDIA_SECURITY_HEADERS,
       });
 
       if (!includeBody) {

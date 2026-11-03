@@ -50,6 +50,15 @@ const RELEASE_MIGRATIONS = [
     ],
     indexes: [],
   },
+  {
+    name: "20261024000100_add_admin_personal_totp",
+    columns: [
+      ["adminaccount", "totpSecret"],
+      ["adminaccount", "totpEnabledAt"],
+      ["adminaccount", "totpLastUsedStep"],
+    ],
+    indexes: [],
+  },
 ];
 
 function objectKey([table, name]) {

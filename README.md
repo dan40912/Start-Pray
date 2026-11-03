@@ -1,87 +1,124 @@
-# Start Pray
+<p align="center">
+  <img src="public/img/logo.png" alt="Start Pray" width="96" />
+</p>
 
-開始禱告吧! 可以為別人留下語音的全球禱告平台 (目前還只有中文和網頁端)，期待有興趣的人歡迎一同維護，也能夠一起禱告或關注彼此和全世界。
+<h1 align="center">Start Pray</h1>
 
-〔恢復本〕時時在靈裏禱告，並盡力堅持，在這事上儆醒，且為眾聖徒祈求，
+<p align="center">
+  當有人說「請幫我禱告」，我們能給的，不只是一句「阿們」。
+</p>
 
-〔和合本〕靠著聖靈、隨時多方禱告祈求、並要在此儆醒不倦、為眾聖徒祈求、 
+<p align="center">
+  <a href="https://startpray.online">網站</a> ·
+  <a href="#在本機跑起來">在本機跑起來</a> ·
+  <a href="#一起參與">一起參與</a> ·
+  <a href="docs/architecture.md">技術文件</a>
+</p>
 
-〔KJV〕Praying always with all prayer and supplication in the Spirit , and watching thereunto with all perseverance and supplication for all saints ;
+<p align="center">
+  <sub>A voice-first prayer wall: leave a short spoken prayer for someone who asked for one, anonymously, from anywhere in the world.</sub>
+</p>
 
-![全球禱告中心](/docs/homepage.png)
+---
 
-![影片範例](/docs/video-for-cancer.mp4)
+## 這個專案是怎麼開始的
 
-## 為什麼做這個專案
+你一定看過這樣的訊息：
 
-1.需要被禱告的人，很難得到回應
-是因為觀察到一件很真實的事：很多人常常在特殊的情形裡面，例如患病或遭遇事情，有時候只能群組回一句「阿們」，實在愛莫能助。
-希望可以透過一個工具，幫你留下禱告的聲音。讓您可以不斷的重複撥放我們的禱告，不間斷的幫您集氣和鼓勵，希望你可以從中獲得鼓勵走出困境。
+> 「弟兄下週要動癌症手術，請大家幫我禱告 🙏」
 
-2.禱告需要一個負擔和方向
-常常想為別人或世界上的局勢禱告，但也許能夠觸及的人、事、物都比較少。這個平台可以將語音串聯，超越文字，讓聲音可以透過錄音的方式，把眾人的負擔可以調為一致。
+群組裡很快出現一排「阿們」「代禱中」。大家都是真心的，可是那個正在等手術的人，收到的只是幾個字。
 
-3.知道全球的禱告方向
-鼓勵使用者可以上傳全世界的禱告方向，並且能夠知道即時的上傳資訊，擴大我們的眼界不是只有看到眼前的事，更能放眼全球。
+我想做一個地方，讓這件事可以多一點溫度。在這裡，你可以**用自己的聲音**為他禱告。三十秒也好，一分鐘也好，錄下來留給他。手術前一晚睡不著的時候，他可以按下播放，一次又一次聽見有人記得他。
 
-這個專案還在成長，還有很多地方不完美，但方向很清楚：讓需要被看見，讓回應多一點溫度。也請注意個資，在註冊時鼓勵只使用匿名，不要將個人敏感資料洩漏出來。
+這就是 Start Pray。
 
-## 功能
+<p align="center">
+  <img src="docs/demo-voice-prayer.gif" alt="在代禱卡上留下語音禱告" width="280" />
+  <br />
+  <sub>一張代禱卡，和為它錄下的禱告</sub>
+</p>
 
-- 禱告牆：瀏覽公開的代禱事項。
-- 代禱卡：建立標題、內容、分類、位置、圖片與回應。
-- 全球禱告室：用地圖光點看見世界各地正在被守望的需要。
-- 文字與語音回應：不只留下文字，也可以用聲音陪伴。
-- 會員中心：管理自己的代禱卡、個人資料與回應紀錄。
-- 私密代禱：內容不公開，只保留匿名的大致位置光點。
-- 得勝者故事：整理生命故事與見證。
-- 檢舉與管理：讓社群可以維持安全與秩序。
-- 管理後台：管理分類、內容、使用者與站台設定。
+## 你可以在這裡做什麼
 
+**🙏 說出你的需要**
+建立一張代禱卡，寫下想被記念的事。可以匿名，也可以設成私密。
 
-## 文件
+**🎙️ 用聲音陪伴別人**
+在禱告牆上看到別人的需要，留下文字，或直接錄一段禱告給他。
 
-README 只放快速理解專案需要的內容。比較深入的技術說明放在 `docs/`。
+**🌏 看見世界正在被守望**
+在全球禱告室裡，每一個光點都是一個人、一座城市，或一個正在被記念的需要。
 
-- [Architecture](docs/architecture.md)
-- [API Documentation](docs/api.md)
-- [Data Model and Auth](docs/data-and-auth.md)
-- [Media Pipeline](docs/media.md)
-- [Admin and Moderation](docs/admin.md)
-- [Deployment Guide](docs/deployment.md)
-- [Internationalization](docs/i18n.md)
+<p align="center">
+  <img src="docs/homepage.png" alt="全球禱告室：地圖上的禱告光點" />
+</p>
 
-如果你是 AI agent 或接手維護，請先讀：
+**📖 分享得勝的故事**
+開啟你的得勝者頁面，用文字或聲音說說走過的路，成為另一個人的盼望。
 
-- [AI / Maintainer Guide](AGENTS.md)
+## 我們很在意的事
 
-## 參與
+這裡處理的是人在脆弱時刻說出口的話，所以有幾件事我們不打折：
 
-這是一個正在長大的個人開源專案。
+- **可以不留下名字。** 註冊與發文都鼓勵匿名，請不要在代禱內容裡寫下身分證號、地址、病歷這類個人資料。
+- **私密代禱就是私密的。** 內容不會出現在公開頁面，地圖上只會顯示一個模糊的大致位置。
+- **社群需要被保護。** 每一則內容都可以檢舉，管理者會處理不適當的內容與語音。
 
-如果你在意禱告、陪伴、社群安全、語音體驗、地圖互動，或只是想讓軟體少一點冰冷，歡迎一起改。
+## 一起參與
 
-目前很適合協助的地方：
+Start Pray 是一個還在長大的個人開源專案，有很多地方還不完美。
 
-- 改善手機版使用流程
-- 讓建立代禱卡更順
-- 優化全球禱告室效能
-- 補文件
-- 檢查隱私與檢舉流程
-- 替重要流程補測試
+如果你在意禱告和陪伴，或是對語音體驗、地圖互動、社群安全有興趣，又或者只是想讓軟體少一點冰冷，都很歡迎你一起來。不一定要寫程式。回報一個手機上卡住的地方、修一段讀起來不順的文字，對這裡都很有幫助。
 
-Start Pray 比較在意的是：先照顧人，再追求漂亮的技術。
+現在最需要幫忙的地方：
+
+- 📱 讓手機上的錄音與建立代禱卡更順手
+- 🌏 讓全球禱告室在舊手機上也跑得動
+- 🔒 一起檢查隱私與檢舉流程
+- 🧪 替重要流程補上測試
+- 📝 補文件、翻譯成其他語言
+
+開始之前，可以先開一個 [Issue](https://github.com/dan40912/Start-Pray/issues) 聊聊你想做的事。如果你是 AI agent 或接手維護的人，請先讀 [AGENTS.md](AGENTS.md)。
+
+## 在本機跑起來
+
+需要 Node.js 20 以上與 MySQL 8。
+
+```bash
+git clone https://github.com/dan40912/Start-Pray.git
+cd Start-Pray
+npm install
+
+cp .env.example .env      # 填入 DATABASE_URL 與兩組 session secret
+npx prisma db push        # 依照 schema 建立本機資料表
+npm run dev               # 打開 http://localhost:3000
+```
+
+使用 Next.js 14、React 18、Prisma、MySQL 與 Three.js。更深入的說明都放在 `docs/`：
+
+| 想了解 | 文件 |
+|---|---|
+| 整體架構 | [Architecture](docs/architecture.md) |
+| API | [API Documentation](docs/api.md) |
+| 資料模型與登入 | [Data Model and Auth](docs/data-and-auth.md) |
+| 語音與圖片 | [Media Pipeline](docs/media.md) |
+| 後台與檢舉 | [Admin and Moderation](docs/admin.md) |
+| 部署 | [Deployment Guide](docs/deployment.md) |
+| 多語系 | [Internationalization](docs/i18n.md) |
+
+## 我們的初衷
+
+> 時時在靈裏禱告，並盡力堅持，在這事上儆醒，且為眾聖徒祈求。
+> <br />— 以弗所書 6:18〔恢復本〕
+
+> Praying always with all prayer and supplication in the Spirit, and watching thereunto with all perseverance and supplication for all saints.
+> <br />— Ephesians 6:18 (KJV)
+
+比起漂亮的技術，我們更想先照顧好人。
 
 ## 聯絡
 
-Email:
+有任何想法、合作，或只是想說聲加油，都歡迎來信：**startpraynow@gmail.com**
 
-```text
-startpraynow@gmail.com
-```
-
-GitHub:
-
-```text
-https://github.com/dan40912/Start-Pray
-```
+如果這個專案讓你想起某個需要被記念的人，給它一顆 ⭐，讓更多人看見。

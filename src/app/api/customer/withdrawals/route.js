@@ -87,70 +87,88 @@ export async function POST(request) {
       );
     }
 
-    const [user, pendingOrder] = await Promise.all([
-      prisma.user.findUnique({
-        where: { id: activeUser.id },
-        select: {
-          id: true,
-          walletBalance: true,
-          bscAddress: true,
-          isAddressVerified: true,
-        },
-      }),
-      prisma.tokenTransaction.findFirst({
-        where: {
+    // Serialize withdraw requests per user: lock the user row first, then run
+    // the pending-order and balance checks inside the same transaction. Without
+    // the lock, parallel requests could all pass the "no pending order" check
+    // and create several pending withdrawals at once.
+    const result = await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM \`user\` WHERE id = ${activeUser.id} FOR UPDATE`;
+
+      const [user, pendingOrder] = await Promise.all([
+        tx.user.findUnique({
+          where: { id: activeUser.id },
+          select: {
+            id: true,
+            walletBalance: true,
+            bscAddress: true,
+            isAddressVerified: true,
+          },
+        }),
+        tx.tokenTransaction.findFirst({
+          where: {
+            userId: activeUser.id,
+            type: "WITHDRAW",
+            status: { in: WITHDRAW_BLOCKING_STATUSES },
+          },
+          select: { id: true, status: true, createdAt: true },
+        }),
+      ]);
+
+      if (!user) {
+        return { error: NextResponse.json({ message: "找不到使用者。" }, { status: 404 }) };
+      }
+
+      const targetAddress = user.bscAddress?.trim();
+      if (!targetAddress) {
+        return { error: NextResponse.json({ message: "此功能目前未開放。" }, { status: 422 }) };
+      }
+
+      if (!user.isAddressVerified) {
+        return { error: NextResponse.json({ message: "此功能目前未開放。" }, { status: 422 }) };
+      }
+
+      if (pendingOrder) {
+        return {
+          error: NextResponse.json(
+            { message: "你目前已有待處理的提領申請。" },
+            { status: 409 }
+          ),
+        };
+      }
+
+      if (toNumber(user.walletBalance) < amount) {
+        return { error: NextResponse.json({ message: "此功能目前未開放。" }, { status: 422 }) };
+      }
+
+      const created = await tx.tokenTransaction.create({
+        data: {
           userId: activeUser.id,
           type: "WITHDRAW",
-          status: { in: WITHDRAW_BLOCKING_STATUSES },
+          status: "PENDING",
+          amount,
+          targetAddress,
+          metadata: {
+            chain: WITHDRAW_CHAIN,
+            requestSource: "customer_portal",
+          },
         },
-        select: { id: true, status: true, createdAt: true },
-      }),
-    ]);
-
-    if (!user) {
-      return NextResponse.json({ message: "找不到使用者。" }, { status: 404 });
-    }
-
-    const targetAddress = user.bscAddress?.trim();
-    if (!targetAddress) {
-      return NextResponse.json({ message: "此功能目前未開放。" }, { status: 422 });
-    }
-
-    if (!user.isAddressVerified) {
-      return NextResponse.json({ message: "此功能目前未開放。" }, { status: 422 });
-    }
-
-    if (pendingOrder) {
-      return NextResponse.json(
-        { message: "你目前已有待處理的提領申請。" },
-        { status: 409 }
-      );
-    }
-
-    if (toNumber(user.walletBalance) < amount) {
-      return NextResponse.json({ message: "此功能目前未開放。" }, { status: 422 });
-    }
-
-    const created = await prisma.tokenTransaction.create({
-      data: {
-        userId: activeUser.id,
-        type: "WITHDRAW",
-        status: "PENDING",
-        amount,
-        targetAddress,
-        metadata: {
-          chain: WITHDRAW_CHAIN,
-          requestSource: "customer_portal",
+        select: {
+          id: true,
+          amount: true,
+          status: true,
+          targetAddress: true,
+          createdAt: true,
         },
-      },
-      select: {
-        id: true,
-        amount: true,
-        status: true,
-        targetAddress: true,
-        createdAt: true,
-      },
+      });
+
+      return { created };
     });
+
+    if (result.error) {
+      return result.error;
+    }
+
+    const { created } = result;
 
     return NextResponse.json(
       {

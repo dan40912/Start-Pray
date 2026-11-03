@@ -7,6 +7,7 @@ import { parseByteRange } from "@/lib/byte-range";
 import {
   getMediaReadRoots,
   resolveMediaPathFromRoot,
+  MEDIA_SECURITY_HEADERS,
 } from "@/lib/server-media-storage";
 
 const CONTENT_TYPES = {
@@ -47,6 +48,7 @@ async function buildVoiceResponse(request, params, includeBody) {
         "Accept-Ranges": "bytes",
         "Cache-Control": "public, max-age=0, must-revalidate",
         "Last-Modified": fileStat.mtime.toUTCString(),
+        ...MEDIA_SECURITY_HEADERS,
       });
 
       // Safari will not play audio from a server that never answers 206, and

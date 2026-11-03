@@ -22,6 +22,7 @@ import {
 } from "@/lib/guest-response";
 import { isTrustedOrigin } from "@/lib/origin-guard";
 import { readWebmDurationSeconds } from "@/lib/audio-duration";
+import { buildSafeAudioFileName } from "@/lib/audio-upload";
 
 const MAX_AUDIO_BYTES = 12 * 1024 * 1024;
 // A recording holding a fraction of a second is still a structurally valid
@@ -55,11 +56,6 @@ const ALLOWED_AUDIO_EXTENSIONS = new Set([".webm", ".mp3", ".mp4", ".m4a", ".aac
 function resolveVoiceFolder(requestId) {
   const normalized = typeof requestId === "string" ? requestId.trim() : "";
   return /^\d+$/.test(normalized) ? normalized : "misc";
-}
-
-function sanitizeFileName(input) {
-  const base = path.basename(input ?? "").replace(/[^\w.-]+/g, "-");
-  return base || "voice.webm";
 }
 
 function normalizeMessage(value) {
@@ -250,7 +246,9 @@ export async function POST(req) {
       assertStorageWritable();
 
       const folderName = resolveVoiceFolder(requestId);
-      const sanitizedOriginal = sanitizeFileName(audio.name);
+      // isAllowedAudioFile() accepted it, so a safe audio extension always resolves;
+      // the client-sent extension itself is never trusted.
+      const sanitizedOriginal = buildSafeAudioFileName(audio, "voice") || "voice.webm";
       const filename = `${Date.now()}-${sanitizedOriginal}`;
       const folderPath = await ensureMediaWriteDirectory("voices", [folderName]);
       const filePath = path.join(folderPath, filename);

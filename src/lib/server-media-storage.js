@@ -14,6 +14,14 @@ const MEDIA_CONFIG = {
   },
 };
 
+// User-uploaded media is served from this origin, so stop the browser from
+// sniffing it into HTML and, if a file is ever opened directly (e.g. an SVG),
+// render it sandboxed with no script. <img>/<audio> embedding is unaffected.
+export const MEDIA_SECURITY_HEADERS = {
+  "X-Content-Type-Options": "nosniff",
+  "Content-Security-Policy": "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; media-src 'self'; sandbox",
+};
+
 export class MediaStorageConfigError extends Error {
   constructor(kind, envName) {
     super(`${envName} is required in production to store ${kind}.`);

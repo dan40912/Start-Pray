@@ -1,5 +1,7 @@
 import crypto from "node:crypto";
 
+import { readClientIp } from "./client-ip.js";
+
 export const GUEST_RESPONSE_COOKIE = "start_pray_guest";
 
 function secret() {
@@ -26,10 +28,7 @@ export function hashGuestId(value) {
   return hashActorId("guest", value);
 }
 
-export function readClientIp(request) {
-  const forwarded = request.headers.get("x-forwarded-for") || "";
-  return forwarded.split(",")[0]?.trim() || request.headers.get("cf-connecting-ip") || request.headers.get("x-real-ip") || "unknown";
-}
+export { readClientIp };
 
 export function hashDailyIp(request, now = new Date()) {
   const day = now.toISOString().slice(0, 10);
