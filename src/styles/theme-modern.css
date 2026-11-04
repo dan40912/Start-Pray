@@ -1446,12 +1446,17 @@ button {
 }
 
 @media (max-width: 640px) {
+  /* 兩欄並排、隱藏說明句，六個數字約一個螢幕高，而不是一格一屏。 */
   .home-proof__stats {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .home-proof__stat {
     min-height: auto;
+  }
+
+  .home-proof__stat p {
+    display: none;
   }
 
   .home-proof__actions,
@@ -3511,4 +3516,37 @@ body.has-global-player {
 .global-player__close:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+/* 手機打字時收起底部播放列，避免鍵盤把它推上來蓋住「送出」按鈕。 */
+@media (max-width: 768px) {
+  body.is-typing-text .global-player {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+}
+
+/* 捲動到回應區時，預留底部播放列的高度，讓送出按鈕不會停在播放列後面。 */
+body.has-global-player .comment-form,
+body.has-global-player .comments__voice-btn {
+  scroll-margin-bottom: calc(120px + env(safe-area-inset-bottom));
+}
+
+.home-explorer__view-all {
+  display: flex;
+  justify-content: center;
+  margin-top: 1.25rem;
+}
+
+@media (max-width: 640px) {
+  /* 手機卡片不必維持 4:3，否則每張都留一大片空白，捲半天才看完幾張。 */
+  .home-card {
+    aspect-ratio: auto;
+    min-height: 168px;
+  }
+
+  .home-card-grid--mobile-limit > :nth-child(n + 7) {
+    display: none;
+  }
 }

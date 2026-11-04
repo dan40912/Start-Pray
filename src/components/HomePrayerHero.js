@@ -338,7 +338,7 @@ export default function HomePrayerHero({ text, prayers }) {
                           {copy.uploaderLabel}
                           <span className="prayer-hero__uploader-name">{itemUploader}</span>
                         </p>
-                        {toPlainText(item.description) ? <p>{toPlainText(item.description)}</p> : null}
+                        {toPlainText(item.description) ? <p className="prayer-hero__desc">{toPlainText(item.description)}</p> : null}
                         {itemVoice && isVoiceOpen ? (
                           <div className="prayer-hero__voice">
                             <span className="prayer-hero__voice-label">{copy.voiceLabel}</span>
@@ -885,6 +885,22 @@ export default function HomePrayerHero({ text, prayers }) {
 
           .prayer-hero__card {
             padding: 1.4rem 1.25rem;
+          }
+
+          /* 手機第一屏要看得到「為這件事禱告」：內文只露三行，完整內容點標題看。 */
+          .prayer-hero {
+            padding-top: 1.75rem;
+          }
+
+          .prayer-hero__card h2 {
+            font-size: 1.2rem;
+          }
+
+          .prayer-hero__desc {
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
           }
 
           .prayer-hero__cta,

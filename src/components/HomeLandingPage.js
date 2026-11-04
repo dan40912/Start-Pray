@@ -157,7 +157,7 @@ function HomeStructuredData({ stats, globalPrayerCount, text = PAGE_TEXT, locale
   );
 }
 
-function HomeProofSection({ text = PAGE_TEXT, locale = "zh-TW" }) {
+function HomeProofSection({ text = PAGE_TEXT }) {
   const promises = text.promises.map(([title, copy]) => ({ title, copy }));
 
   return (
@@ -167,18 +167,6 @@ function HomeProofSection({ text = PAGE_TEXT, locale = "zh-TW" }) {
           <span>{text.proofEyebrow}</span>
           <h2 id="home-proof-title">{text.proofTitle}</h2>
           <p>{text.proofCopy}</p>
-          <div className="home-proof__actions">
-            <Link
-              href={localizePath("/me/create", locale)}
-              className="home-proof__action home-proof__action--primary"
-              prefetch={false}
-            >
-              {text.proofPrimary}
-            </Link>
-            <Link href={localizePath("/prayfor/one", locale)} className="home-proof__action" prefetch={false}>
-              {text.proofSecondary}
-            </Link>
-          </div>
         </div>
 
         <div className="home-proof__promise" aria-labelledby="home-proof-promise-title">
@@ -291,7 +279,7 @@ export default async function HomeLandingPage({ locale: localeProp = "zh-TW" } =
         <HomeStructuredData stats={heroStats} globalPrayerCount={globalPrayers.length} text={text} locale={locale} />
         <HomePrayerHero text={text} prayers={featuredPrayers} />
 
-        <HomeProofSection text={text} locale={locale} />
+        <HomeProofSection text={text} />
 
         <section>
           <HomePrayerExplorer
@@ -308,6 +296,9 @@ export default async function HomeLandingPage({ locale: localeProp = "zh-TW" } =
               secondaryLabel: text.explorerSecondary,
               secondaryHref: localizePath("/prayfor", locale),
             }}
+            mobileCardLimit={6}
+            viewAllHref={localizePath("/prayfor", locale)}
+            viewAllLabel={text.explorerSecondary}
             locale={locale}
           />
         </section>
@@ -322,35 +313,6 @@ export default async function HomeLandingPage({ locale: localeProp = "zh-TW" } =
         <section className="section home-platform-stats">
           <div className="section__container">
             <PlatformStats items={platformStats} locale={locale} label={text.proofEyebrow} />
-          </div>
-        </section>
-
-        <section className="section bg-legal-links" id="trust-links">
-          <div className="section__container">
-            <h2>{text.trustTitle}</h2>
-            <div className="info-links-grid">
-              <div className="info-link-group">
-                <h3>{text.aboutTitle}</h3>
-                <p>{text.aboutCopy}</p>
-                <Link href={localizePath("/about", locale)} className="link-arrow" prefetch={false}>
-                  {text.learnMore}
-                </Link>
-              </div>
-              <div className="info-link-group">
-                <h3>{text.howtoTitle}</h3>
-                <p>{text.howtoCopy}</p>
-                <Link href={localizePath("/howto", locale)} className="link-arrow" prefetch={false}>
-                  {text.guide}
-                </Link>
-              </div>
-              <div className="info-link-group">
-                <h3>{text.policyTitle}</h3>
-                <p>{text.policyCopy}</p>
-                <Link href={localizePath("/terms", locale)} className="link-arrow" prefetch={false}>
-                  {text.terms}
-                </Link>
-              </div>
-            </div>
           </div>
         </section>
 

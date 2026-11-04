@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import "@/styles/theme-customer.css";
 
@@ -22,7 +22,6 @@ const TAIPEI_LOCATION = {
   locationLat: "25.033000",
   locationLng: "121.565400",
 };
-const DEFAULT_PRAYER_TAG = "健康";
 
 const INITIAL_FORM = {
   title: "",
@@ -30,7 +29,7 @@ const INITIAL_FORM = {
   image: "",
   alt: "",
   description: "",
-  tags: DEFAULT_PRAYER_TAG,
+  tags: "",
   meta: "",
   detailsHref: "",
   voiceHref: "",
@@ -71,6 +70,7 @@ export default function CustomerPortalCreatePage() {
   const [submitting, setSubmitting] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [submittedPrivate, setSubmittedPrivate] = useState(false);
+  const [submittedDetailHref, setSubmittedDetailHref] = useState("");
   const [redirectTimer, setRedirectTimer] = useState(null);
   const [categories, setCategories] = useState([]);
   const [categoryId, setCategoryId] = useState(null);
@@ -370,7 +370,10 @@ export default function CustomerPortalCreatePage() {
       image: coverImage,
       alt: form.alt.trim(),
       description: form.description,
-      tags: (form.tags.trim() ? form.tags : DEFAULT_PRAYER_TAG)
+      // 沒填標籤時用所選分類當標籤，不再一律預設成「健康」。
+      tags: (form.tags.trim()
+        ? form.tags
+        : categories.find((category) => category.id === categoryId)?.name || "")
         .split(",")
         .map((tag) => tag.trim())
         .filter(Boolean),
@@ -401,8 +404,14 @@ export default function CustomerPortalCreatePage() {
         throw new Error(error.message || "建立失敗");
       }
 
-      await response.json();
+      const createdCard = await response.json().catch(() => null);
       const createdAsPrivate = Boolean(payload.isPrivate);
+      // 公開且不需審核的代禱，送出後直接帶到它的頁面，讓人可以馬上分享出去。
+      const createdDetailHref =
+        createdCard?.id && !createdAsPrivate && !createdCard.needsReview
+          ? `/prayfor/${createdCard.id}?shared=new`
+          : "";
+      setSubmittedDetailHref(createdDetailHref);
       setSubmittedPrivate(createdAsPrivate);
       setStatus({
         type: "success",
@@ -423,7 +432,7 @@ export default function CustomerPortalCreatePage() {
       setShowModal(true);
 
       const timer = setTimeout(() => {
-        router.push(isGuest ? "/prayfor" : "/me");
+        router.push(createdDetailHref || (isGuest ? "/prayfor" : "/me"));
       }, 1000);
       setRedirectTimer(timer);
     } catch (error) {
@@ -773,7 +782,9 @@ export default function CustomerPortalCreatePage() {
           <div className="customer-create__modal-card">
             <h3>建立成功</h3>
             <p>
-              {authUser?.id
+              {submittedDetailHref
+                ? "你的代禱已經發布。1 秒後帶你到代禱頁，可以分享給朋友一起禱告。"
+                : authUser?.id
                 ? submittedPrivate
                   ? "這則代禱已設為不公開，公開頁與搜尋不會顯示；1 秒後會回到管理頁。"
                   : "你的禱告已加入世界地圖，你所在的地區會亮起來。1 秒後回到管理頁。"
@@ -791,6 +802,12 @@ export default function CustomerPortalCreatePage() {
           padding-bottom: 4rem;
         }
 
+
+        /* 標題跟表單對齊同一欄，大螢幕上不會一個貼左、一個置中。 */
+        .customer-create__header-band {
+          width: min(980px, 100%);
+          margin: 0 auto;
+        }
 
         .customer-create__form {
           width: min(980px, 100%);

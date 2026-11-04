@@ -416,6 +416,9 @@ const en = {
       countryPlaceholder: "Type a country or region, for example Taiwan or Japan",
       countryHelper:
         "You can type in Chinese or English. We normalize it after you leave the field.",
+      notifyBenefit:
+        "With an account, we will email you when someone prays for your request. Your email is never shown publicly.",
+      moreInfo: "More details (optional)",
       privacyNote:
         "Public pages only show the display name and public content you choose. Your email is never shown publicly.",
       email: "Email",
@@ -584,6 +587,7 @@ const en = {
     successBody: "They will see your prayer on this card, and get a notification if they have an account.",
     pendingSuccessTitle: "Your prayer has been sent.",
     pendingSuccessBody: "To protect this space, it will appear after review.",
+    successBody: "They will see your prayer on this card, and get a notification if they have an account.",
     prayAgain: "Pray for another person",
     writeAgain: "Leave another prayer",
     textPlaceholder: "It can be short. A sincere prayer or kind word is enough.",

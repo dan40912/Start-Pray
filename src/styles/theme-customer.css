@@ -997,3 +997,88 @@ footer .footer-social--disabled {
   flex: 1 1 12rem;
   justify-content: center;
 }
+
+/* ── 會員中心：代禱卡標題連結、新回應提示、手機版精簡排版 ── */
+.cp-card__title-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.cp-card__title-link:hover,
+.cp-card__title-link:focus-visible {
+  text-decoration: underline;
+}
+
+.cp-card__new-badge {
+  display: inline-block;
+  margin-top: 0.35rem;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  background: #fde68a;
+  color: #78350f;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.cp-link--primary {
+  background: rgba(37, 99, 235, 0.16);
+  font-weight: 600;
+}
+
+@media (max-width: 640px) {
+  /* 四顆按鈕兩兩並排，刪除退到最後且不搶眼，避免一張卡底下疊四條大按鈕。 */
+  .cp-card__actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .cp-card__actions > .cp-link {
+    flex: 1 1 calc(50% - 0.5rem);
+    width: auto;
+    justify-content: center;
+  }
+
+  .cp-card__actions > .cp-link--danger {
+    flex: 0 0 auto;
+    margin-left: auto;
+    background: transparent;
+  }
+
+  /* 統計兩格並排、縮小，不再一格佔掉一整個螢幕。 */
+  .cp-main .home-stats__container {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+
+  .cp-main .home-stats__item {
+    padding: 0.9rem 0.75rem;
+    gap: 0.25rem;
+  }
+
+  .cp-main .home-stats__icon {
+    font-size: 1.3rem;
+  }
+
+  .cp-main .home-stats__value {
+    font-size: 1.6rem;
+  }
+
+  .cp-main .home-stats__hint {
+    display: none;
+  }
+}
+
+/* 淺色頁面上的成功訊息：原本的淺綠字是給深色背景用的，在白底上幾乎看不見。 */
+[data-surface="day"] .cp-alert--success {
+  border-color: rgba(22, 163, 74, 0.35);
+  background: rgba(34, 197, 94, 0.12);
+  color: #166534;
+}
+
+[data-surface="day"] .cp-alert--success a {
+  color: #14532d;
+  font-weight: 600;
+  text-decoration: underline;
+}

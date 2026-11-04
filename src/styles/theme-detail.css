@@ -2882,3 +2882,79 @@
 @media (max-width: 768px) {
   .pdv2-hero-image-wrap { height: clamp(190px, 58vw, 230px); }
 }
+
+/* 剛發布代禱後的分享提示（NewCardSharePanel） */
+.new-card-share {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 1rem 0;
+  padding: 1rem 1.25rem;
+  border: 1px solid rgba(250, 204, 21, 0.45);
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(250, 204, 21, 0.14), rgba(250, 204, 21, 0.05));
+  color: #f8fafc;
+}
+
+.new-card-share__text strong {
+  display: block;
+  font-size: 1.05rem;
+}
+
+.new-card-share__text p {
+  margin: 0.3rem 0 0;
+  color: rgba(226, 232, 240, 0.85);
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.new-card-share__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.new-card-share__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 1.1rem;
+  border: 1px solid rgba(226, 232, 240, 0.35);
+  border-radius: 999px;
+  background: transparent;
+  color: #f8fafc;
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.new-card-share__btn--line {
+  border-color: #06c755;
+  background: #06c755;
+  color: #fff;
+}
+
+.new-card-share__close {
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: rgba(226, 232, 240, 0.7);
+  font-size: 1.4rem;
+  cursor: pointer;
+}
+
+@media (max-width: 640px) {
+  .new-card-share__actions {
+    width: 100%;
+  }
+
+  .new-card-share__btn {
+    flex: 1 1 0;
+  }
+}
