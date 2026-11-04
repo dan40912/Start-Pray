@@ -33,6 +33,7 @@ const PLAYER_PHASE_LABELS = {
 };
 
 const GLOBAL_PLAYER_BODY_CLASS = "has-global-player";
+const TEXT_INPUT_BODY_CLASS = "is-typing-text";
 const COMPANION_ACTIVE_CLASS = "is-companion-active";
 const COMPANION_BODY_CLASS = "companion-mode-active";
 const COMPANION_OVERLAY_CLASS = "companion-overlay-open";
@@ -389,6 +390,31 @@ export default function GlobalPlayer({ onClose }) {
     document.body.classList.add(GLOBAL_PLAYER_BODY_CLASS);
     return () => {
       document.body.classList.remove(GLOBAL_PLAYER_BODY_CLASS);
+    };
+  }, []);
+
+  // 手機上打字時鍵盤會把底部播放列推到輸入框正下方，剛好蓋住「送出」按鈕。
+  // 有文字欄位取得焦點時先把播放列收起來，離開欄位再放回來。
+  useEffect(() => {
+    if (typeof document === "undefined") return undefined;
+    const isTextField = (node) =>
+      node instanceof HTMLElement &&
+      (node.tagName === "TEXTAREA" ||
+        node.isContentEditable ||
+        (node.tagName === "INPUT" &&
+          !["button", "checkbox", "radio", "range", "submit", "file", "reset"].includes(node.type)));
+    const handleFocusIn = (event) => {
+      if (isTextField(event.target)) document.body.classList.add(TEXT_INPUT_BODY_CLASS);
+    };
+    const handleFocusOut = (event) => {
+      if (isTextField(event.target)) document.body.classList.remove(TEXT_INPUT_BODY_CLASS);
+    };
+    document.addEventListener("focusin", handleFocusIn);
+    document.addEventListener("focusout", handleFocusOut);
+    return () => {
+      document.removeEventListener("focusin", handleFocusIn);
+      document.removeEventListener("focusout", handleFocusOut);
+      document.body.classList.remove(TEXT_INPUT_BODY_CLASS);
     };
   }, []);
 

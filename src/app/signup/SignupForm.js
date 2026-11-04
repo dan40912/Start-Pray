@@ -160,9 +160,8 @@ function getSignupFieldErrors(form) {
 
   if (!form.fullName.trim()) errors.fullName = "請填寫顯示名稱。";
 
-  if (!form.username.trim()) {
-    errors.username = "請填寫 Username。";
-  } else if (!/^[a-z0-9_-]{4,}$/i.test(form.username.trim())) {
+  // Username 改為選填；留空時伺服器會自動產生一個。
+  if (form.username.trim() && !/^[a-z0-9_-]{4,}$/i.test(form.username.trim())) {
     errors.username = "Username 至少 4 碼，且只能包含英數、底線與減號。";
   }
 
@@ -178,12 +177,6 @@ function getSignupFieldErrors(form) {
     errors.password = "密碼至少需要 8 碼。";
   }
 
-  if (!form.confirmPassword) {
-    errors.confirmPassword = "請再次輸入密碼。";
-  } else if (form.password !== form.confirmPassword) {
-    errors.confirmPassword = "兩次輸入的密碼不一致。";
-  }
-
   if (!form.acceptedTerms) errors.acceptedTerms = "請先閱讀並同意條款。";
 
   return errors;
@@ -191,10 +184,9 @@ function getSignupFieldErrors(form) {
 
 const SIGNUP_FIELD_ORDER = [
   "fullName",
-  "username",
   "email",
   "password",
-  "confirmPassword",
+  "username",
   "acceptedTerms",
 ];
 
@@ -216,7 +208,6 @@ export default function SignupForm({ locale: localeProp = "zh-TW" }) {
   const [status, setStatus] = useState({ state: "idle", message: "" });
   const [fieldErrors, setFieldErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [capsLockOn, setCapsLockOn] = useState(false);
   const countrySuggestions = useMemo(() => {
     const keyword = normalizeLookupKey(form.country);
@@ -274,7 +265,13 @@ export default function SignupForm({ locale: localeProp = "zh-TW" }) {
       .toLowerCase();
 
     const normalizedCountry = normalizeCountryInput(form.country);
-    const formToSend = { ...form, username: normalizedUsername, country: normalizedCountry };
+    // 只留一個密碼欄位（旁邊有「顯示密碼」可以檢查），確認密碼直接沿用。
+    const formToSend = {
+      ...form,
+      username: normalizedUsername,
+      country: normalizedCountry,
+      confirmPassword: form.password,
+    };
     const errors = getSignupFieldErrors(formToSend);
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
@@ -293,6 +290,9 @@ export default function SignupForm({ locale: localeProp = "zh-TW" }) {
       const inputId = firstInvalidField ? SIGNUP_FIELD_INPUT_ID[firstInvalidField] : null;
       if (inputId && typeof document !== "undefined") {
         const target = document.getElementById(inputId);
+        // 選填欄位收在「更多資料」裡，出錯時要先展開才捲得到。
+        const collapsed = target?.closest?.("details");
+        if (collapsed) collapsed.open = true;
         target?.scrollIntoView?.({ behavior: "smooth", block: "center" });
         target?.focus?.();
       }
@@ -333,7 +333,7 @@ export default function SignupForm({ locale: localeProp = "zh-TW" }) {
 
   return (
     <form className="auth-form" onSubmit={handleSubmit} noValidate>
-      <span className="form-section-title">{text.basicInfo}</span>
+      <p className="form-privacy-note">{text.notifyBenefit}</p>
       <div className="form-grid columns-2">
         <div className="form-group">
           <label className="form-label" htmlFor="full-name">
@@ -355,8 +355,63 @@ export default function SignupForm({ locale: localeProp = "zh-TW" }) {
           </span>
         </div>
         <div className="form-group">
+          <label className="form-label" htmlFor="signup-email">
+            {text.email} <span className="required-badge">{text.required}</span>
+          </label>
+          <input
+            className={`form-control${fieldErrors.email ? " is-invalid" : ""}`}
+            type="email"
+            id="signup-email"
+            placeholder="you@example.com"
+            value={form.email}
+            onChange={updateField("email")}
+            autoComplete="email"
+            aria-invalid={fieldErrors.email ? "true" : "false"}
+            required
+          />
+          {fieldErrors.email ? (
+            <span className="form-helper form-helper--error">{fieldErrors.email}</span>
+          ) : null}
+        </div>
+        <div className="form-group">
+          <label className="form-label" htmlFor="signup-password">
+            {text.password} <span className="required-badge">{text.required}</span>
+          </label>
+          <input
+            className={`form-control${fieldErrors.password ? " is-invalid" : ""}`}
+            type={showPassword ? "text" : "password"}
+            id="signup-password"
+            placeholder={text.passwordPlaceholder}
+            value={form.password}
+            onChange={updateField("password")}
+            onKeyUp={(event) => setCapsLockOn(Boolean(event.getModifierState?.("CapsLock")))}
+            onBlur={() => setCapsLockOn(false)}
+            autoComplete="new-password"
+            aria-invalid={fieldErrors.password ? "true" : "false"}
+            required
+          />
+          <button
+            type="button"
+            className="auth-inline-button"
+            onClick={() => setShowPassword((prev) => !prev)}
+            aria-pressed={showPassword}
+          >
+            {showPassword ? text.hidePassword : text.showPassword}
+          </button>
+          {capsLockOn ? <span className="form-helper form-helper--warning">{text.capsLock}</span> : null}
+          {fieldErrors.password ? (
+            <span className="form-helper form-helper--error">{fieldErrors.password}</span>
+          ) : null}
+        </div>
+      </div>
+
+      <details className="signup-more">
+        <summary>{text.moreInfo}</summary>
+        <p className="form-privacy-note">{text.privacyNote}</p>
+        <div className="form-grid columns-2">
+        <div className="form-group">
           <label className="form-label" htmlFor="username">
-            {text.username} <span className="required-badge">{text.required}</span>
+            {text.username} <span className="optional-badge">{text.optional}</span>
           </label>
           <input
             className={`form-control${fieldErrors.username ? " is-invalid" : ""}`}
@@ -367,7 +422,6 @@ export default function SignupForm({ locale: localeProp = "zh-TW" }) {
             onChange={updateField("username")}
             autoComplete="username"
             aria-invalid={fieldErrors.username ? "true" : "false"}
-            required
           />
           <span className={`form-helper${fieldErrors.username ? " form-helper--error" : ""}`}>
             {fieldErrors.username || text.usernameHelper}
@@ -425,90 +479,8 @@ export default function SignupForm({ locale: localeProp = "zh-TW" }) {
           </div>
           <span className="form-helper">{text.countryHelper}</span>
         </div>
-      </div>
-
-      <span className="form-section-title">{text.accountInfo}</span>
-      <p className="form-privacy-note">
-        {text.privacyNote}
-      </p>
-      <div className="form-grid columns-2">
-        <div className="form-group">
-          <label className="form-label" htmlFor="signup-email">
-            {text.email} <span className="required-badge">{text.required}</span>
-          </label>
-          <input
-            className={`form-control${fieldErrors.email ? " is-invalid" : ""}`}
-            type="email"
-            id="signup-email"
-            placeholder="you@example.com"
-            value={form.email}
-            onChange={updateField("email")}
-            autoComplete="email"
-            aria-invalid={fieldErrors.email ? "true" : "false"}
-            required
-          />
-          {fieldErrors.email ? (
-            <span className="form-helper form-helper--error">{fieldErrors.email}</span>
-          ) : null}
         </div>
-        <div className="form-group">
-          <label className="form-label" htmlFor="signup-password">
-            {text.password} <span className="required-badge">{text.required}</span>
-          </label>
-          <input
-            className={`form-control${fieldErrors.password ? " is-invalid" : ""}`}
-            type={showPassword ? "text" : "password"}
-            id="signup-password"
-            placeholder={text.passwordPlaceholder}
-            value={form.password}
-            onChange={updateField("password")}
-            onKeyUp={(event) => setCapsLockOn(Boolean(event.getModifierState?.("CapsLock")))}
-            onBlur={() => setCapsLockOn(false)}
-            autoComplete="new-password"
-            aria-invalid={fieldErrors.password ? "true" : "false"}
-            required
-          />
-          <button
-            type="button"
-            className="auth-inline-button"
-            onClick={() => setShowPassword((prev) => !prev)}
-            aria-pressed={showPassword}
-          >
-            {showPassword ? text.hidePassword : text.showPassword}
-          </button>
-          {capsLockOn ? <span className="form-helper form-helper--warning">{text.capsLock}</span> : null}
-          {fieldErrors.password ? (
-            <span className="form-helper form-helper--error">{fieldErrors.password}</span>
-          ) : null}
-        </div>
-        <div className="form-group">
-          <label className="form-label" htmlFor="signup-confirm">
-            {text.confirmPassword} <span className="required-badge">{text.required}</span>
-          </label>
-          <input
-            className={`form-control${fieldErrors.confirmPassword ? " is-invalid" : ""}`}
-            type={showConfirmPassword ? "text" : "password"}
-            id="signup-confirm"
-            placeholder={text.confirmPasswordPlaceholder}
-            value={form.confirmPassword}
-            onChange={updateField("confirmPassword")}
-            autoComplete="new-password"
-            aria-invalid={fieldErrors.confirmPassword ? "true" : "false"}
-            required
-          />
-          <button
-            type="button"
-            className="auth-inline-button"
-            onClick={() => setShowConfirmPassword((prev) => !prev)}
-            aria-pressed={showConfirmPassword}
-          >
-            {showConfirmPassword ? text.hidePassword : text.showPassword}
-          </button>
-          {fieldErrors.confirmPassword ? (
-            <span className="form-helper form-helper--error">{fieldErrors.confirmPassword}</span>
-          ) : null}
-        </div>
-      </div>
+      </details>
 
       <div className="form-group" style={{ display: "flex", gap: "0.6rem", alignItems: "flex-start" }}>
         <input

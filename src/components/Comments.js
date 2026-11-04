@@ -253,7 +253,8 @@ export default function Comments({ requestId, responseHeader, locale: localeProp
 
   const [submittingResponse, setSubmittingResponse] = useState(false);
   const [showVoiceOverlay, setShowVoiceOverlay] = useState(false);
-  const [responseMode, setResponseMode] = useState("text");
+  // 語音是 Start Pray 跟一般留言板最不一樣的地方，所以預設先打開語音。
+  const [responseMode, setResponseMode] = useState("voice");
   const [showSuccess, setShowSuccess] = useState(false);
   const [successHasVoice, setSuccessHasVoice] = useState(false);
   const [successPendingReview, setSuccessPendingReview] = useState(false);
@@ -503,9 +504,9 @@ export default function Comments({ requestId, responseHeader, locale: localeProp
           <h3 className="comments__success-title">
             {successPendingReview ? commentsText.pendingSuccessTitle : commentsText.successTitle}
           </h3>
-          {successPendingReview ? (
-            <p className="comments__success-body">{commentsText.pendingSuccessBody}</p>
-          ) : null}
+          <p className="comments__success-body">
+            {successPendingReview ? commentsText.pendingSuccessBody : commentsText.successBody}
+          </p>
           {successHasVoice && successBlobUrlRef.current ? (
             <GainAudio
               className="comments__success-audio"

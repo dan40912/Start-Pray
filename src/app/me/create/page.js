@@ -22,7 +22,6 @@ const TAIPEI_LOCATION = {
   locationLat: "25.033000",
   locationLng: "121.565400",
 };
-const DEFAULT_PRAYER_TAG = "健康";
 
 const INITIAL_FORM = {
   title: "",
@@ -30,7 +29,7 @@ const INITIAL_FORM = {
   image: "",
   alt: "",
   description: "",
-  tags: DEFAULT_PRAYER_TAG,
+  tags: "",
   meta: "",
   detailsHref: "",
   voiceHref: "",
@@ -70,6 +69,8 @@ export default function CustomerPortalCreatePage() {
   const [submitting, setSubmitting] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [submittedPrivate, setSubmittedPrivate] = useState(false);
+  const [submittedDetailHref, setSubmittedDetailHref] = useState("");
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [redirectTimer, setRedirectTimer] = useState(null);
   const [categories, setCategories] = useState([]);
   const [categoryId, setCategoryId] = useState(null);
@@ -368,7 +369,10 @@ export default function CustomerPortalCreatePage() {
       image: coverImage,
       alt: form.alt.trim(),
       description: form.description,
-      tags: (form.tags.trim() ? form.tags : DEFAULT_PRAYER_TAG)
+      // 沒填標籤時用所選分類當標籤，不再一律預設成「健康」。
+      tags: (form.tags.trim()
+        ? form.tags
+        : categories.find((category) => category.id === categoryId)?.name || "")
         .split(",")
         .map((tag) => tag.trim())
         .filter(Boolean),
@@ -398,8 +402,14 @@ export default function CustomerPortalCreatePage() {
         throw new Error(error.message || "建立失敗");
       }
 
-      await response.json();
+      const createdCard = await response.json().catch(() => null);
       const createdAsPrivate = Boolean(payload.isPrivate);
+      // 公開且不需審核的代禱，送出後直接帶到它的頁面，讓人可以馬上分享出去。
+      const createdDetailHref =
+        createdCard?.id && !createdAsPrivate && !createdCard.needsReview
+          ? `/prayfor/${createdCard.id}?shared=new`
+          : "";
+      setSubmittedDetailHref(createdDetailHref);
       setSubmittedPrivate(createdAsPrivate);
       setStatus({
         type: "success",
@@ -418,7 +428,7 @@ export default function CustomerPortalCreatePage() {
       setShowModal(true);
 
       const timer = setTimeout(() => {
-        router.push(isGuest ? "/prayfor" : "/me");
+        router.push(createdDetailHref || (isGuest ? "/prayfor" : "/me"));
       }, 1000);
       setRedirectTimer(timer);
     } catch (error) {
@@ -501,27 +511,6 @@ export default function CustomerPortalCreatePage() {
                 </select>
               </label>
             </div>
-          </section>
-
-          <section className="customer-create__step customer-create__step--map">
-            <div className="customer-create__step-head">
-              <span>02</span>
-              <div>
-                <h2>選擇全球位置</h2>
-                <p>你的禱告會出現在世界地圖上，只顯示大概位置。</p>
-              </div>
-            </div>
-            <PrayerLocationField value={form} onChange={updateLocation} disabled={submitting} />
-          </section>
-
-          <section className="customer-create__step">
-            <div className="customer-create__step-head">
-              <span>03</span>
-              <div>
-                <h2>補充內容並送出</h2>
-                <p>保留必要內容，圖片與隱私選項放在進階設定。</p>
-              </div>
-            </div>
 
             <div className="customer-create__row customer-create__row--description">
               <label>
@@ -550,6 +539,39 @@ export default function CustomerPortalCreatePage() {
                 />
               </div>
             ) : null}
+          </section>
+
+          <section className="customer-create__step customer-create__step--map">
+            <div className="customer-create__step-head">
+              <span>02</span>
+              <div>
+                <h2>地圖上的大概位置（選填）</h2>
+                <p>你的禱告會以光點出現在全球禱告室，只顯示大概位置。不調整的話預設在台灣台北附近。</p>
+              </div>
+            </div>
+            {/* 地圖很重，又不是必填，等使用者想調整時才載入，先讓他把內容寫完。 */}
+            {showLocationPicker ? (
+              <PrayerLocationField value={form} onChange={updateLocation} disabled={submitting} />
+            ) : (
+              <button
+                type="button"
+                className="button button--ghost customer-create__location-toggle"
+                onClick={() => setShowLocationPicker(true)}
+                disabled={submitting}
+              >
+                調整地圖位置
+              </button>
+            )}
+          </section>
+
+          <section className="customer-create__step">
+            <div className="customer-create__step-head">
+              <span>03</span>
+              <div>
+                <h2>確認後送出</h2>
+                <p>圖片與「不公開」選項放在進階設定。</p>
+              </div>
+            </div>
 
             {!authUser?.id ? (
               <>
@@ -680,7 +702,9 @@ export default function CustomerPortalCreatePage() {
           <div className="customer-create__modal-card">
             <h3>建立成功</h3>
             <p>
-              {authUser?.id
+              {submittedDetailHref
+                ? "你的代禱已經發布。1 秒後帶你到代禱頁，可以分享給朋友一起禱告。"
+                : authUser?.id
                 ? submittedPrivate
                   ? "這則代禱已設為不公開，公開頁與搜尋不會顯示；1 秒後會回到管理頁。"
                   : "你的禱告已加入世界地圖，你所在的地區會亮起來。1 秒後回到管理頁。"
@@ -698,6 +722,12 @@ export default function CustomerPortalCreatePage() {
           padding-bottom: 4rem;
         }
 
+
+        /* 標題跟表單對齊同一欄，大螢幕上不會一個貼左、一個置中。 */
+        .customer-create__header-band {
+          width: min(980px, 100%);
+          margin: 0 auto;
+        }
 
         .customer-create__form {
           width: min(980px, 100%);

@@ -95,6 +95,11 @@ export default function HomePrayerExplorer({
   initialSort = DEFAULT_SORT,
   showSortControls = false,
   sortOptions = null,
+  // 首頁在手機上只露出前 6 張卡（見 theme-modern.css 的 --mobile-limit），其餘交給
+  // 「看所有代禱」，避免首頁變成無止盡的長牆。
+  mobileCardLimit = 0,
+  viewAllHref = "",
+  viewAllLabel = "",
   locale: localeProp = "zh-TW",
 }) {
   const locale = normalizeLocale(localeProp);
@@ -578,7 +583,9 @@ export default function HomePrayerExplorer({
           ) : null}
         </div>
 
-        <div className="home-card-grid">
+        <div
+          className={`home-card-grid${mobileCardLimit > 0 ? " home-card-grid--mobile-limit" : ""}`}
+        >
           {displayCards.map((card) => {
             const responseCount =
               card?.responseCount ?? card?._count?.responses ?? card?.responsesCount ?? 0;
@@ -627,6 +634,13 @@ export default function HomePrayerExplorer({
             </div>
           ) : null}
         </div>
+        {viewAllHref && viewAllLabel && displayCards.length > 0 ? (
+          <div className="home-explorer__view-all">
+            <Link href={viewAllHref} className="home-explorer__intro-action" prefetch={false}>
+              {viewAllLabel}
+            </Link>
+          </div>
+        ) : null}
       </div>
     </section>
   );

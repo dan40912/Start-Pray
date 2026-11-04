@@ -156,6 +156,38 @@ function formatTime(dateLike) {
 
 
 
+// 「新回應」只是給本人看的提示：記住上次在這台裝置看到每張卡有幾則回應，
+// 這次多出來的就標成新回應，看過一次後就更新記錄。
+const SEEN_RESPONSES_KEY = "startpray:seen-response-counts";
+
+function readSeenResponseCounts() {
+  try {
+    return JSON.parse(window.localStorage.getItem(SEEN_RESPONSES_KEY) || "{}") || {};
+  } catch {
+    return {};
+  }
+}
+
+function markResponsesSeen(cards) {
+  const seen = readSeenResponseCounts();
+  const fresh = {};
+  for (const card of cards) {
+    const count = card?._count?.responses ?? card?.responsesCount ?? 0;
+    const key = String(card.id);
+    // 第一次在這台裝置看到這張卡時沒有舊紀錄，不要把既有回應全標成「新」。
+    if (Object.prototype.hasOwnProperty.call(seen, key) && count > seen[key]) {
+      fresh[card.id] = count - seen[key];
+    }
+    seen[key] = count;
+  }
+  try {
+    window.localStorage.setItem(SEEN_RESPONSES_KEY, JSON.stringify(seen));
+  } catch {
+    /* 存不進去就只是少了提示。 */
+  }
+  return fresh;
+}
+
 function buildCardHref(card) {
   if (card?.isPrivate || card?.isBlocked) {
     return "";
@@ -266,6 +298,7 @@ export default function CustomerPortalPage() {
 
 
   const [cards, setCards] = useState([]);
+  const [newResponseCounts, setNewResponseCounts] = useState({});
   const [cardsLoading, setCardsLoading] = useState(true);
   const [cardsError, setCardsError] = useState("");
   const [cardAction, setCardAction] = useState(null);
@@ -470,7 +503,9 @@ export default function CustomerPortalPage() {
         throw new Error("無法取得代禱", { cause: data?.message });
       }
 
-      setCards(Array.isArray(data) ? data : []);
+      const loadedCards = Array.isArray(data) ? data : [];
+      setCards(loadedCards);
+      setNewResponseCounts(markResponsesSeen(loadedCards));
     } catch (error) {
       console.error("載入代禱發生錯誤:", error);
       setCardsError(error.message || "無法取得代禱");
@@ -1110,7 +1145,20 @@ export default function CustomerPortalPage() {
                 <div className="cp-card__content">
                   <div className="cp-card__header">
                     <div className="cp-card__title">
-                      <h3>{card.title || "未命名的代禱"}</h3>
+                      <h3>
+                        {shareHref ? (
+                          <a href={shareHref} className="cp-card__title-link">
+                            {card.title || "未命名的代禱"}
+                          </a>
+                        ) : (
+                          card.title || "未命名的代禱"
+                        )}
+                      </h3>
+                      {newResponseCounts[card.id] > 0 ? (
+                        <span className="cp-card__new-badge">
+                          {newResponseCounts[card.id]} 則新回應
+                        </span>
+                      ) : null}
                       {card.description ? (
                         <p className="cp-card__description">{card.description}</p>
                       ) : (
@@ -1132,6 +1180,16 @@ export default function CustomerPortalPage() {
                   </div>
 
                   <div className="cp-card__actions">
+                    <button
+                      type="button"
+                      className="cp-link cp-link--primary"
+                      onClick={() => handleShareCard(card)}
+                      disabled={shareDisabled}
+                      title={card.isPrivate ? "不公開的代禱沒有公開分享連結" : undefined}
+                    >
+                      分享
+                    </button>
+
                     {canManage ? (
                       <Link
                         href={`/me/edit/${card.id}`}
@@ -1148,30 +1206,20 @@ export default function CustomerPortalPage() {
 
                     <button
                       type="button"
-                      className="cp-link cp-link--danger"
-                      onClick={() => handleDeleteCard(card)}
-                      disabled={!canManage || isDeleting}
-                    >
-                      {isDeleting ? "刪除中..." : "刪除"}
-                    </button>
-
-                    <button
-                      type="button"
-                      className="cp-link"
-                      onClick={() => handleShareCard(card)}
-                      disabled={shareDisabled}
-                      title={card.isPrivate ? "不公開的代禱沒有公開分享連結" : undefined}
-                    >
-                      分享
-                    </button>
-
-                    <button
-                      type="button"
                       className="cp-link cp-link--muted"
                       onClick={() => handleToggleVisibility(card)}
                       disabled={!canManage || isToggling}
                     >
                       {isToggling ? "切換中..." : card.isPrivate ? "公開" : "隱藏"}
+                    </button>
+
+                    <button
+                      type="button"
+                      className="cp-link cp-link--danger"
+                      onClick={() => handleDeleteCard(card)}
+                      disabled={!canManage || isDeleting}
+                    >
+                      {isDeleting ? "刪除中..." : "刪除"}
                     </button>
                   </div>
                 </div>
@@ -1473,19 +1521,7 @@ export default function CustomerPortalPage() {
 
                 </div>
 
-                <Link
 
-                  href="/me/create"
-
-                  className="cp-button"
-
-                  prefetch={false}
-
-                >
-
-                  + 建立禱告
-
-                </Link>
 
               </div>
 

@@ -23,6 +23,7 @@ import {
 import { isTrustedOrigin } from "@/lib/origin-guard";
 import { readWebmDurationSeconds } from "@/lib/audio-duration";
 import { buildSafeAudioFileName } from "@/lib/audio-upload";
+import { notifyCardOwnerOfResponse } from "@/lib/response-notification";
 
 const MAX_AUDIO_BYTES = 12 * 1024 * 1024;
 // A recording holding a fraction of a second is still a structurally valid
@@ -316,6 +317,18 @@ export async function POST(req) {
         },
       },
     });
+
+    if (moderationStatus === "APPROVED") {
+      // 不等寄信結果，回應本身已經存好；寄信失敗只記錄，不影響送出。
+      notifyCardOwnerOfResponse({
+        homeCardId,
+        responseId: response.id,
+        responderId: session?.userId ?? null,
+        hasVoice: Boolean(voiceUrl),
+      }).catch((notifyError) => {
+        console.error("notifyCardOwnerOfResponse failed:", notifyError);
+      });
+    }
 
     const publicResponse = toPublicPrayerResponse(response);
     const payload = { ...publicResponse, pendingReview: moderationStatus === "PENDING" };
