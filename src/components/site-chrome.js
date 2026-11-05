@@ -317,6 +317,7 @@ export function SiteFooter({ locale: localeProp }) {
         { href: "/overcomer", label: siteText.nav.overcomer },
         { href: "/about", label: siteText.nav.about },
         { href: "/howto", label: siteText.nav.howto },
+        { href: "/updates", label: siteText.footer.updates },
         { href: "/me", label: siteText.nav.portal },
       ],
     },
