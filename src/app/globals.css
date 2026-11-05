@@ -804,6 +804,7 @@ footer {
 }
 .footer-column {
   display: grid;
+  align-content: start;
   gap: 0.6rem;
 }
 .footer-title {

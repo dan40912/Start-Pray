@@ -23,7 +23,7 @@ const en = {
     footer: {
       tagline:
         "A quiet place to share a need, leave a prayer, and help someone know they are not alone.",
-      trust: "Trust",
+      aboutPlatform: "About Start Pray",
       accountHelp: "Account and Help",
       terms: "Terms",
       updates: "What’s new",

@@ -23,7 +23,7 @@ const zhTW = {
     },
     footer: {
       tagline: "在這裡，你可以安心寫下需要，也可以立即禱告陪伴別人。每個故事，都值得被溫柔看見。",
-      trust: "安心使用",
+      aboutPlatform: "關於平台",
       accountHelp: "帳號與幫助",
       terms: "使用條款",
       updates: "平台更新",
