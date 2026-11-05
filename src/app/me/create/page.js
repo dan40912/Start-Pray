@@ -36,6 +36,7 @@ const INITIAL_FORM = {
   voiceHref: "",
   ...TAIPEI_LOCATION,
   isPrivate: false,
+  shareToThreads: false,
   acceptedGuestTerms: false,
   website: "",
 };
@@ -112,6 +113,7 @@ export default function CustomerPortalCreatePage() {
       setForm((prev) => ({
         ...prev,
         ...draft.form,
+        shareToThreads: false,
         image: safeCoverImage,
         locationKey: "",
         locationCity: APPROXIMATE_LOCATION_LABEL,
@@ -149,7 +151,7 @@ export default function CustomerPortalCreatePage() {
         window.localStorage.setItem(
           DRAFT_STORAGE_KEY,
           JSON.stringify({
-            form,
+            form: { ...form, shareToThreads: false },
             categoryId,
             uploadedImages,
             savedAt,
@@ -382,6 +384,7 @@ export default function CustomerPortalCreatePage() {
       locationLat: form.locationLat.trim(),
       locationLng: form.locationLng.trim(),
       isPrivate: Boolean(form.isPrivate),
+      shareToThreads: Boolean(form.shareToThreads && !form.isPrivate),
       acceptedGuestTerms: Boolean(form.acceptedGuestTerms),
       website: form.website,
     };
@@ -403,7 +406,9 @@ export default function CustomerPortalCreatePage() {
       setSubmittedPrivate(createdAsPrivate);
       setStatus({
         type: "success",
-        message: isGuest
+        message: payload.shareToThreads
+          ? "你的代禱已送出。你同意分享的內容已交給管理員審閱，通過後才會發布到 Start Pray 官方 Threads。"
+          : isGuest
           ? "你的代禱已送出，會以匿名使用者顯示。"
           : createdAsPrivate
             ? "你的禱告已儲存為不公開，地圖上只會顯示大概位置。"
@@ -484,7 +489,7 @@ export default function CustomerPortalCreatePage() {
               </label>
             </div>
 
-            <div className="customer-create__row">
+            <div className="customer-create__row customer-create__category-field">
               <label>
                 <span>分類 *</span>
                 <select
@@ -500,26 +505,25 @@ export default function CustomerPortalCreatePage() {
                   ))}
                 </select>
               </label>
-            </div>
-          </section>
-
-          <section className="customer-create__step customer-create__step--map">
-            <div className="customer-create__step-head">
-              <span>02</span>
-              <div>
-                <h2>選擇全球位置</h2>
-                <p>你的禱告會出現在世界地圖上，只顯示大概位置。</p>
-              </div>
-            </div>
-            <PrayerLocationField value={form} onChange={updateLocation} disabled={submitting} />
-          </section>
-
-          <section className="customer-create__step">
-            <div className="customer-create__step-head">
-              <span>03</span>
-              <div>
-                <h2>補充內容並送出</h2>
-                <p>保留必要內容，圖片與隱私選項放在進階設定。</p>
+              <div className="customer-create__category-chips" role="group" aria-label="選擇代禱分類">
+                {categoriesLoading ? (
+                  <span className="cp-helper">正在載入主題…</span>
+                ) : categories.length ? (
+                  categories.map((category) => (
+                    <button
+                      key={category.id}
+                      type="button"
+                      className={categoryId === category.id ? "is-active" : ""}
+                      aria-pressed={categoryId === category.id}
+                      onClick={() => setCategoryId(category.id)}
+                      disabled={submitting}
+                    >
+                      {category.name}
+                    </button>
+                  ))
+                ) : (
+                  <span className="cp-helper">目前沒有可選主題</span>
+                )}
               </div>
             </div>
 
@@ -530,75 +534,128 @@ export default function CustomerPortalCreatePage() {
                   value={form.description}
                   onChange={updateFormField("description")}
                   placeholder="請直接輸入代禱內容，清楚描述目前情況、需要代禱與盼望。"
-                  rows={7}
+                  rows={5}
                   maxLength={MAX_CARD_DESCRIPTION_LENGTH}
                   required
                 />
                 <small className="cp-helper">
-                  請直接輸入文字即可，不需要填寫多餘欄位。（{form.description.length} / {MAX_CARD_DESCRIPTION_LENGTH} 字）
+                  一段真實的近況就可以。（{form.description.length} / {MAX_CARD_DESCRIPTION_LENGTH} 字）
                 </small>
               </label>
             </div>
+          </section>
 
-            {authUser?.id ? (
-              <div className="customer-create__row">
-                <CardVoiceRecorder
-                  value={form.voiceHref}
-                  onChange={(url) => setForm((prev) => ({ ...prev, voiceHref: url }))}
-                  onUploadingChange={setIsUploadingVoice}
-                  disabled={submitting}
-                />
+          <section className="customer-create__step customer-create__step--privacy">
+            <div className="customer-create__step-head">
+              <span>02</span>
+              <div>
+                <h2>選擇誰可以看見</h2>
+                <p>先決定這份代禱是否公開，其他設定都可以略過。</p>
               </div>
-            ) : null}
-
-            {!authUser?.id ? (
+            </div>
+            <div className="customer-create__privacy-options" role="group" aria-label="代禱公開設定">
+              <button
+                type="button"
+                className={`customer-create__privacy-option${!form.isPrivate ? " is-active" : ""}`}
+                aria-pressed={!form.isPrivate}
+                onClick={() => setForm((prev) => ({ ...prev, isPrivate: false }))}
+                disabled={submitting}
+              >
+                <span className="customer-create__privacy-option-mark" aria-hidden="true" />
+                <span>
+                  <strong>公開代禱</strong>
+                  <small>其他人可以看見標題和內容，也能留下文字或語音回應。</small>
+                </span>
+              </button>
+              <button
+                type="button"
+                className={`customer-create__privacy-option${form.isPrivate ? " is-active" : ""}`}
+                aria-pressed={form.isPrivate}
+                onClick={() => setForm((prev) => ({ ...prev, isPrivate: true, shareToThreads: false }))}
+                disabled={submitting}
+              >
+                <span className="customer-create__privacy-option-mark" aria-hidden="true" />
+                <span>
+                  <strong>不公開內容</strong>
+                  <small>標題、內文、圖片與上傳者不會公開；地圖只顯示大概位置與統計。</small>
+                </span>
+              </button>
+            </div>
+            {!form.isPrivate ? (
               <>
-                <input
-                  type="text"
-                  value={form.website}
-                  onChange={updateFormField("website")}
-                  tabIndex={-1}
-                  autoComplete="off"
-                  className="customer-create__honeypot"
-                  aria-hidden="true"
-                />
-                <div className="customer-create__privacy-card">
+                <p className="customer-create__privacy-hint">
+                  目前設定為公開。請確認內容不含真實姓名、電話、住址或其他不想公開的資訊。
+                </p>
+                <div className="customer-create__privacy-card customer-create__threads-consent">
                   <label>
                     <input
-                      ref={guestTermsRef}
                       type="checkbox"
-                      checked={form.acceptedGuestTerms}
-                      onChange={updateFormField("acceptedGuestTerms")}
+                      checked={form.shareToThreads}
+                      onChange={updateFormField("shareToThreads")}
+                      disabled={submitting}
                     />
                     <span>
-                      <strong>我了解訪客送出後無法自行編輯或刪除</strong>
-                      <small>
-                        請不要填寫真實姓名、電話、住址或其他敏感個資。若內容需要修改，之後需聯絡管理員協助。
-                      </small>
+                      <strong>同意提交管理員審閱，可能發布到 Start Pray 官方 Threads</strong>
+                      <small>選填，不影響代禱送出。貼文會包含代禱標題與公開連結，管理員會先審核並可編輯。請勿在標題放入姓名等敏感資料。</small>
                     </span>
                   </label>
                 </div>
               </>
             ) : null}
+          </section>
+
+          <section className="customer-create__step">
+            <div className="customer-create__step-head">
+              <span>03</span>
+              <div>
+                <h2>其他資訊 <small>選填</small></h2>
+                <p>不設定也可以直接建立代禱。</p>
+              </div>
+            </div>
+
+            {!authUser?.id ? (
+              <input
+                type="text"
+                value={form.website}
+                onChange={updateFormField("website")}
+                tabIndex={-1}
+                autoComplete="off"
+                className="customer-create__honeypot"
+                aria-hidden="true"
+              />
+            ) : null}
+
+            <details className="customer-create__advanced customer-create__location-details">
+              <summary>
+                地圖上的大概位置
+                <small>
+                  目前：
+                  {form.locationCity && form.locationCity !== APPROXIMATE_LOCATION_LABEL
+                    ? form.locationCity
+                    : form.locationCountry || "台灣台北附近"}
+                </small>
+              </summary>
+              <div className="customer-create__advanced-body">
+                <p className="cp-helper">地圖只顯示大概位置，不會顯示你的精確地址。</p>
+                <PrayerLocationField value={form} onChange={updateLocation} disabled={submitting} />
+              </div>
+            </details>
 
             <details className="customer-create__advanced">
-              <summary>進階設定</summary>
+              <summary>新增圖片或語音 <small>{authUser?.id ? "選填" : "登入後可用"}</small></summary>
               <div className="customer-create__advanced-body">
-                <div className="customer-create__privacy-card">
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={form.isPrivate}
-                      onChange={updateFormField("isPrivate")}
+                {authUser?.id ? (
+                  <div className="customer-create__row">
+                    <CardVoiceRecorder
+                      value={form.voiceHref}
+                      onChange={(url) => setForm((prev) => ({ ...prev, voiceHref: url }))}
+                      onUploadingChange={setIsUploadingVoice}
+                      disabled={submitting}
                     />
-                    <span>
-                      <strong>不公開內容，地圖上只顯示大概位置</strong>
-                      <small>
-                        勾選後，全球禱告室只顯示大概位置與統計，不會公開標題、內文、圖片、上傳者與詳情頁。
-                      </small>
-                    </span>
-                  </label>
-                </div>
+                  </div>
+                ) : (
+                  <p className="cp-helper">訪客可以先送出文字代禱；登入後可加入語音和上傳圖片。</p>
+                )}
 
                 <div className="customer-create__row">
                   <label className="customer-create__file-label">
@@ -643,17 +700,53 @@ export default function CustomerPortalCreatePage() {
                   ) : null}
                 </div>
 
-                <div className="customer-create__preview-block">
-                  <span>封面預覽</span>
-                  <div className="customer-create__preview">
-                    <img src={previewImage} alt={form.alt || form.title || "代禱預覽"} />
-                  </div>
-                </div>
               </div>
             </details>
           </section>
 
+          <section className="customer-create__step customer-create__preview-step">
+            <div className="customer-create__step-head">
+              <span>✓</span>
+              <div>
+                <h2>送出前看一眼</h2>
+                <p>公開時，這是大家會看到的代禱卡內容。</p>
+              </div>
+            </div>
+            {form.isPrivate ? (
+              <p className="customer-create__private-preview">
+                這份代禱會設為不公開，不會出現在公開頁面；地圖只顯示大概位置與統計。
+              </p>
+            ) : (
+              <article className="customer-create__card-preview">
+                <img src={previewImage} alt="" />
+                <div>
+                  <span>{categories.find((category) => category.id === categoryId)?.name || "代禱"}</span>
+                  <strong>{form.title.trim() || "你的代禱標題會顯示在這裡"}</strong>
+                  <p>{form.description.trim() || "你的代禱內容會顯示在這裡"}</p>
+                </div>
+              </article>
+            )}
+          </section>
+
           <div className="customer-create__actions">
+            {!authUser?.id ? (
+              <div className="customer-create__privacy-card customer-create__guest-consent">
+                <label>
+                  <input
+                    ref={guestTermsRef}
+                    type="checkbox"
+                    checked={form.acceptedGuestTerms}
+                    onChange={updateFormField("acceptedGuestTerms")}
+                  />
+                  <span>
+                    <strong>我了解訪客送出後無法自行編輯或刪除</strong>
+                    <small>
+                      請不要填寫真實姓名、電話、住址或其他敏感個資。需要修改時需聯絡管理員。
+                    </small>
+                  </span>
+                </label>
+              </div>
+            ) : null}
             <button
               type={needsGuestTerms ? "button" : "submit"}
               className={`button button--primary${needsGuestTerms ? " is-disabled" : ""}`}
@@ -762,6 +855,130 @@ export default function CustomerPortalCreatePage() {
 
         .customer-create__step--map {
           background: var(--surface-3);
+        }
+
+        .customer-create__category-chips { display: none; }
+
+        .customer-create__privacy-options {
+          display: grid;
+          gap: 0.6rem;
+        }
+
+        .customer-create__privacy-option {
+          display: grid;
+          grid-template-columns: 1.25rem minmax(0, 1fr);
+          align-items: start;
+          gap: 0.65rem;
+          width: 100%;
+          min-height: 64px;
+          padding: 0.75rem;
+          border: 1px solid var(--line-2);
+          border-radius: 12px;
+          color: var(--text-1);
+          background: var(--surface-1);
+          text-align: left;
+          cursor: pointer;
+        }
+
+        .customer-create__privacy-option.is-active {
+          border: 2px solid var(--link);
+          padding: calc(0.75rem - 1px);
+          background: rgba(49, 95, 145, 0.08);
+        }
+
+        .customer-create__privacy-option-mark {
+          width: 1rem;
+          height: 1rem;
+          margin-top: 0.1rem;
+          border: 1.5px solid var(--text-3);
+          border-radius: 50%;
+          background: var(--surface-1);
+        }
+
+        .customer-create__privacy-option.is-active .customer-create__privacy-option-mark {
+          border: 5px solid var(--link);
+        }
+
+        .customer-create__privacy-option strong,
+        .customer-create__privacy-option small { display: block; }
+
+        .customer-create__privacy-option strong {
+          margin-bottom: 0.2rem;
+          font-size: 0.92rem;
+        }
+
+        .customer-create__privacy-option small,
+        .customer-create__privacy-hint,
+        .customer-create__step-head h2 small {
+          color: var(--text-2);
+          font-size: 0.78rem;
+          line-height: 1.5;
+        }
+
+        .customer-create__privacy-hint {
+          margin: 0;
+          padding: 0.65rem 0.72rem;
+          border-radius: 10px;
+          background: var(--surface-2);
+        }
+
+        .customer-create__step-head h2 small {
+          margin-left: 0.25rem;
+          font-weight: 500;
+        }
+
+        .customer-create__advanced summary small {
+          margin-left: auto;
+          color: var(--text-2);
+          font-size: 0.75rem;
+          font-weight: 600;
+        }
+
+        .customer-create__card-preview {
+          overflow: hidden;
+          border: 1px solid var(--line-1);
+          border-radius: 12px;
+          background: var(--surface-1);
+        }
+
+        .customer-create__card-preview img {
+          display: block;
+          width: 100%;
+          height: 8rem;
+          object-fit: cover;
+          background: var(--surface-2);
+        }
+
+        .customer-create__card-preview > div {
+          display: grid;
+          gap: 0.25rem;
+          padding: 0.75rem;
+        }
+
+        .customer-create__card-preview span {
+          color: var(--link);
+          font-size: 0.75rem;
+          font-weight: 800;
+        }
+
+        .customer-create__card-preview strong {
+          color: var(--text-1);
+          font-size: 0.92rem;
+          line-height: 1.45;
+        }
+
+        .customer-create__card-preview p,
+        .customer-create__private-preview {
+          margin: 0;
+          color: var(--text-2);
+          font-size: 0.82rem;
+          line-height: 1.55;
+        }
+
+        .customer-create__private-preview {
+          padding: 0.8rem;
+          border-radius: 10px;
+          background: var(--surface-2);
         }
 
         .customer-create__row label {
@@ -970,6 +1187,7 @@ export default function CustomerPortalCreatePage() {
         @media (max-width: 640px) {
           .customer-create {
             padding-inline: 0.55rem;
+            padding-bottom: calc(11.5rem + env(safe-area-inset-bottom));
           }
 
 
@@ -1007,22 +1225,68 @@ export default function CustomerPortalCreatePage() {
             flex: 1;
           }
 
+          .customer-create__category-field > label select { display: none; }
+
+          .customer-create__category-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.42rem;
+          }
+
+          .customer-create__category-chips button {
+            min-height: 40px;
+            padding: 0.45rem 0.65rem;
+            border: 1px solid var(--line-2);
+            border-radius: 999px;
+            color: var(--text-1);
+            background: var(--surface-1);
+            font-size: 0.78rem;
+            font-weight: 700;
+            cursor: pointer;
+          }
+
+          .customer-create__category-chips button.is-active {
+            border-color: var(--link);
+            color: var(--link);
+            background: rgba(49, 95, 145, 0.08);
+            box-shadow: inset 0 0 0 1px var(--link);
+          }
+
+          .customer-create__privacy-option { min-height: 70px; }
+
           .customer-create__actions {
             flex-direction: column;
-            position: sticky;
-            bottom: 0.65rem;
-            z-index: 20;
-            border: 1px solid rgba(148, 163, 184, 0.28);
-            border-radius: 16px;
-            background: var(--surface-2);
-            padding: 0.65rem;
+            position: fixed;
+            left: 50%;
+            bottom: 0;
+            z-index: 200;
+            width: min(100vw, 640px);
+            margin: 0;
+            padding: 0.55rem 0.85rem calc(0.7rem + env(safe-area-inset-bottom));
+            transform: translateX(-50%);
+            border: 0;
+            border-top: 1px solid var(--line-1);
+            border-radius: 14px 14px 0 0;
+            background: rgba(255, 255, 255, 0.97);
+            box-shadow: 0 -8px 24px rgba(16, 24, 40, 0.12);
             backdrop-filter: blur(14px);
           }
+
+          .customer-create__guest-consent {
+            padding: 0.35rem 0.2rem;
+            border: 0;
+            background: transparent;
+          }
+
+          .customer-create__guest-consent label { gap: 0.55rem; }
+          .customer-create__guest-consent small { font-size: 0.7rem; }
 
           .customer-create__actions :global(.button) {
             width: 100%;
             justify-content: center;
           }
+
+          .customer-create__actions :global(.button--ghost) { display: none; }
 
           .customer-create__row--description textarea {
             min-height: 180px;

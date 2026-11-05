@@ -253,6 +253,7 @@ export default function Comments({ requestId, responseHeader, locale: localeProp
 
   const [submittingResponse, setSubmittingResponse] = useState(false);
   const [showVoiceOverlay, setShowVoiceOverlay] = useState(false);
+  // 語音是 Start Pray 跟一般留言板最不一樣的地方，所以預設先打開語音。
   const [responseMode, setResponseMode] = useState("text");
   const [showSuccess, setShowSuccess] = useState(false);
   const [successHasVoice, setSuccessHasVoice] = useState(false);
@@ -503,9 +504,9 @@ export default function Comments({ requestId, responseHeader, locale: localeProp
           <h3 className="comments__success-title">
             {successPendingReview ? commentsText.pendingSuccessTitle : commentsText.successTitle}
           </h3>
-          {successPendingReview ? (
-            <p className="comments__success-body">{commentsText.pendingSuccessBody}</p>
-          ) : null}
+          <p className="comments__success-body">
+            {successPendingReview ? commentsText.pendingSuccessBody : commentsText.successBody}
+          </p>
           {successHasVoice && successBlobUrlRef.current ? (
             <GainAudio
               className="comments__success-audio"
@@ -536,105 +537,6 @@ export default function Comments({ requestId, responseHeader, locale: localeProp
             {commentsText.writeAgain}
           </button>
         </div>
-      ) : null}
-
-      {!showSuccess ? (
-        <>
-          <div className="comments__composer-head" id="response-composer">
-            <h3 className="comments__composer-title">{commentsText.composerTitle}</h3>
-            <div
-              className="comments__input-options"
-              role="group"
-              aria-label={commentsText.composerTitle}
-            >
-              <button
-                type="button"
-                className="comments__voice-btn"
-                aria-pressed={responseMode === "text"}
-                onClick={() => setResponseMode("text")}
-              >
-                {commentsText.textAction}
-              </button>
-              <button
-                type="button"
-                className="comments__voice-btn"
-                aria-pressed={responseMode === "voice"}
-                onClick={() => setResponseMode("voice")}
-              >
-                {commentsText.voiceAction}
-              </button>
-            </div>
-          </div>
-          {responseMode === "voice" ? (
-            <div className="comments__voice-panel">
-              <p className="comments__guest-note">{commentsText.voicePrivacyNotice}</p>
-              <button
-                type="button"
-                className="comments__voice-btn"
-                disabled={submittingResponse || isCoolingDown}
-                onClick={() => setShowVoiceOverlay(true)}
-              >
-                <i className="fa-solid fa-microphone" aria-hidden="true" />
-                {isCoolingDown
-                  ? formatMessage(commentsText.waitSeconds, { seconds: cooldownRemainingSeconds })
-                  : commentsText.recordAction}
-              </button>
-            </div>
-          ) : (
-            <form className="comment-form" onSubmit={handleSubmit} noValidate>
-              {!authUser ? (
-                <p className="comments__guest-note">{commentsText.guestTextNotice}</p>
-              ) : null}
-              {authUser ? (
-                <label className={`comment-form__anon-switch${isAnonymous ? " is-on" : ""}`}>
-                  <input
-                    type="checkbox"
-                    role="switch"
-                    checked={isAnonymous}
-                    onChange={(event) => setIsAnonymous(event.target.checked)}
-                  />
-                  <span className="comment-form__anon-track" aria-hidden="true">
-                    <span className="comment-form__anon-thumb" />
-                  </span>
-                  <span className="comment-form__anon-copy">
-                    <strong>{commentsText.anonymousPost}</strong>
-                  </span>
-                </label>
-              ) : null}
-
-              <textarea
-                ref={textareaRef}
-                value={text}
-                onChange={(event) => setText(event.target.value)}
-                placeholder={commentsText.textPlaceholder}
-                rows={4}
-                minLength={8}
-              maxLength={2000}
-              aria-label={commentsText.composerTitle}
-                aria-describedby="response-text-help"
-              />
-              <small id="response-text-help" className="comment-form__rules">
-                {commentsText.textRules}
-              </small>
-              <div className="record-toolbar">
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={submittingResponse || isCoolingDown}
-                  style={{ marginTop: "10px" }}
-                >
-                  {submittingResponse
-                    ? commentsText.submitting
-                    : isCoolingDown
-                      ? formatMessage(commentsText.waitSeconds, {
-                          seconds: cooldownRemainingSeconds,
-                        })
-                      : commentsText.submit}
-                </button>
-              </div>
-            </form>
-          )}
-        </>
       ) : null}
 
       {responseHeader}
@@ -770,6 +672,116 @@ export default function Comments({ requestId, responseHeader, locale: localeProp
           </button>
         ) : null}
       </div>
+
+      {!showSuccess ? (
+        <div className="comments__composer" id="response-composer">
+          <div className="comments__composer-head">
+            <div>
+              <h3 className="comments__composer-title">{commentsText.composerTitle}</h3>
+              <p className="comments__composer-intro">{commentsText.composerIntro}</p>
+            </div>
+          </div>
+          <div
+            className="comments__input-options"
+            role="group"
+            aria-label={commentsText.composerTitle}
+          >
+            <button
+              type="button"
+              className="comments__mode-card"
+              aria-pressed={responseMode === "text"}
+              onClick={() => setResponseMode("text")}
+            >
+              <i className="fa-regular fa-message" aria-hidden="true" />
+              <span>
+                <strong>{commentsText.textAction}</strong>
+                <small>{commentsText.textActionHint}</small>
+              </span>
+            </button>
+            <button
+              type="button"
+              className="comments__mode-card"
+              aria-pressed={responseMode === "voice"}
+              onClick={() => setResponseMode("voice")}
+            >
+              <i className="fa-solid fa-microphone" aria-hidden="true" />
+              <span>
+                <strong>{commentsText.voiceAction}</strong>
+                <small>{commentsText.voiceActionHint}</small>
+              </span>
+            </button>
+          </div>
+          {responseMode === "voice" ? (
+            <div className="comments__voice-panel">
+              <p className="comments__guest-note">{commentsText.voicePrivacyNotice}</p>
+              <button
+                type="button"
+                className="comments__voice-btn"
+                disabled={submittingResponse || isCoolingDown}
+                onClick={() => setShowVoiceOverlay(true)}
+              >
+                <i className="fa-solid fa-microphone" aria-hidden="true" />
+                {isCoolingDown
+                  ? formatMessage(commentsText.waitSeconds, { seconds: cooldownRemainingSeconds })
+                  : commentsText.recordAction}
+              </button>
+            </div>
+          ) : (
+            <form className="comment-form" onSubmit={handleSubmit} noValidate>
+              {!authUser ? (
+                <p className="comments__guest-note">{commentsText.guestTextNotice}</p>
+              ) : null}
+              {authUser ? (
+                <label className={`comment-form__anon-switch${isAnonymous ? " is-on" : ""}`}>
+                  <input
+                    type="checkbox"
+                    role="switch"
+                    checked={isAnonymous}
+                    onChange={(event) => setIsAnonymous(event.target.checked)}
+                  />
+                  <span className="comment-form__anon-track" aria-hidden="true">
+                    <span className="comment-form__anon-thumb" />
+                  </span>
+                  <span className="comment-form__anon-copy">
+                    <strong>{commentsText.anonymousPost}</strong>
+                  </span>
+                </label>
+              ) : null}
+
+              <textarea
+                ref={textareaRef}
+                value={text}
+                onChange={(event) => setText(event.target.value)}
+                placeholder={commentsText.textPlaceholder}
+                rows={4}
+                minLength={8}
+                maxLength={2000}
+                aria-label={commentsText.composerTitle}
+                aria-describedby="response-text-help"
+              />
+              <small id="response-text-help" className="comment-form__rules">
+                {commentsText.textRules}
+              </small>
+              <div className="record-toolbar">
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={submittingResponse || isCoolingDown}
+                  style={{ marginTop: "10px" }}
+                >
+                  {submittingResponse
+                    ? commentsText.submitting
+                    : isCoolingDown
+                      ? formatMessage(commentsText.waitSeconds, {
+                          seconds: cooldownRemainingSeconds,
+                        })
+                      : commentsText.submit}
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      ) : null}
 
       {reportTarget ? (
         <div className="comment-report-modal" role="dialog" aria-modal="true">
