@@ -43,14 +43,14 @@ const FOOTER_COLUMNS = [
       { href: "/prayfor", label: "禱告牆" },
       { href: "/global-prayer-room", label: "全球禱告室" },
       { href: "/overcomer", label: "得勝者" },
-      { href: "/about", label: "平台介紹" },
-      { href: "/howto", label: "使用方式" },
-      { href: "/me", label: "會員中心" },
     ],
   },
   {
-    title: "安心使用",
+    title: "關於平台",
     links: [
+      { href: "/about", label: "平台介紹" },
+      { href: "/howto", label: "使用方式" },
+      { href: "/updates", label: "平台更新" },
       { href: "/terms", label: "使用條款" },
     ],
   },
@@ -305,7 +305,6 @@ export function SiteFooter({ locale: localeProp }) {
   const locale = normalizeLocale(localeProp || localeFromPathname(pathname));
   const dictionary = getDictionary(locale);
   const siteText = dictionary.site;
-  // 這一欄過去是靜態陣列，不看 session，所以登入之後頁尾還在請你「登入 / 註冊」。
   const authUser = useAuthSession();
   const isAuthenticated = Boolean(authUser);
   const footerColumns = [
@@ -315,15 +314,14 @@ export function SiteFooter({ locale: localeProp }) {
         { href: "/prayfor", label: siteText.nav.prayerWall },
         ...(SHOW_GLOBAL_ROOM_NAV_ENTRY ? [{ href: "/global-prayer-room", label: siteText.nav.globalRoom }] : []),
         { href: "/overcomer", label: siteText.nav.overcomer },
-        { href: "/about", label: siteText.nav.about },
-        { href: "/howto", label: siteText.nav.howto },
-        { href: "/updates", label: siteText.footer.updates },
-        { href: "/me", label: siteText.nav.portal },
       ],
     },
     {
-      title: siteText.footer.trust,
+      title: siteText.footer.aboutPlatform,
       links: [
+        { href: "/about", label: siteText.nav.about },
+        { href: "/howto", label: siteText.nav.howto },
+        { href: "/updates", label: siteText.footer.updates },
         { href: "/terms", label: siteText.footer.terms },
       ],
     },
