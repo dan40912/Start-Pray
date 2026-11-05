@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import Comments from "@/components/Comments";
 import DetailAudioQueueBootstrap from "@/components/prayer-detail/DetailAudioQueueBootstrap";
+import DetailPrayerHeroPlayButton from "@/components/prayer-detail/DetailPrayerHeroPlayButton";
 import DetailPrayerListenButton from "@/components/prayer-detail/DetailPrayerListenButton";
 import PrayerCard from "@/components/PrayerCard";
 import PrayerRequestActions from "@/components/PrayerRequestActions";
@@ -194,6 +195,7 @@ export default async function PrayerDetailPage({ params, locale: localeProp = "z
                 </svg>
               </Link>
               <img src={detailImage} alt={card.title} loading="eager" />
+              <DetailPrayerHeroPlayButton prayerId={card.id} locale={locale} />
             </div>
 
             <div className="pdv2-hero-body">
@@ -229,6 +231,19 @@ export default async function PrayerDetailPage({ params, locale: localeProp = "z
             />
           </article>
 
+          <div className="pdv2-engagement-actions">
+            <Link href="#response-composer" prefetch={false} className="pdv2-engagement-primary">
+              <i className="fa-regular fa-message" aria-hidden="true" />
+              {text.respondCta}
+            </Link>
+            <DetailPrayerListenButton
+              prayerId={card.id}
+              locale={locale}
+              prayerTitle={card.title || ""}
+              coverImage={detailImage}
+            />
+          </div>
+
           {galleryImages.length ? (
             <section className="pdv2-gallery-card" aria-labelledby="prayer-gallery-title">
               <div className="pdv2-gallery-card__head">
@@ -250,12 +265,6 @@ export default async function PrayerDetailPage({ params, locale: localeProp = "z
               responseHeader={
                 <div className="pdv2-comments-head">
                   <h2>{text.responsesTitle}</h2>
-                  <DetailPrayerListenButton
-                    prayerId={card.id}
-                    locale={locale}
-                    prayerTitle={card.title || ""}
-                    coverImage={detailImage}
-                  />
                 </div>
               }
               requestId={String(card.id)}

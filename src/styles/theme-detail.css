@@ -1352,6 +1352,10 @@
   display: block;
 }
 
+.pdv2-hero-play-btn {
+  display: none;
+}
+
 .pdv2-hero-body {
   padding: clamp(1rem, 2.5vw, 1.45rem);
   display: grid;
@@ -1555,6 +1559,46 @@
 
 .pdv2-content-card {
   padding: clamp(1rem, 2.5vw, 1.4rem);
+}
+
+.pdv2-engagement-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.pdv2-engagement-primary {
+  display: inline-flex;
+  min-height: 54px;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  padding: 0.65rem 0.9rem;
+  border: 1px solid var(--accent);
+  border-radius: 14px;
+  color: var(--text-on-accent);
+  background: var(--accent);
+  font-size: 0.92rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.pdv2-engagement-primary:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 3px;
+}
+
+.pdv2-engagement-actions .pdv2-listen-btn {
+  min-height: 54px;
+  padding: 0.65rem 0.9rem;
+  border-color: rgba(251, 191, 36, 0.48);
+  color: #ffe09a;
+  background: rgba(251, 191, 36, 0.1);
+  font-size: 0.9rem;
+}
+
+.pdv2-engagement-actions .pdv2-listen-btn:hover {
+  background: rgba(251, 191, 36, 0.18);
 }
 
 .pdv2-content-body {
@@ -2219,6 +2263,69 @@
     height: clamp(200px, 52vw, 280px);
   }
 
+  .pdv2-hero-actions .pdv2-follow-btn {
+    display: none;
+  }
+
+  .pdv2-engagement-actions {
+    grid-template-columns: 1fr;
+    gap: 0.55rem;
+  }
+
+  .pdv2-engagement-primary,
+  .pdv2-engagement-actions .pdv2-listen-btn {
+    width: 100%;
+    min-height: 56px;
+    justify-content: center;
+    font-size: 0.96rem;
+  }
+
+  .pdv2-hero-play-btn {
+    position: absolute;
+    left: 50%;
+    bottom: 1rem;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.7rem;
+    min-width: 190px;
+    min-height: 56px;
+    padding: 0.55rem 1.2rem 0.55rem 0.65rem;
+    transform: translateX(-50%);
+    border: 1px solid rgba(255, 255, 255, 0.72);
+    border-radius: 999px;
+    background: rgba(255, 248, 224, 0.96);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.38);
+    color: #152238;
+    font: inherit;
+    font-size: 0.98rem;
+    font-weight: 800;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .pdv2-hero-play-btn:active {
+    transform: translateX(-50%) scale(0.97);
+  }
+
+  .pdv2-hero-play-btn:focus-visible {
+    outline: 3px solid #fff;
+    outline-offset: 3px;
+  }
+
+  .pdv2-hero-play-btn__icon {
+    display: grid;
+    width: 40px;
+    height: 40px;
+    flex: 0 0 40px;
+    place-items: center;
+    border-radius: 50%;
+    background: #f2bd35;
+    color: #17243a;
+    font-size: 0.95rem;
+  }
+
   .pdv2-title-row h1 {
     font-size: 1.15rem;
     line-height: 1.35;
@@ -2670,7 +2777,96 @@
 
 /* Keep the need and response within easy reach on a phone. */
 .pdv2-hero-image-wrap { height: clamp(160px, 28vw, 300px); }
-.comments__input-options { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.comments__input-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.55rem; }
+
+.comments__composer {
+  display: grid;
+  gap: 0.8rem;
+  margin-top: 1.1rem;
+  padding: 1rem;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.035);
+  scroll-margin-top: calc(var(--site-header-height, 72px) + 1rem);
+}
+
+.comments__composer-head {
+  margin: 0;
+}
+
+.comments__composer-title {
+  font-size: 1.15rem;
+}
+
+.comments__composer-intro {
+  margin: 0.35rem 0 0;
+  color: var(--text-2);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.comments__mode-card {
+  display: grid;
+  grid-template-columns: 1.45rem minmax(0, 1fr);
+  align-items: start;
+  gap: 0.6rem;
+  min-height: 72px;
+  padding: 0.65rem;
+  border: 1px solid var(--line-2);
+  border-radius: 12px;
+  color: var(--text-1);
+  background: var(--surface-1);
+  text-align: left;
+  cursor: pointer;
+}
+
+.comments__mode-card[aria-pressed="true"] {
+  border: 2px solid var(--accent);
+  padding: calc(0.65rem - 1px);
+  background: var(--accent-soft);
+}
+
+.comments__mode-card > i {
+  margin-top: 0.1rem;
+  color: var(--accent-text);
+  font-size: 1rem;
+  text-align: center;
+}
+
+.comments__mode-card strong,
+.comments__mode-card small {
+  display: block;
+}
+
+.comments__mode-card strong { font-size: 0.86rem; line-height: 1.35; }
+.comments__mode-card small { margin-top: 0.22rem; color: var(--text-2); font-size: 0.72rem; line-height: 1.4; }
+.comments__mode-card:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+
+.comments__composer .comment-form textarea {
+  min-height: 124px;
+  border-radius: 12px;
+  padding: 0.8rem;
+}
+
+.comments__composer .record-toolbar .btn {
+  width: 100%;
+  min-height: 50px;
+  justify-content: center;
+}
+
+.comments__composer .comments__voice-btn {
+  width: 100%;
+  min-height: 50px;
+  justify-content: center;
+}
+
+.comments__composer .comments__guest-note { font-size: 0.82rem; }
+
+@media (max-width: 420px) {
+  .comments__composer { padding: 0.85rem; }
+  .comments__input-options { grid-template-columns: 1fr; }
+  .comments__mode-card { min-height: 58px; }
+}
 .comments__input-options .comments__voice-btn[aria-pressed="false"] {
   background: transparent;
   color: var(--text-muted);
@@ -2684,5 +2880,5 @@
 }
 .pdv2-comments-head { margin-top: 2rem; }
 @media (max-width: 768px) {
-  .pdv2-hero-image-wrap { height: clamp(140px, 36vw, 190px); }
+  .pdv2-hero-image-wrap { height: clamp(190px, 58vw, 230px); }
 }
