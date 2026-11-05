@@ -26,6 +26,7 @@ const en = {
       trust: "Trust",
       accountHelp: "Account and Help",
       terms: "Terms",
+      updates: "What’s new",
       forgotPassword: "Forgot password",
       contact: "Contact us",
       socialLabel: "Start Pray social links",

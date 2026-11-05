@@ -26,6 +26,7 @@ const zhTW = {
       trust: "安心使用",
       accountHelp: "帳號與幫助",
       terms: "使用條款",
+      updates: "平台更新",
       forgotPassword: "忘記密碼",
       contact: "聯絡我們",
       socialLabel: "Start Pray 社群連結",
