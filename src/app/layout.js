@@ -1,4 +1,5 @@
 import "./globals.css";
+import "./not-found.css";
 import "@/styles/theme-modern.css";
 import "@/styles/fontawesome-lite.css";
 // tokens.css 必須最後載入：它收編前面各檔散落的變數名，讓舊規則跟著
