@@ -3,6 +3,7 @@ import { writeFile } from "node:fs/promises";
 
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { recordAnalyticsAction } from "@/lib/server-analytics";
 import { ensureActiveCustomer } from "@/lib/customer-access";
 import {
   buildMediaPublicUrl,
@@ -330,6 +331,7 @@ export async function POST(req) {
       });
     }
 
+    if (!isSelfResponse) await recordAnalyticsAction(req, voiceUrl ? "voice" : "text");
     const publicResponse = toPublicPrayerResponse(response);
     const payload = { ...publicResponse, pendingReview: moderationStatus === "PENDING" };
     const result = NextResponse.json(payload, { status: 201 });

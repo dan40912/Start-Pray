@@ -1,4 +1,5 @@
 ﻿import { NextResponse } from "next/server";
+import { recordAnalyticsAction } from "@/lib/server-analytics";
 
 import fallbackCards from "@/data/homeCards.json";
 import { MAX_CARD_DESCRIPTION_LENGTH, MAX_CARD_TITLE_LENGTH } from "@/lib/card-limits";
@@ -381,6 +382,7 @@ export async function POST(request) {
         },
       }));
     }
+    if (!payload.isPrivate) await recordAnalyticsAction(request, "create");
     const result = NextResponse.json(created, { status: 201 });
     // Same cookie the response flow uses, so one guest keeps one identity
     // across both actions instead of minting a fresh one per submission.
