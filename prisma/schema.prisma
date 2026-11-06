@@ -420,3 +420,24 @@ model AdminLog {
   @@index([createdAt])
   @@map("admin_log")
 }
+
+model AnalyticsVisit {
+  id            String   @id @db.Char(36)
+  browserId     String   @db.Char(36)
+  createdAt     DateTime @default(now())
+  landing       String?  @db.VarChar(24)
+  source        String?  @db.VarChar(16)
+  memberAtEntry Boolean  @default(false)
+  pageViews     Int      @default(0)
+  openedPrayer  Boolean  @default(false)
+  openedCreate  Boolean  @default(false)
+  openedSignup  Boolean  @default(false)
+  signedUp      Boolean  @default(false)
+  createdPrayer Boolean  @default(false)
+  prayed        Boolean  @default(false)
+  textResponse  Boolean  @default(false)
+  voiceResponse Boolean  @default(false)
+
+  @@index([createdAt, browserId])
+  @@map("analytics_visit")
+}

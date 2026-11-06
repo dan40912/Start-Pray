@@ -126,6 +126,10 @@ const REPORT_ITEMS = [
 
 const DATA_ITEMS = [
   {
+    title: "網站使用統計",
+    body: "開啟站內統計時，我們用隨機瀏覽器代碼估計流量、回訪和使用情況，以找出哪些步驟需要改善。分析資料不含帳號、IP、代禱文字或錄音。瀏覽器代碼 Cookie 有效期為 90 天。若瀏覽器傳送 Global Privacy Control 或 Do Not Track 訊號，我們會略過這類統計。",
+  },
+  {
     title: "會公開的",
     body: "公開代禱的標題、內文、分類、圖片、語音留言、回應數，以及你選擇顯示的名稱。",
   },

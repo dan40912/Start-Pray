@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 
 import { NextResponse } from "next/server";
+import { recordAnalyticsAction } from "@/lib/server-analytics";
 import bcrypt from "bcryptjs";
 
 import {
@@ -147,6 +148,7 @@ export async function POST(request) {
 
     const sessionToken = createCustomerSessionToken(user);
     setCustomerSessionCookie(response, sessionToken);
+    await recordAnalyticsAction(request, "signup");
     return response;
   } catch (error) {
     console.error("POST /api/auth/signup", error);

@@ -14,6 +14,7 @@ const ADMIN_RESTRICTED_PATHS = ["/admin/users", "/admin/log", "/admin/settings"]
 
 const NAV_ITEMS = [
   { href: "/admin/dashboard", label: "儀表板", roles: ["SUPER", "ADMIN"] },
+  { href: "/admin/analytics", label: "流量與參與", roles: ["SUPER", "ADMIN"] },
   { href: "/admin/users", label: "使用者", roles: ["SUPER"] },
   { href: "/admin/moderation", label: "審核佇列", roles: ["SUPER", "ADMIN"] },
   { href: "/admin/prayfor", label: "禱告事項", roles: ["SUPER", "ADMIN"] },
