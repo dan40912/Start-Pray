@@ -569,7 +569,7 @@ const zhTW = {
     emptyDescription: "目前尚無詳細內容",
     backToWall: "返回禱告牆",
     leavePrayer: "回應這則代禱",
-    respondCta: "為這則代禱留下一句話",
+    respondCta: "立刻幫他禱告",
     shareGroup: "分享",
     createdAt: "建立日期",
     uploader: "上傳者",
