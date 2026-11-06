@@ -318,7 +318,7 @@ export async function POST(req) {
       },
     });
 
-    if (moderationStatus === "APPROVED") {
+    if (moderationStatus === "APPROVED" && voiceModerationStatus === "APPROVED") {
       // 不等寄信結果，回應本身已經存好；寄信失敗只記錄，不影響送出。
       notifyCardOwnerOfResponse({
         homeCardId,

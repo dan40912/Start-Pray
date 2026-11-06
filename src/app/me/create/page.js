@@ -35,7 +35,6 @@ const INITIAL_FORM = {
   voiceHref: "",
   ...TAIPEI_LOCATION,
   isPrivate: false,
-  shareToThreads: false,
   acceptedGuestTerms: false,
   website: "",
 };
@@ -113,7 +112,6 @@ export default function CustomerPortalCreatePage() {
       setForm((prev) => ({
         ...prev,
         ...draft.form,
-        shareToThreads: false,
         image: safeCoverImage,
         locationKey: "",
         locationCity: APPROXIMATE_LOCATION_LABEL,
@@ -151,7 +149,7 @@ export default function CustomerPortalCreatePage() {
         window.localStorage.setItem(
           DRAFT_STORAGE_KEY,
           JSON.stringify({
-            form: { ...form, shareToThreads: false },
+            form,
             categoryId,
             uploadedImages,
             savedAt,
@@ -387,7 +385,6 @@ export default function CustomerPortalCreatePage() {
       locationLat: form.locationLat.trim(),
       locationLng: form.locationLng.trim(),
       isPrivate: Boolean(form.isPrivate),
-      shareToThreads: Boolean(form.shareToThreads && !form.isPrivate),
       acceptedGuestTerms: Boolean(form.acceptedGuestTerms),
       website: form.website,
     };
@@ -415,9 +412,7 @@ export default function CustomerPortalCreatePage() {
       setSubmittedPrivate(createdAsPrivate);
       setStatus({
         type: "success",
-        message: payload.shareToThreads
-          ? "你的代禱已送出。你同意分享的內容已交給管理員審閱，通過後才會發布到 Start Pray 官方 Threads。"
-          : isGuest
+        message: isGuest
           ? "你的代禱已送出，會以匿名使用者顯示。"
           : createdAsPrivate
             ? "你的禱告已儲存為不公開，地圖上只會顯示大概位置。"
@@ -580,7 +575,7 @@ export default function CustomerPortalCreatePage() {
                 type="button"
                 className={`customer-create__privacy-option${form.isPrivate ? " is-active" : ""}`}
                 aria-pressed={form.isPrivate}
-                onClick={() => setForm((prev) => ({ ...prev, isPrivate: true, shareToThreads: false }))}
+                onClick={() => setForm((prev) => ({ ...prev, isPrivate: true }))}
                 disabled={submitting}
               >
                 <span className="customer-create__privacy-option-mark" aria-hidden="true" />
@@ -591,25 +586,9 @@ export default function CustomerPortalCreatePage() {
               </button>
             </div>
             {!form.isPrivate ? (
-              <>
-                <p className="customer-create__privacy-hint">
-                  目前設定為公開。請確認內容不含真實姓名、電話、住址或其他不想公開的資訊。
-                </p>
-                <div className="customer-create__privacy-card customer-create__threads-consent">
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={form.shareToThreads}
-                      onChange={updateFormField("shareToThreads")}
-                      disabled={submitting}
-                    />
-                    <span>
-                      <strong>同意提交管理員審閱，可能發布到 Start Pray 官方 Threads</strong>
-                      <small>選填，不影響代禱送出。貼文會包含代禱標題與公開連結，管理員會先審核並可編輯。請勿在標題放入姓名等敏感資料。</small>
-                    </span>
-                  </label>
-                </div>
-              </>
+              <p className="customer-create__privacy-hint">
+                目前設定為公開。請確認內容不含真實姓名、電話、住址或其他不想公開的資訊。
+              </p>
             ) : null}
           </section>
 

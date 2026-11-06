@@ -24,11 +24,14 @@ export async function notifyCardOwnerOfResponse({ homeCardId, responseId, respon
     select: {
       id: true,
       title: true,
+      isPrivate: true,
+      isBlocked: true,
+      needsReview: true,
       owner: { select: { id: true, email: true, name: true, isBlocked: true } },
     },
   });
   const owner = card?.owner;
-  if (!owner?.email || owner.isBlocked) return;
+  if (!owner?.email || owner.isBlocked || card.isPrivate || card.isBlocked || card.needsReview) return;
   if (responderId && owner.id === responderId) return;
 
   const quietSince = new Date(Date.now() - NOTIFY_QUIET_HOURS * 60 * 60 * 1000);
