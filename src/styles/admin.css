@@ -1,4 +1,122 @@
 /* Admin 全域樣式 */
+/* 後台沒有前台固定導覽列；避免沿用它的預留空間與頁尾樣式。 */
+html body:has(.admin-shell),
+html body:has(.admin-auth) {
+  margin: 0;
+  padding: 0;
+}
+
+/* 後台由內容區與側欄各自捲動，不讓 body 多出第二條捲軸。 */
+html body:has(.admin-shell) {
+  overflow: hidden;
+}
+
+/* The public site reserves space for its fixed navigation and uses display
+   headings. Give the console its own viewport and typography. */
+html:has(.admin-shell) {
+  overflow: hidden;
+  scroll-padding-top: 0;
+}
+
+.admin-shell :is(h1, h2, h3),
+.admin-auth h1 {
+  font-family: var(--font-body);
+  letter-spacing: normal;
+}
+
+.admin-shell .admin-shell__sidebar > footer.admin-shell__sidebar-footer {
+  background: transparent;
+  box-shadow: none;
+}
+
+.admin-shell .admin-section__header .button--ghost {
+  min-height: 44px;
+  padding-inline: 0.9rem;
+  color: #2a2f63;
+  background: #fff;
+  border: 1px solid #d4d7f2;
+}
+
+.admin-shell.admin-shell {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+  color: #1f2555;
+}
+
+.admin-shell .admin-shell__sidebar {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 1.5rem;
+}
+
+.admin-shell .admin-shell__nav {
+  min-height: 0;
+  overflow-y: auto;
+  align-content: start;
+  scrollbar-width: thin;
+}
+
+.admin-shell .admin-shell__sidebar-footer {
+  margin: 0;
+  padding: 1rem 0 0;
+  padding-bottom: env(safe-area-inset-bottom);
+  background: transparent;
+  color: #ffffff;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  gap: 0.75rem;
+}
+
+.admin-shell .admin-shell__profile span,
+.admin-shell .admin-shell__brand span {
+  color: #c7cdea;
+}
+
+.admin-shell .admin-shell__profile strong {
+  color: #ffffff;
+  overflow-wrap: anywhere;
+}
+
+.admin-shell .admin-shell__signout {
+  min-height: 44px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.admin-shell .admin-shell__main {
+  min-width: 0;
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.admin-shell .admin-shell__scroll {
+  min-height: 0;
+  min-width: 0;
+  overscroll-behavior-y: contain;
+}
+
+.admin-shell .admin-shell__topbar-actions .button--ghost {
+  color: #2a2f63;
+  background: #f4f6ff;
+  border: 1px solid #d4d7f2;
+}
+
+.admin-shell .admin-shell__nav-link:focus-visible,
+.admin-shell .admin-shell__signout:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: -2px;
+}
+
+@media (max-width: 1080px) {
+  .admin-shell .admin-shell__topbar {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.75rem;
+  }
+}
+
 .admin-section {
   padding: 2rem;
   background: #f9fafb;
