@@ -718,6 +718,24 @@ export default function VoicePrayerOverlay({
   }, [onComplete, releaseMic, showToast, vcTx, voiceBusy]);
 
   // ── Render ────────────────────────────────────────────────────────────────
+  // 已經允許過麥克風的人，按下「錄一段禱告」就直接進倒數，不必再按一次「開啟麥克風」。
+  // 查不到權限狀態（舊版 Safari 等）時維持原本的說明畫面。
+  useEffect(() => {
+    let cancelled = false;
+    const query = navigator.permissions?.query?.({ name: "microphone" });
+    if (!query) return undefined;
+    query
+      .then((status) => {
+        if (!cancelled && status.state === "granted") askMic();
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+    // 只在開啟時檢查一次；之後由使用者自己操作。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div className="vpo-overlay" role="dialog" aria-modal="true" aria-label={copy.dialogLabel}>
       <div className="vpo-backdrop" onClick={handleCancel} />

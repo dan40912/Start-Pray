@@ -1,3 +1,5 @@
+import crypto from "node:crypto";
+
 import { NextResponse } from "next/server";
 import { recordAnalyticsAction } from "@/lib/server-analytics";
 import bcrypt from "bcryptjs";
@@ -17,7 +19,6 @@ import {
 
 const REQUIRED_FIELDS = [
   "fullName",
-  "username",
   "email",
   "password",
   "confirmPassword",
@@ -25,6 +26,17 @@ const REQUIRED_FIELDS = [
 ];
 
 const normalizeString = (value) => (typeof value === "string" ? value.trim() : "");
+
+// Username 在註冊表單是選填；沒填就給一個隨機、不會撞名的站內識別，
+// 之後可以在個人檔案改掉。
+async function generateUsername() {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const candidate = `pray-${crypto.randomBytes(4).toString("hex")}`;
+    const taken = await prisma.user.findUnique({ where: { username: candidate }, select: { id: true } });
+    if (!taken) return candidate;
+  }
+  return `pray-${crypto.randomBytes(8).toString("hex")}`;
+}
 
 export async function POST(request) {
   try {
@@ -37,7 +49,7 @@ export async function POST(request) {
     }
 
     const fullName = normalizeString(payload.fullName);
-    const username = normalizeString(payload.username).toLowerCase();
+    const requestedUsername = normalizeString(payload.username).toLowerCase();
     const email = normalizeString(payload.email).toLowerCase();
     const faithTradition = normalizeString(payload.faithTradition);
     const country = normalizeString(payload.country);
@@ -45,11 +57,11 @@ export async function POST(request) {
     const confirmPassword = normalizeString(payload.confirmPassword);
     const acceptedTerms = Boolean(payload.acceptedTerms);
 
-    if (!fullName || !username || !email) {
-      return NextResponse.json({ message: "請填寫暱稱、Username 與電子信箱。" }, { status: 400 });
+    if (!fullName || !email) {
+      return NextResponse.json({ message: "請填寫暱稱與電子信箱。" }, { status: 400 });
     }
 
-    if (!/^[a-z0-9_-]{4,}$/i.test(username)) {
+    if (requestedUsername && !/^[a-z0-9_-]{4,}$/i.test(requestedUsername)) {
       return NextResponse.json({ message: "Username 至少 4 碼，且只能包含英數、底線與減號。" }, { status: 400 });
     }
 
@@ -79,6 +91,8 @@ export async function POST(request) {
       );
     }
     recordAuthAttempt(authLimiters.signup, limitKeys);
+
+    const username = requestedUsername || (await generateUsername());
 
     const existing = await prisma.user.findFirst({
       where: {

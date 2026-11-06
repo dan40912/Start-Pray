@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 
 import CardVoiceRecorder from "@/components/prayer-recorder/CardVoiceRecorder";
@@ -72,6 +73,7 @@ export default function CustomerPortalEditCardPage() {
   const [card, setCard] = useState(null);
   const [categories, setCategories] = useState([]);
   const [status, setStatus] = useState(null);
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [galleryImages, setGalleryImages] = useState([]);
@@ -311,7 +313,7 @@ export default function CustomerPortalEditCardPage() {
       setGalleryImages(preparedGallery);
       setStatus({
         type: "success",
-        message: "代禱已更新，大致位置可顯示在全球禱告室。",
+        message: "已儲存變更。",
       });
     } catch (error) {
       setStatus({ type: "error", message: error.message || "更新失敗" });
@@ -343,28 +345,14 @@ export default function CustomerPortalEditCardPage() {
             <p>資料載入中…</p>
           ) : card ? (
             <form className="cp-card-form" onSubmit={handleSubmit}>
-              {status ? (
-                <div className={`cp-alert cp-alert--${status.type}`}>{status.message}</div>
-              ) : null}
-
-              <div className="cp-form__grid">
-                <label>
-                  <span>標題 *</span>
-                  <input type="text" value={form.title} onChange={updateField("title")} required />
-                </label>
-                <label>
-                  <span>Slug</span>
-                  <input
-                    type="text"
-                    value={form.slug}
-                    onChange={updateField("slug")}
-                    placeholder="留空則沿用目前設定"
-                  />
-                </label>
-              </div>
 
               <label>
-                <span>說明</span>
+                <span>標題 *</span>
+                <input type="text" value={form.title} onChange={updateField("title")} required />
+              </label>
+
+              <label>
+                <span>代禱內容</span>
                 <textarea
                   rows={4}
                   value={form.description}
@@ -444,7 +432,27 @@ export default function CustomerPortalEditCardPage() {
                 )}
               </div>
 
-              <PrayerLocationField value={form} onChange={updateLocation} disabled={saving} />
+              {/* 地圖很重，等使用者想改位置時才載入。 */}
+              {showLocationPicker ? (
+                <PrayerLocationField value={form} onChange={updateLocation} disabled={saving} />
+              ) : (
+                <div className="cp-location-summary">
+                  <span>
+                    地圖上的大概位置：
+                    {form.locationCity && form.locationCity !== APPROXIMATE_LOCATION_LABEL
+                      ? form.locationCity
+                      : form.locationCountry || "已設定"}
+                  </span>
+                  <button
+                    type="button"
+                    className="cp-button cp-button--ghost"
+                    onClick={() => setShowLocationPicker(true)}
+                    disabled={saving}
+                  >
+                    調整位置
+                  </button>
+                </div>
+              )}
 
               <div className="cp-private-toggle">
                 <label>
@@ -462,31 +470,6 @@ export default function CustomerPortalEditCardPage() {
                 </label>
               </div>
 
-              <div className="cp-form__grid">
-                <label>
-                  <span>圖片替代文字</span>
-                  <input type="text" value={form.alt} onChange={updateField("alt")} />
-                </label>
-                <label>
-                  <span>分享詳情連結</span>
-                  <input
-                    type="text"
-                    value={form.detailsHref}
-                    onChange={updateField("detailsHref")}
-                  />
-                </label>
-              </div>
-
-              <label>
-                <span>標籤（以逗號分隔）</span>
-                <input type="text" value={form.tags} onChange={updateField("tags")} />
-              </label>
-
-              <label>
-                <span>Meta 資訊（每行一筆）</span>
-                <textarea rows={3} value={form.meta} onChange={updateField("meta")} />
-              </label>
-
               <div className="cp-form__preview">
                 <strong>儲存前快速檢查</strong>
                 <ul>
@@ -495,9 +478,23 @@ export default function CustomerPortalEditCardPage() {
                     分類：
                     {categories.find((item) => String(item.id) === form.categoryId)?.name || "--"}
                   </li>
-                  <li>標籤：{tagsPreview.length ? tagsPreview.join(", ") : "--"}</li>
                 </ul>
               </div>
+
+              {/* 訊息放在按鈕旁邊：按下儲存後使用者的視線就在這裡。 */}
+              {status ? (
+                <div className={`cp-alert cp-alert--${status.type}`} role="status" aria-live="polite">
+                  {status.message}
+                  {status.type === "success" && !form.isPrivate && card?.id ? (
+                    <>
+                      {" "}
+                      <Link href={`/prayfor/${card.id}`} prefetch={false}>
+                        查看代禱頁
+                      </Link>
+                    </>
+                  ) : null}
+                </div>
+              ) : null}
 
               <div className="cp-form__actions">
                 <button
@@ -520,6 +517,17 @@ export default function CustomerPortalEditCardPage() {
       </main>
       <SiteFooter />
       <style jsx>{`
+        .cp-location-summary {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          justify-content: space-between;
+          gap: 0.75rem;
+          border: 1px solid rgba(148, 163, 184, 0.28);
+          border-radius: 14px;
+          padding: 0.9rem;
+        }
+
         .cp-private-toggle {
           border: 1px solid rgba(37, 99, 235, 0.22);
           border-radius: 14px;

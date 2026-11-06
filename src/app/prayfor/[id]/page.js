@@ -1,7 +1,9 @@
 ﻿import Link from "next/link";
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 
 import Comments from "@/components/Comments";
+import NewCardSharePanel from "@/components/NewCardSharePanel";
 import DetailAudioQueueBootstrap from "@/components/prayer-detail/DetailAudioQueueBootstrap";
 import DetailPrayerHeroPlayButton from "@/components/prayer-detail/DetailPrayerHeroPlayButton";
 import DetailPrayerListenButton from "@/components/prayer-detail/DetailPrayerListenButton";
@@ -223,6 +225,13 @@ export default async function PrayerDetailPage({ params, locale: localeProp = "z
               </div>
             </div>
           </article>
+
+          <Suspense fallback={null}>
+            <NewCardSharePanel
+              canonicalPath={localizePath(`/prayfor/${card.id}`, locale)}
+              title={card.title}
+            />
+          </Suspense>
 
           <article className="pdv2-content-card">
             <div
