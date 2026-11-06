@@ -954,6 +954,33 @@ footer {
   border-color: rgba(148, 163, 184, 0.3);
   box-shadow: 0 24px 60px rgba(2, 8, 23, 0.28);
 }
+.auth-card--signup {
+  gap: 1rem;
+  padding: clamp(1.35rem, 3vw, 2rem);
+}
+.auth-card--signup .auth-card__intro p {
+  line-height: 1.6;
+}
+.auth-card--signup .auth-form {
+  gap: 0.9rem;
+}
+.auth-card--signup .form-section-title {
+  margin: 0.35rem 0 0;
+  font-size: 1rem;
+}
+.signup-optional {
+  border-top: 1px solid var(--line-1);
+  padding-top: 0.75rem;
+}
+.signup-optional summary {
+  color: var(--text-2);
+  font-size: 0.9rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+.signup-optional__fields {
+  margin-top: 0.9rem;
+}
 .auth-card__intro {
   display: grid;
   gap: 0.4rem;
@@ -2994,6 +3021,31 @@ textarea.form-control.is-invalid:focus {
   justify-content: flex-end;
   align-items: center;
   gap: 0.75rem;
+}
+
+.admin-threads-settings__toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: #2a2f63;
+  font-size: 0.95rem;
+}
+
+.admin-form .admin-threads-settings__toggle input[type="checkbox"] {
+  width: 1.1rem;
+  height: 1.1rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  box-shadow: none;
+  accent-color: #5865d8;
+}
+
+.admin-threads-settings__toggle span {
+  text-transform: none;
+  letter-spacing: normal;
 }
 
 .admin-form__status {

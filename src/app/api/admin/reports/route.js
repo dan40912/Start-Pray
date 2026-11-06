@@ -20,8 +20,8 @@ function latestReportMeta(report) {
     reporter: report.reporter
       ? {
           id: report.reporter.id,
-          name: report.reporter.name,
-          email: report.reporter.email,
+          name: "檢舉者",
+
         }
       : null,
   };
@@ -48,7 +48,7 @@ async function getCardReports(limit) {
         isBlocked: true,
         isPrivate: true,
         reportCount: true,
-        owner: { select: { id: true, name: true, email: true } },
+        owner: { select: { id: true, name: true } },
       },
     }),
     prisma.homePrayerCardReport.findMany({
@@ -59,7 +59,7 @@ async function getCardReports(limit) {
         reason: true,
         remarks: true,
         createdAt: true,
-        reporter: { select: { id: true, name: true, email: true } },
+        reporter: { select: { id: true } },
       },
     }),
   ]);
@@ -77,12 +77,7 @@ async function getCardReports(limit) {
       id: `card-${group.cardId}`,
       type: "card",
       targetId: String(group.cardId),
-      // A private card's title used to be replaced with the placeholder
-      // "私密代禱" even here, which asked a moderator to rule on a report about
-      // content they were not allowed to read. Privacy from other users is the
-      // product promise; privacy from the person handling the report just makes
-      // moderation guesswork. The card stays flagged as private so the UI can
-      // mark it, and opening one is written to the admin log.
+      // Lists are redacted below; opening full detail is separately audited.
       title: card?.title || "已刪除的代禱",
       owner: card?.owner ?? null,
       isBlocked: Boolean(card?.isBlocked),
@@ -119,7 +114,7 @@ async function getResponseReports(limit) {
         voiceUrl: true,
         isBlocked: true,
         reportCount: true,
-        responder: { select: { id: true, name: true, email: true } },
+        responder: { select: { id: true, name: true } },
         homeCard: { select: { id: true, title: true, isPrivate: true } },
       },
     }),
@@ -131,7 +126,7 @@ async function getResponseReports(limit) {
         reason: true,
         remarks: true,
         createdAt: true,
-        reporter: { select: { id: true, name: true, email: true } },
+        reporter: { select: { id: true } },
       },
     }),
   ]);
@@ -183,7 +178,6 @@ async function getOvercomerReports(limit) {
         id: true,
         name: true,
         username: true,
-        email: true,
         isBlocked: true,
         reportCount: true,
         publicProfileEnabled: true,
@@ -197,7 +191,7 @@ async function getOvercomerReports(limit) {
         reason: true,
         remarks: true,
         createdAt: true,
-        reporter: { select: { id: true, name: true, email: true } },
+        reporter: { select: { id: true } },
       },
     }),
   ]);
@@ -215,21 +209,21 @@ async function getOvercomerReports(limit) {
       id: `overcomer-${group.targetUserId}`,
       type: "overcomer",
       targetId: group.targetUserId,
-      title: user?.name || user?.username || user?.email || "已刪除的公開個人頁",
-      owner: user ? { id: user.id, name: user.name, email: user.email } : null,
+      title: user?.name || user?.username || "已刪除的公開個人頁",
+      owner: user ? { id: user.id, name: user.name } : null,
       isBlocked: Boolean(user?.isBlocked),
       isPrivate: !user?.publicProfileEnabled,
       reportCount: user?.reportCount ?? group._count._all,
       latestReportedAt: latest?.createdAt ?? group._max.createdAt,
       latestReport: latestReportMeta(latest),
       href: user?.username && user.publicProfileEnabled ? `/overcomer/${user.username}` : null,
-      adminHref: `/admin/users?search=${encodeURIComponent(user?.email || user?.username || group.targetUserId)}`,
+      adminHref: `/admin/users?search=${encodeURIComponent(group.targetUserId)}`,
     };
   });
 }
 
 export async function GET(request) {
-  const { error } = requireAdmin(request);
+  const { error } = await requireAdmin(request);
   if (error) return error;
 
   try {
@@ -252,8 +246,13 @@ export async function GET(request) {
       })
       .slice(0, limit);
 
+    const previews = items.map((item) => item.isPrivate ? {
+      ...item, title: "私密內容（開啟詳情後檢視）", owner: null, voiceUrl: null,
+      latestReport: { reason: item.latestReport?.reason ?? null, remarks: null, reporter: null },
+      homeCard: item.homeCard ? { id: item.homeCard.id, title: "私密代禱", isPrivate: true } : null,
+    } : item);
     return NextResponse.json({
-      data: items,
+      data: previews,
       summary: {
         card: cards.length,
         response: responses.length,

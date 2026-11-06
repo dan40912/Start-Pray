@@ -85,8 +85,9 @@ export default function ModerationPage() {
   const handleBlock = useCallback(
     async (item) => {
       const shouldContinue = await confirmAction({
-        title: "確認封鎖內容",
-        message: `將封鎖這筆${TYPE_LABELS[item.type] || "項目"}，公開頁面將不再顯示。是否繼續？`,
+        title: item.type === "overcomer" ? "確認停權使用者" : "確認封鎖內容",
+        requireReason: item.type === "overcomer",
+        message: item.type === "overcomer" ? "這會停權整個帳號並撤銷登入；既有內容需另外處理。請確認證據足以支持帳號停權。" : `將封鎖這筆${TYPE_LABELS[item.type] || "項目"}，公開頁面將不再顯示。是否繼續？`,
         confirmText: "封鎖",
         cancelText: "取消",
         tone: "warning",
@@ -112,7 +113,7 @@ export default function ModerationPage() {
           response = await fetch(`/api/admin/users/${item.targetId}/block`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ block: true }),
+            body: JSON.stringify({ block: true, expectedBlocked: false, reason: shouldContinue, operationId: crypto.randomUUID() }),
           });
         }
 

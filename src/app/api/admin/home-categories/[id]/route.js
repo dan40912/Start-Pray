@@ -17,7 +17,7 @@ function sanitizePayload(body) {
 }
 
 export async function PUT(request, { params }) {
-  const { error } = requireAdmin(request);
+  const { error } = await requireAdmin(request);
   if (error) return error;
 
   try {

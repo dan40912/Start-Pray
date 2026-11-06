@@ -53,35 +53,24 @@ CUSTOMER_SESSION_SECRET=...
 
 ## 3. 設定 Nginx
 
-建議在站點設定中加入：
+`/uploads/...` 與 `/voices/...` 必須交由 Next.js 的媒體路由處理，讓每次讀取都執行資料庫權限檢查。**不要**對這兩個路徑設定 Nginx `alias`、`root` 或其他直接讀取檔案的靜態 location；這會繞過應用程式的權限檢查，讓私密卡片的圖片與錄音可被直接讀取。
+
+移除既有的 `/uploads/`、`/voices/` 靜態 alias location，讓請求落到目前站點反向代理 Next.js 的一般 location。確認反向代理保留原始 URI，且 `/uploads/...`、`/voices/...` 最後到達 Next.js，而非由 Nginx 直接讀檔。不要新增下列靜態 alias 設定：
 
 ```nginx
-location /voices/ {
-  alias /home/startpraynow/prayer-coin-data/voices/;
-  try_files $uri =404;
-  # 只放行音檔副檔名，避免使用者上傳的 .html/.svg 被當成網頁執行（XSS）
-  location ~* \.(webm|m4a|mp3|mp4|ogg|oga|opus|wav|aac|flac)$ {
-    add_header X-Content-Type-Options nosniff always;
-    add_header Content-Security-Policy "default-src 'none'; media-src 'self'; sandbox" always;
-  }
-  location ~ . { return 404; }
-}
-
-location /uploads/ {
-  alias /home/startpraynow/prayer-coin-data/uploads/;
-  try_files $uri =404;
-  # 只放行點陣圖；不要放行 .svg（SVG 內可以放 JavaScript）
-  location ~* \.(webp|jpg|jpeg|png|gif|avif)$ {
-    add_header X-Content-Type-Options nosniff always;
-    add_header Content-Security-Policy "default-src 'none'; img-src 'self' data:; sandbox" always;
-  }
-  location ~ . { return 404; }
-}
+# 不要設定 location /uploads/ 或 location /voices/ 搭配 alias/root。
+# 使用站點既有的 Next.js proxy location，確保請求進入 Next.js 媒體路由。
 ```
 
-> 安全說明：不加副檔名限制時，若有人上傳 `evil.html`，Nginx 會以 `text/html`
-> 回傳，等於在本站網域執行攻擊者的 JavaScript。程式端也已改為只用白名單副檔名存檔
-> （`src/lib/audio-upload.js`），兩層一起擋。詳見 `docs/security-hardening.md`。
+Next.js 媒體路由會檢查引用狀態、私密卡片權限與檔案類型安全標頭。確認正式站 Nginx 設定時，請檢查完整生效設定（例如 `nginx -T`），不只檢查 repo 內的範例。
+
+既有檔案若在媒體引用追蹤啟用前已存在、目前又沒有任何資料庫引用，程式會在設定的 cutoff 前暫時沿用舊的公開可讀行為。預設 cutoff 為 `2026-11-06T00:00:00.000Z`，若正式環境 rollout 時間不同，請在 `.env` 設定實際時間：
+
+```env
+MEDIA_LEGACY_CUTOFF_AT=2026-11-06T00:00:00.000Z
+```
+
+只對完全沒有資料庫引用且檔案修改時間早於 cutoff 的檔案生效；已知私密、審核中或停用內容的引用仍會套用原權限檢查。這是相容措施，之後可在完成舊檔盤點後移除。
 
 完成後：
 

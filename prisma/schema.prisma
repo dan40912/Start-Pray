@@ -210,10 +210,14 @@ model SiteBanner {
 }
 
 model SiteSetting {
-  id              Int      @id @default(1)
-  maintenanceMode Boolean  @default(false)
-  updatedAt       DateTime @updatedAt
-  updatedBy       String?
+  id                       Int      @id @default(1)
+  maintenanceMode          Boolean  @default(false)
+  threadsEnabled           Boolean  @default(false)
+  threadsUserId            String?  @db.VarChar(191)
+  threadsAccessTokenSecret String?  @db.Text
+  threadsGraphApiVersion   String   @default("v1.0") @db.VarChar(32)
+  updatedAt                DateTime @updatedAt
+  updatedBy                String?
 
   @@map("site_setting")
 }
@@ -288,6 +292,7 @@ model HomePrayerCard {
   tokenTransactions TokenTransaction[]     @relation("HomePrayerCardTransactions")
   reports           HomePrayerCardReport[]
   prayedReactions   PrayerPrayedReaction[]
+  threadsShare      PrayerThreadsShare?
 
   isBlocked     Boolean  @default(false)
   reportCount   Int      @default(0)
@@ -367,6 +372,7 @@ model AdminAccount {
   passwordHash String
   role         AdminRole @default(ADMIN)
   isActive     Boolean   @default(true)
+  sessionVersion Int @default(0)
   lastLoginAt  DateTime?
   // Per-admin 2FA (encrypted, see src/lib/admin-totp.js). NULL = not enrolled,
   // the account then falls back to the shared ADMIN_TOTP_SECRET.
@@ -407,6 +413,7 @@ model AdminLog {
   category    AdminLogCategory
   level       AdminLogLevel    @default(INFO)
   message     String
+  operationKey String? @unique @db.VarChar(191)
   action      String?
   actorId     String?
   actorEmail  String?
@@ -419,4 +426,64 @@ model AdminLog {
   @@index([category, createdAt])
   @@index([createdAt])
   @@map("admin_log")
+}
+
+// Newly uploaded drafts remain accessible only to their active owner until used.
+model MediaUpload {
+  url String @id @db.VarChar(512)
+  ownerId String
+  createdAt DateTime @default(now())
+
+  @@index([ownerId])
+  @@map("media_upload")
+}
+
+enum ThreadsShareStatus {
+  PENDING
+  PUBLISHING
+  PUBLISHED
+  FAILED
+  SKIPPED
+}
+
+model PrayerThreadsShare {
+  id                 Int                @id @default(autoincrement())
+  cardId             Int                @unique
+  consentedAt        DateTime           @default(now())
+  status             ThreadsShareStatus @default(PENDING)
+  postText           String?            @db.Text
+  threadsPostId      String?            @db.VarChar(191)
+  permalink          String?            @db.VarChar(512)
+  attempts           Int                @default(0)
+  lastError          String?            @db.Text
+  lastAttemptAt      DateTime?
+  publishedAt        DateTime?
+  publishedByAdminId String?            @db.VarChar(191)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  card HomePrayerCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@map("prayer_threads_share")
+}
+model AnalyticsVisit {
+  id            String   @id @db.Char(36)
+  browserId     String   @db.Char(36)
+  createdAt     DateTime @default(now())
+  landing       String?  @db.VarChar(24)
+  source        String?  @db.VarChar(16)
+  memberAtEntry Boolean  @default(false)
+  pageViews     Int      @default(0)
+  openedPrayer  Boolean  @default(false)
+  openedCreate  Boolean  @default(false)
+  openedSignup  Boolean  @default(false)
+  signedUp      Boolean  @default(false)
+  createdPrayer Boolean  @default(false)
+  prayed        Boolean  @default(false)
+  textResponse  Boolean  @default(false)
+  voiceResponse Boolean  @default(false)
+
+  @@index([createdAt, browserId])
+  @@map("analytics_visit")
 }

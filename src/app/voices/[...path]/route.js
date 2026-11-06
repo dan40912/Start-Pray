@@ -1,3 +1,4 @@
+import { authorizeMediaRead } from "@/lib/server-media-access";
 import path from "node:path";
 import { readFile, stat } from "node:fs/promises";
 
@@ -30,6 +31,8 @@ function resolveVoicePaths(segments = []) {
 }
 
 async function buildVoiceResponse(request, params, includeBody) {
+  const denied = await authorizeMediaRead(request, "voices", params?.path);
+  if (denied) return denied;
   const candidatePaths = resolveVoicePaths(params?.path);
   if (candidatePaths.length === 0) {
     return NextResponse.json({ message: "File not found." }, { status: 404 });
@@ -46,7 +49,7 @@ async function buildVoiceResponse(request, params, includeBody) {
       const headers = new Headers({
         "Content-Type": CONTENT_TYPES[extension] || "application/octet-stream",
         "Accept-Ranges": "bytes",
-        "Cache-Control": "public, max-age=0, must-revalidate",
+        "Cache-Control": "private, no-store",
         "Last-Modified": fileStat.mtime.toUTCString(),
         ...MEDIA_SECURITY_HEADERS,
       });

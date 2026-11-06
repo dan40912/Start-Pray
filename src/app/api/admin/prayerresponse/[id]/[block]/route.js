@@ -5,7 +5,7 @@ import { logAdminAction, logSystemError } from "@/lib/logger";
 import prisma from "@/lib/prisma";
 
 export async function PATCH(request, { params }) {
-  const { error, session } = requireAdmin(request);
+  const { error, session } = await requireAdmin(request);
   if (error) return error;
 
   try {
@@ -16,7 +16,8 @@ export async function PATCH(request, { params }) {
       return NextResponse.json({ message: "Missing ID" }, { status: 400 });
     }
 
-    const updated = await prisma.prayerResponse.update({
+    const updated = await prisma.$transaction(async (tx) => {
+    const updated = await tx.prayerResponse.update({
       where: { id },
       data: { isBlocked: Boolean(block) },
     });
@@ -30,6 +31,9 @@ export async function PATCH(request, { params }) {
       targetId: id,
       requestPath: request.url,
       metadata: { block: Boolean(block) },
+      transaction: tx, required: true,
+    });
+    return updated;
     });
 
     return NextResponse.json(updated);

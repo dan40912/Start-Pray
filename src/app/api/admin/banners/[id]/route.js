@@ -40,7 +40,7 @@ function fromAdminPayload(body) {
 
 // PATCH /api/admin/banners/:id
 export async function PATCH(req, { params }) {
-  const { error } = requireAdmin(req);
+  const { error } = await requireAdmin(req);
   if (error) return error;
 
   try {
@@ -59,7 +59,7 @@ export async function PATCH(req, { params }) {
 }
 
 export async function DELETE(request, { params }) {
-  const { error } = requireAdmin(request);
+  const { error } = await requireAdmin(request);
   if (error) return error;
 
   try {

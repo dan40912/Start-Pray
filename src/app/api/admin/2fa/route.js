@@ -19,6 +19,7 @@ import {
 } from "@/lib/admin-totp";
 import { logAdminAction } from "@/lib/logger";
 import prisma from "@/lib/prisma";
+import { clearAdminSessionCookie } from "@/lib/admin-session";
 
 // The signed-in admin's own 2FA enrollment.
 //   GET                                   → { enabled, enabledAt }
@@ -41,7 +42,7 @@ async function loadAccount(adminId) {
 }
 
 export async function GET(request) {
-  const { error, session } = requireAdmin(request);
+  const { error, session } = await requireAdmin(request);
   if (error) return error;
 
   try {
@@ -61,7 +62,7 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
-  const { error, session } = requireAdmin(request);
+  const { error, session } = await requireAdmin(request);
   if (error) return error;
 
   try {
@@ -117,12 +118,14 @@ export async function POST(request) {
       }
 
       const enabledAt = new Date();
-      await prisma.adminAccount.update({
+      await prisma.$transaction(async (tx) => {
+      await tx.adminAccount.update({
         where: { id: account.id },
         data: {
           totpSecret: encryptTotpSecret(secret),
           totpEnabledAt: enabledAt,
           totpLastUsedStep: step,
+          sessionVersion: { increment: 1 },
         },
       });
 
@@ -133,10 +136,15 @@ export async function POST(request) {
         actorEmail: session.username,
         targetType: "AdminAccount",
         targetId: account.id,
-        requestPath: request.url,
+        requestPath: "/api/admin/2fa",
+        transaction: tx,
+        required: true,
       });
 
-      return NextResponse.json({ enabled: true, enabledAt });
+      });
+      const response = NextResponse.json({ enabled: true, enabledAt, requiresLogin: true });
+      clearAdminSessionCookie(response);
+      return response;
     }
 
     return NextResponse.json({ message: "不支援的操作" }, { status: 400 });

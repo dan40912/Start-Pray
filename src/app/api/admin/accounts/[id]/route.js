@@ -9,7 +9,7 @@ const ALLOWED_ROLES = new Set(["SUPER", "ADMIN"]);
 const MIN_PASSWORD_LENGTH = 8;
 
 export async function PATCH(request, { params }) {
-  const { error, session } = requireAdmin(request, SUPER_ONLY);
+  const { error, session } = await requireAdmin(request, SUPER_ONLY);
   if (error) return error;
 
   const { id } = params;
@@ -22,14 +22,15 @@ export async function PATCH(request, { params }) {
     const updateData = {};
     const metadata = {};
 
-    const existing = await prisma.adminAccount.findUnique({ where: { id } });
+    const updated = await prisma.$transaction(async (tx) => {
+    const existing = await tx.adminAccount.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ message: "帳號不存在" }, { status: 404 });
     }
 
     if (typeof body.isActive === "boolean") {
       if (!body.isActive && existing.role === "SUPER") {
-        const otherSuper = await prisma.adminAccount.count({
+        const otherSuper = await tx.adminAccount.count({
           where: {
             role: "SUPER",
             isActive: true,
@@ -46,7 +47,7 @@ export async function PATCH(request, { params }) {
 
     if (body.role && ALLOWED_ROLES.has(body.role)) {
       if (existing.role === "SUPER" && body.role !== "SUPER") {
-        const otherSuper = await prisma.adminAccount.count({
+        const otherSuper = await tx.adminAccount.count({
           where: {
             role: "SUPER",
             isActive: true,
@@ -85,7 +86,8 @@ export async function PATCH(request, { params }) {
       return NextResponse.json({ message: "沒有可更新的欄位" }, { status: 400 });
     }
 
-    const updated = await prisma.adminAccount.update({
+    updateData.sessionVersion = { increment: 1 };
+    const updated = await tx.adminAccount.update({
       where: { id },
       data: updateData,
       select: {
@@ -108,11 +110,17 @@ export async function PATCH(request, { params }) {
       targetType: "AdminAccount",
       targetId: updated.id,
       metadata,
-      requestPath: request.url,
+      requestPath: "/api/admin/accounts/[id]",
+      transaction: tx,
+      required: true,
     });
 
+    return updated;
+    }, { isolationLevel: "Serializable" });
+    if (updated instanceof NextResponse) return updated;
     return NextResponse.json(updated);
   } catch (error) {
+    if (error?.code === "P2034") return NextResponse.json({ message: "管理員資料已變更，請重新整理後再試" }, { status: 409 });
     console.error("❌ PATCH /api/admin/accounts/[id] error:", error);
     return NextResponse.json({ message: "更新管理員失敗" }, { status: 500 });
   }

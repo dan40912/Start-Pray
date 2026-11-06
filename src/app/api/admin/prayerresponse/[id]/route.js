@@ -48,7 +48,7 @@ function buildResponseDetail(response) {
 }
 
 export async function GET(request, { params }) {
-  const { error } = requireAdmin(request);
+  const { error, session } = await requireAdmin(request);
   if (error) return error;
 
   const responseId = params?.id;
@@ -83,6 +83,12 @@ export async function GET(request, { params }) {
       return NextResponse.json({ message: "Prayer response not found" }, { status: 404 });
     }
 
+    await logAdminAction({
+      action: "prayerresponse.detail.read", message: "管理員開啟內容詳情",
+      actorId: session.adminId, actorEmail: session.username,
+      targetType: "PrayerResponse", targetId: String(response.id),
+      requestPath: "/api/admin/prayerresponse/[id]", required: true,
+    });
     return NextResponse.json(buildResponseDetail(response));
   } catch (err) {
     await logSystemError({
@@ -97,7 +103,7 @@ export async function GET(request, { params }) {
 }
 
 export async function PATCH(request, { params }) {
-  const { error, session } = requireAdmin(request);
+  const { error, session } = await requireAdmin(request);
   if (error) return error;
 
   const responseId = params?.id;
@@ -146,7 +152,8 @@ export async function PATCH(request, { params }) {
       }
     }
 
-    const updated = await prisma.prayerResponse.update({
+    const updated = await prisma.$transaction(async (tx) => {
+    const updated = await tx.prayerResponse.update({
       where: { id: responseId },
       data: updateData,
       include: {
@@ -180,6 +187,9 @@ export async function PATCH(request, { params }) {
       metadata: {
         changedFields: Object.keys(updateData),
       },
+      transaction: tx, required: true,
+    });
+    return updated;
     });
 
     return NextResponse.json(buildResponseDetail(updated));

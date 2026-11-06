@@ -196,18 +196,11 @@ proxy_set_header X-Real-IP $remote_addr;
 
 否則所有訪客可能被辨識為 `unknown`，共用同一個 rate-limit bucket。
 
-媒體 alias 需維持：
+媒體路徑必須交由 Next.js 媒體路由處理。不要用 Nginx `alias` / `root` 直接提供 `/voices/` 或 `/uploads/`，否則會繞過私密媒體權限檢查。移除既有靜態 location，讓兩種路徑落到站點既有的 Next.js 反向代理 location：
 
 ```nginx
-location /voices/ {
-  alias /home/startpraynow/prayer-coin-data/voices/;
-  try_files $uri =404;
-}
-
-location /uploads/ {
-  alias /home/startpraynow/prayer-coin-data/uploads/;
-  try_files $uri =404;
-}
+# 不要建立 /voices/ 或 /uploads/ 的 alias/root 靜態 location。
+# 兩種路徑都必須 proxy 到 Next.js，執行應用程式媒體授權檢查。
 ```
 
 ### 4.3 權限、容量與程序

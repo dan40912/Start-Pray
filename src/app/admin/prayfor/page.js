@@ -1,6 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import AdminLinkedUserEditor from "@/components/admin/AdminLinkedUserEditor";
 import AdminHintPanel from "@/components/admin/AdminHintPanel";
@@ -50,6 +52,7 @@ function normalizeCategoryList(payload) {
 // five cards from five separate guests. Cards created before that migration have
 // neither, and「舊資料」says so rather than implying a failed lookup.
 function renderAuthor(card, openLinkedUser) {
+  if (card.isPrivate) return <span>私密作者（詳情檢視）</span>;
   if (card.owner?.id) {
     return (
       <button type="button" className="link-button" onClick={() => openLinkedUser(card.owner.id, "作者")}>
@@ -72,8 +75,11 @@ export default function AdminPrayforPage() {
 
   const [cards, setCards] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("all");
+  const [loadError, setLoadError] = useState("");
+  const searchParams = useSearchParams();
+  const requestSequence = useRef(0);
+  const [search, setSearch] = useState(() => searchParams.get("search") || "");
+  const [status, setStatus] = useState(() => searchParams.get("status") || "all");
   const [sort, setSort] = useState("createdAt");
   const [order, setOrder] = useState("desc");
   const [page, setPage] = useState(1);
@@ -86,16 +92,26 @@ export default function AdminPrayforPage() {
   const [editorSaving, setEditorSaving] = useState(false);
   const [editorError, setEditorError] = useState("");
   const [detail, setDetail] = useState(null);
+  const [threadsText, setThreadsText] = useState("");
+  const [threadsActionLoading, setThreadsActionLoading] = useState(false);
   const [form, setForm] = useState(createEmptyForm());
   const [originalForm, setOriginalForm] = useState(createEmptyForm());
   const [categories, setCategories] = useState([]);
   const [linkedUserEditor, setLinkedUserEditor] = useState({ id: null, role: "作者" });
 
+  useEffect(() => {
+    setSearch(searchParams.get("search") || "");
+    setStatus(searchParams.get("status") || "all");
+    setPage(1);
+  }, [searchParams]);
+
   const debouncedSearch = useDebouncedValue(search, 400);
 
   const loadCards = useCallback(async () => {
+    const requestId = ++requestSequence.current;
     try {
       setLoading(true);
+      setLoadError("");
       const query = new URLSearchParams({
         search: debouncedSearch,
         status,
@@ -113,12 +129,15 @@ export default function AdminPrayforPage() {
         throw new Error(data.message || "無法取得禱告事項列表");
       }
       const result = await res.json();
+      if (requestId !== requestSequence.current) return;
       setCards(result.data ?? []);
       setPagination(result.pagination ?? { total: 0, totalPages: 1 });
     } catch (err) {
+      if (requestId !== requestSequence.current) return;
+      setLoadError(err.message || "無法取得禱告事項列表");
       notifyError(err.message || "無法取得禱告事項列表");
     } finally {
-      setLoading(false);
+      if (requestId === requestSequence.current) setLoading(false);
     }
   }, [debouncedSearch, notifyError, order, page, sort, status]);
 
@@ -141,6 +160,7 @@ export default function AdminPrayforPage() {
     setEditorSaving(false);
     setEditorError("");
     setDetail(null);
+    setThreadsText("");
     setForm(createEmptyForm());
     setOriginalForm(createEmptyForm());
   }, []);
@@ -187,6 +207,7 @@ export default function AdminPrayforPage() {
         const nextForm = mapDetailToForm(nextDetail);
 
         setDetail(nextDetail);
+        setThreadsText(nextDetail?.threadsShare?.postText || nextDetail?.threadsShare?.suggestedPostText || "");
         setForm(nextForm);
         setOriginalForm(nextForm);
 
@@ -295,6 +316,62 @@ export default function AdminPrayforPage() {
     },
     [confirmAction, detail?.id, notifyError, notifySuccess],
   );
+
+  const handleThreadsAction = useCallback(async (action) => {
+    if (!detail?.id || threadsActionLoading) return;
+    const isPublish = action === "publish";
+    const shouldContinue = await confirmAction({
+      title: isPublish
+        ? "發布到 Start Pray 官方 Threads"
+        : action === "recover"
+          ? "檢查卡住的 Threads 發布"
+          : "略過 Threads 發布",
+      message: isPublish
+        ? "請確認下方預覽已移除可識別個人或敏感資訊。發布後會公開在 Start Pray 官方 Threads。"
+        : action === "recover"
+          ? "請先到官方 Threads 確認是否已經出現這篇貼文。解除卡住狀態後，管理員才能手動重試。"
+          : "這則代禱不會發布到 Threads，但會保留原有代禱內容。",
+      confirmText: isPublish ? "確認發布" : action === "recover" ? "確認檢查" : "略過發布",
+      tone: isPublish ? "warning" : "neutral",
+    });
+    if (!shouldContinue) return;
+
+    try {
+      setThreadsActionLoading(true);
+      const response = await fetch(`/api/admin/prayfor/${detail.id}/threads`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, text: threadsText }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.message || "Threads 操作失敗");
+
+      setDetail((prev) => ({
+        ...prev,
+        threadsShare: {
+          ...prev.threadsShare,
+          status: result.status,
+          postText: isPublish ? threadsText.trim() : prev.threadsShare?.postText,
+          permalink: result.permalink || prev.threadsShare?.permalink,
+          threadsPostId: result.postId || prev.threadsShare?.threadsPostId,
+          lastError: result.lastError || null,
+        },
+      }));
+      notifySuccess(
+        isPublish
+          ? "已發布到 Threads"
+          : action === "recover"
+            ? "已解除逾時狀態，確認 Threads 貼文後可手動重試"
+            : "已略過 Threads 發布"
+      );
+      loadCards();
+    } catch (err) {
+      notifyError(err.message || "Threads 操作失敗");
+      await openEditor(detail.id);
+    } finally {
+      setThreadsActionLoading(false);
+    }
+  }, [confirmAction, detail?.id, loadCards, notifyError, notifySuccess, openEditor, threadsActionLoading, threadsText]);
 
   const handleEditField = useCallback((key, value) => {
     setForm((prev) => ({
@@ -417,6 +494,7 @@ export default function AdminPrayforPage() {
             <option value="blocked">封鎖中</option>
             <option value="review">待審</option>
             <option value="private">私密</option>
+            <option value="threads">待 Threads 審閱</option>
           </select>
           <select value={sort} onChange={(e) => setSort(e.target.value)}>
             <option value="createdAt">建立時間</option>
@@ -441,7 +519,7 @@ export default function AdminPrayforPage() {
 
       {loading ? (
         <p>載入中...</p>
-      ) : (
+      ) : loadError ? <div role="alert"><p>{loadError}</p><button type="button" onClick={loadCards}>重新載入</button></div> : (
         <>
           <div className="admin-table-wrap">
             <table className="admin-table">
@@ -480,6 +558,11 @@ export default function AdminPrayforPage() {
                         )}
                         {card.needsReview ? <span className="status-badge">待審</span> : null}
                         {card.isPrivate ? <span className="status-badge">私密</span> : null}
+                        {card.threadsShare ? (
+                          <span className="status-badge">
+                            Threads：{{ PENDING: "待審閱", PUBLISHING: "發布中", PUBLISHED: "已發布", FAILED: "發布失敗", SKIPPED: "已略過" }[card.threadsShare.status] || "待處理"}
+                          </span>
+                        ) : null}
                       </td>
                       <td>
                         {card.responseCount > 0 ? (
@@ -582,6 +665,73 @@ export default function AdminPrayforPage() {
                     ) : null}
                   </div>
                 </section>
+
+                {detail?.threadsShare ? (
+                  <section className="admin-editor__form" aria-labelledby="threads-share-title">
+                    <h4 id="threads-share-title">Threads 分享審閱</h4>
+                    <p>
+                      使用者已於 {new Date(detail.threadsShare.consentedAt).toLocaleString()} 同意提交審閱。
+                      預覽會帶入代禱標題與公開連結，不會自動帶入內文。請先確認標題沒有可識別或敏感資訊。
+                    </p>
+                    <label className="admin-editor__field admin-editor__field--full">
+                      <span>Threads 貼文預覽（最多 500 字）</span>
+                      <textarea
+                        rows={5}
+                        maxLength={500}
+                        value={threadsText}
+                        onChange={(event) => setThreadsText(event.target.value)}
+                        disabled={!['PENDING', 'FAILED'].includes(detail.threadsShare.status) || threadsActionLoading}
+                      />
+                    </label>
+                    <p role="status">
+                      狀態：{{ PENDING: "待管理員審閱", PUBLISHING: "發布中", PUBLISHED: "已發布", FAILED: "發布失敗，可重試", SKIPPED: "已略過" }[detail.threadsShare.status] || detail.threadsShare.status}
+                      {detail.threadsShare.attempts ? ` · 嘗試 ${detail.threadsShare.attempts} 次` : ""}
+                    </p>
+                    {detail.threadsShare.lastError ? <p role="alert">上次錯誤：{detail.threadsShare.lastError}</p> : null}
+                    {detail.threadsShare.permalink ? (
+                      <p><a href={detail.threadsShare.permalink} target="_blank" rel="noreferrer">查看 Threads 貼文</a></p>
+                    ) : null}
+                    {detail.threadsShare.status === "PUBLISHED" ? null : detail.threadsShare.status === "SKIPPED" ? null : detail.threadsShare.status === "PUBLISHING" ? (
+                      <div className="admin-editor__actions">
+                        <button
+                          type="button"
+                          className="button button--ghost"
+                          onClick={() => handleThreadsAction("recover")}
+                          disabled={threadsActionLoading}
+                        >
+                          {threadsActionLoading ? "檢查中..." : "檢查逾時發布"}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="admin-editor__actions">
+                        <button
+                          type="button"
+                          className="button button--ghost"
+                          onClick={() => handleThreadsAction("skip")}
+                          disabled={threadsActionLoading}
+                        >
+                          略過發布
+                        </button>
+                        <button
+                          type="button"
+                          className="button button--primary"
+                          onClick={() => handleThreadsAction("publish")}
+                          disabled={
+                            threadsActionLoading ||
+                            !threadsText.trim() ||
+                            detail.isPrivate ||
+                            detail.isBlocked ||
+                            detail.needsReview
+                          }
+                        >
+                          {threadsActionLoading ? "處理中..." : detail.threadsShare.status === "FAILED" ? "重試發布" : "發布到 Threads"}
+                        </button>
+                      </div>
+                    )}
+                    {detail.needsReview ? <p>請先完成這張代禱卡的內容審核，才能發布到 Threads。</p> : null}
+                    {detail.isPrivate || detail.isBlocked ? <p>私密或已封鎖的代禱不能發布到 Threads。</p> : null}
+                  </section>
+                ) : null}
 
                 <section className="admin-editor__form">
                   <div className="admin-editor__grid">

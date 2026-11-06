@@ -1,5 +1,10 @@
 ﻿import prisma from "@/lib/prisma";
 
+function safeRequestPath(value) {
+  if (!value) return null;
+  try { return new URL(value, "http://localhost").pathname; } catch { return null; }
+}
+
 function serializeMetadata(input) {
   if (input === null || input === undefined) {
     return undefined;
@@ -38,6 +43,8 @@ export async function logAdminAction({
   requestPath = null,
   metadata,
   level = "INFO",
+  transaction = null,
+  required = false,
 } = {}) {
   if (!message && !action) {
     return;
@@ -52,7 +59,7 @@ export async function logAdminAction({
     actorEmail,
     targetType,
     targetId,
-    requestPath,
+    requestPath: safeRequestPath(requestPath),
   };
 
   const metaValue = serializeMetadata(metadata);
@@ -60,7 +67,11 @@ export async function logAdminAction({
     payload.metadata = metaValue;
   }
 
-  await writeLog(payload);
+  if (required) {
+    await (transaction || prisma).adminLog.create({ data: payload });
+  } else {
+    await writeLog(payload);
+  }
 }
 
 export async function logSystemError({
@@ -103,7 +114,7 @@ export async function logSystemError({
     category: "SYSTEM",
     level,
     message: finalMessage,
-    requestPath,
+    requestPath: safeRequestPath(requestPath),
   };
 
   if (combinedMetadata) {

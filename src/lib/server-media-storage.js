@@ -1,5 +1,5 @@
 import path from "node:path";
-import { mkdir } from "node:fs/promises";
+import { mkdir, stat } from "node:fs/promises";
 
 const MEDIA_CONFIG = {
   voices: {
@@ -13,6 +13,10 @@ const MEDIA_CONFIG = {
     legacySegments: ["public", "uploads"],
   },
 };
+
+// Grandfather only files that were already on disk before media ownership
+// tracking was introduced. Operators can set the actual rollout time.
+const DEFAULT_LEGACY_MEDIA_CUTOFF = "2026-11-06T00:00:00.000Z";
 
 // User-uploaded media is served from this origin, so stop the browser from
 // sniffing it into HTML and, if a file is ever opened directly (e.g. an SVG),
@@ -69,6 +73,26 @@ export function getMediaReadRoots(kind) {
   const configuredRoot = getConfiguredMediaRoot(kind);
   const legacyRoot = getLegacyMediaRoot(kind);
   return [...new Set([configuredRoot, legacyRoot].filter(Boolean))];
+}
+
+export async function isLegacyUnreferencedMedia(kind, segments = []) {
+  const cutoffValue = process.env.MEDIA_LEGACY_CUTOFF_AT?.trim() || DEFAULT_LEGACY_MEDIA_CUTOFF;
+  const cutoff = Date.parse(cutoffValue);
+  if (!Number.isFinite(cutoff)) return false;
+
+  for (const root of getMediaReadRoots(kind)) {
+    const filePath = resolveMediaPathFromRoot(root, segments);
+    if (!filePath) continue;
+
+    try {
+      const fileStat = await stat(filePath);
+      if (fileStat.isFile() && fileStat.mtimeMs < cutoff) return true;
+    } catch (error) {
+      if (error?.code !== "ENOENT" && error?.code !== "ENOTDIR") throw error;
+    }
+  }
+
+  return false;
 }
 
 export function getMediaWriteRoot(kind) {

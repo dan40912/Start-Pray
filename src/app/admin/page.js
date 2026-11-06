@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { normalizeAdminOtpCode } from "@/lib/admin-otp-input";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -113,10 +114,11 @@ export default function AdminLoginPage() {
               id="twoFactor"
               type="text"
               inputMode="numeric"
-              maxLength={6}
+              autoComplete="one-time-code"
+              pattern="[0-9]{6}"
               placeholder="6 碼 OTP"
               value={twoFactor}
-              onChange={(event) => setTwoFactor(event.target.value)}
+              onChange={(event) => setTwoFactor(normalizeAdminOtpCode(event.target.value))}
               disabled={submitting}
               required
             />

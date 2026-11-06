@@ -23,6 +23,12 @@ export default function SettingsPage() {
   const [settingsLoading, setSettingsLoading] = useState(true);
   const [settingsError, setSettingsError] = useState("");
   const [settingsSubmitting, setSettingsSubmitting] = useState(false);
+  const [threadsSettings, setThreadsSettings] = useState(null);
+  const [threadsSettingsLoading, setThreadsSettingsLoading] = useState(true);
+  const [threadsSettingsSaving, setThreadsSettingsSaving] = useState(false);
+  const [threadsSettingsError, setThreadsSettingsError] = useState("");
+  const [threadsTokenDraft, setThreadsTokenDraft] = useState("");
+  const [threadsClearToken, setThreadsClearToken] = useState(false);
   const [totpStatus, setTotpStatus] = useState(null);
   const [totpSetup, setTotpSetup] = useState(null);
   const [totpForm, setTotpForm] = useState({ code: "", password: "" });
@@ -95,6 +101,27 @@ export default function SettingsPage() {
     }
   }, [sessionRole]);
 
+  const loadThreadsSettings = useCallback(async () => {
+    if (sessionRole !== "SUPER" && sessionRole !== "ADMIN") {
+      setThreadsSettingsLoading(false);
+      if (sessionRole !== null) setThreadsSettingsError("僅限管理員存取 Threads 設定");
+      return;
+    }
+    try {
+      setThreadsSettingsLoading(true);
+      setThreadsSettingsError("");
+      const response = await fetch("/api/admin/threads-settings", { cache: "no-store" });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || "無法載入 Threads 設定");
+      setThreadsSettings(data);
+    } catch (loadError) {
+      setThreadsSettingsError(loadError.message || "無法載入 Threads 設定");
+      setThreadsSettings(null);
+    } finally {
+      setThreadsSettingsLoading(false);
+    }
+  }, [sessionRole]);
+
   const loadAccounts = useCallback(async () => {
     if (sessionRole !== "SUPER") {
       setLoading(false);
@@ -131,8 +158,9 @@ export default function SettingsPage() {
   useEffect(() => {
     if (!sessionChecked) return;
     loadSiteSettings();
+    loadThreadsSettings();
     loadAccounts();
-  }, [sessionChecked, loadSiteSettings, loadAccounts]);
+  }, [sessionChecked, loadSiteSettings, loadThreadsSettings, loadAccounts]);
 
   const handleToggleMaintenance = async () => {
     if (!siteSettings || settingsSubmitting) {
@@ -176,6 +204,36 @@ export default function SettingsPage() {
 
   const handleFormChange = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleSaveThreadsSettings = async (event) => {
+    event.preventDefault();
+    if (!threadsSettings || threadsSettingsSaving) return;
+    try {
+      setThreadsSettingsSaving(true);
+      setThreadsSettingsError("");
+      const response = await fetch("/api/admin/threads-settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          enabled: Boolean(threadsSettings.enabled),
+          userId: threadsSettings.userId || "",
+          graphApiVersion: threadsSettings.graphApiVersion || "v1.0",
+          accessToken: threadsTokenDraft,
+          clearAccessToken: threadsClearToken,
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || "儲存 Threads 設定失敗");
+      setThreadsSettings(data);
+      setThreadsTokenDraft("");
+      setThreadsClearToken(false);
+      notifySuccess(data.enabled ? "Threads 發布功能已啟用" : "Threads 設定已儲存，發布功能目前關閉");
+    } catch (saveError) {
+      setThreadsSettingsError(saveError.message || "儲存 Threads 設定失敗");
+    } finally {
+      setThreadsSettingsSaving(false);
+    }
   };
 
   const handleCreateAccount = async (event) => {
@@ -353,6 +411,7 @@ export default function SettingsPage() {
       setTotpSetup(null);
       setTotpForm({ code: "", password: "" });
       setTotpStatus(data);
+      if (data.requiresLogin) { window.location.assign("/admin"); return; }
       if (sessionRole === "SUPER") {
         await loadAccounts();
       }
@@ -410,18 +469,21 @@ export default function SettingsPage() {
     <div className="admin-section">
       <header className="admin-section__header">
         <div>
-          <p className="admin-section__eyebrow">權限與後台帳號</p>
-          <h1>權限管理</h1>
-          <p>管理可以登入系統後台的管理員帳號與權限角色。</p>
+          <p className="admin-section__eyebrow">系統設定</p>
+          <h1>設定</h1>
+          <p>管理 Threads 發布與管理員帳號安全設定。</p>
         </div>
       </header>
-      <AdminHintPanel
-        title="權限安全提示"
-        tone="warning"
-        description="停用管理員、調整角色與維護模式都屬於高風險設定。"
-        items={["變更角色前，先確認至少保留一位可用 SUPER。", "建議在低峰時段切換維護模式。"]}
-      />
+      {sessionRole === "SUPER" ? (
+        <AdminHintPanel
+          title="權限安全提示"
+          tone="warning"
+          description="停用管理員、調整角色與維護模式都屬於高風險設定。"
+          items={["變更角色前，先確認至少保留一位可用 SUPER。", "建議在低峰時段切換維護模式。"]}
+        />
+      ) : null}
 
+      {sessionRole === "SUPER" ? (
       <section className="admin-section__card">
         <header className="admin-section__card-header">
           <div>
@@ -464,6 +526,120 @@ export default function SettingsPage() {
           </div>
         ) : (
           <p className="error">Unable to load settings.</p>
+        )}
+      </section>
+      ) : null}
+
+      <section className="admin-section__card">
+        <header className="admin-section__card-header">
+          <div>
+            <h2>Threads 發布設定</h2>
+            <p>使用者送出代禱不會等待 Threads；管理員審閱後，才由這裡的設定發文。</p>
+          </div>
+        </header>
+
+        {threadsSettingsLoading ? (
+          <p>載入 Threads 設定中…</p>
+        ) : threadsSettings ? (
+          <form className="admin-form" onSubmit={handleSaveThreadsSettings}>
+            <div className="admin-form__field">
+              <span>Threads 發布開關</span>
+              <label className="admin-threads-settings__toggle">
+                <input
+                  type="checkbox"
+                  checked={Boolean(threadsSettings.enabled)}
+                  onChange={(event) =>
+                    setThreadsSettings((prev) => ({ ...prev, enabled: event.target.checked }))
+                  }
+                  disabled={threadsSettingsSaving}
+                />
+                <span>{threadsSettings.enabled ? "已開啟（管理員可發布）" : "關閉中"}</span>
+              </label>
+            </div>
+
+            <div className="admin-form__row admin-form__row--equal">
+              <label className="admin-form__field">
+                <span>Threads User ID</span>
+                <input
+                  type="text"
+                  value={threadsSettings.userId}
+                  onChange={(event) =>
+                    setThreadsSettings((prev) => ({ ...prev, userId: event.target.value }))
+                  }
+                  maxLength={191}
+                  autoComplete="off"
+                  disabled={threadsSettingsSaving}
+                  required={threadsSettings.enabled}
+                />
+              </label>
+              <label className="admin-form__field">
+                <span>Graph API 版本</span>
+                <input
+                  type="text"
+                  value={threadsSettings.graphApiVersion}
+                  onChange={(event) =>
+                    setThreadsSettings((prev) => ({ ...prev, graphApiVersion: event.target.value }))
+                  }
+                  placeholder="v1.0"
+                  maxLength={32}
+                  disabled={threadsSettingsSaving}
+                  required
+                />
+              </label>
+            </div>
+
+            <label className="admin-form__field">
+              <span>Threads Access Token</span>
+              <input
+                type="password"
+                value={threadsTokenDraft}
+                onChange={(event) => {
+                  setThreadsTokenDraft(event.target.value);
+                  if (event.target.value) setThreadsClearToken(false);
+                }}
+                placeholder={threadsSettings.accessTokenConfigured ? "已設定；留白會保留目前 Token" : "貼上 Threads User Access Token"}
+                maxLength={8192}
+                autoComplete="new-password"
+                disabled={threadsSettingsSaving || threadsClearToken}
+                required={threadsSettings.enabled && !threadsSettings.accessTokenConfigured}
+              />
+              <small>
+                {threadsSettings.accessTokenConfigured
+                  ? "Token 已加密儲存，頁面不會讀回原文。輸入新 Token 可取代目前設定。"
+                  : "儲存時會以 AES-256-GCM 加密；不會回傳到瀏覽器或寫入操作紀錄。"}
+              </small>
+            </label>
+
+            {threadsSettings.accessTokenConfigured ? (
+              <div className="admin-form__field">
+                <label className="admin-threads-settings__toggle">
+                  <input
+                    type="checkbox"
+                    checked={threadsClearToken}
+                    onChange={(event) => setThreadsClearToken(event.target.checked)}
+                    disabled={threadsSettingsSaving}
+                  />
+                  <span>清除已儲存的 Token</span>
+                </label>
+              </div>
+            ) : null}
+
+            <p className="admin-form__status">
+              需要 Threads API 的 threads_basic 與 threads_content_publish 權限。關閉開關不會影響使用者送出代禱；管理員發布時才會呼叫 Threads。
+              {threadsSettings.updatedAt ? ` 最近更新：${new Date(threadsSettings.updatedAt).toLocaleString()}` : ""}
+            </p>
+            {threadsSettingsError ? <p className="error" role="alert">{threadsSettingsError}</p> : null}
+            <div className="admin-form__actions">
+              <button type="submit" className="button button--primary" disabled={threadsSettingsSaving}>
+                {threadsSettingsSaving ? "儲存中…" : "儲存 Threads 設定"}
+              </button>
+            </div>
+          </form>
+        ) : (
+          <div>
+            {threadsSettingsError ? <p className="error" role="alert">{threadsSettingsError}</p> : <p className="error">無法載入 Threads 設定。</p>}
+            <button type="button" className="button button--ghost" onClick={loadThreadsSettings}>重新載入</button>
+          </div>
         )}
       </section>
 
@@ -560,6 +736,8 @@ export default function SettingsPage() {
         )}
       </section>
 
+      {sessionRole === "SUPER" ? (
+      <>
       <section className="admin-section__card">
         <header className="admin-section__card-header">
           <div>
@@ -703,6 +881,8 @@ export default function SettingsPage() {
           </div>
         </form>
       </section>
+      </>
+      ) : null}
       {feedbackNode}
     </div>
   );

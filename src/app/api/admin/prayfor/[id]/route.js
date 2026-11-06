@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { requireAdmin } from "@/lib/admin-route-auth";
 import { logAdminAction, logSystemError } from "@/lib/logger";
+import { buildThreadsPostText } from "@/lib/threads-publishing";
 import prisma from "@/lib/prisma";
 
 function parseId(value) {
@@ -54,6 +55,14 @@ function buildPrayforDetail(card) {
     category: card.category,
     owner: card.owner,
     isBlocked: card.isBlocked,
+    isPrivate: card.isPrivate,
+    needsReview: card.needsReview,
+    threadsShare: card.threadsShare
+      ? {
+          ...card.threadsShare,
+          suggestedPostText: card.threadsShare.postText || buildThreadsPostText(card.id, card.title),
+        }
+      : null,
     reportCount: card.reportCount,
     createdAt: card.createdAt,
     updatedAt: card.updatedAt,
@@ -64,7 +73,7 @@ function buildPrayforDetail(card) {
 }
 
 export async function GET(request, { params }) {
-  const { error } = requireAdmin(request);
+  const { error, session } = await requireAdmin(request);
   if (error) return error;
 
   const cardId = parseId(params?.id);
@@ -76,6 +85,7 @@ export async function GET(request, { params }) {
     const card = await prisma.homePrayerCard.findUnique({
       where: { id: cardId },
       include: {
+        threadsShare: true,
         category: {
           select: {
             id: true,
@@ -104,6 +114,12 @@ export async function GET(request, { params }) {
       return NextResponse.json({ message: "Prayer item not found" }, { status: 404 });
     }
 
+    await logAdminAction({
+      action: "prayfor.detail.read", message: "管理員開啟內容詳情",
+      actorId: session.adminId, actorEmail: session.username,
+      targetType: "HomePrayerCard", targetId: String(card.id),
+      requestPath: "/api/admin/prayfor/[id]", required: true,
+    });
     return NextResponse.json(buildPrayforDetail(card));
   } catch (err) {
     await logSystemError({
@@ -118,7 +134,7 @@ export async function GET(request, { params }) {
 }
 
 export async function PATCH(request, { params }) {
-  const { error, session } = requireAdmin(request);
+  const { error, session } = await requireAdmin(request);
   if (error) return error;
 
   const cardId = parseId(params?.id);
@@ -182,7 +198,8 @@ export async function PATCH(request, { params }) {
       updateData.isBlocked = body.isBlocked;
     }
 
-    const updated = await prisma.homePrayerCard.update({
+    const updated = await prisma.$transaction(async (tx) => {
+    const updated = await tx.homePrayerCard.update({
       where: { id: cardId },
       data: updateData,
       include: {
@@ -221,6 +238,9 @@ export async function PATCH(request, { params }) {
       metadata: {
         changedFields: Object.keys(updateData),
       },
+      transaction: tx, required: true,
+    });
+    return updated;
     });
 
     return NextResponse.json(buildPrayforDetail(updated));

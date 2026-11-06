@@ -1,3 +1,4 @@
+import { isSameOriginAdminMutation } from "@/lib/admin-origin";
 import { NextResponse } from "next/server";
 import { getAdminSessionSecret } from "@/lib/session-secrets";
 
@@ -7,7 +8,6 @@ const ADMIN_ALLOWED_API_PATHS = new Set([
   "/api/admin/auth/login",
   "/api/admin/session",
 ]);
-const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 function requestHeadersWithPath(request) {
   const headers = new Headers(request.headers);
@@ -85,40 +85,14 @@ async function verifyAdminSessionToken(token) {
   return payload;
 }
 
-function isSameOriginAdminMutation(request) {
-  if (!UNSAFE_METHODS.has(request.method)) {
-    return true;
-  }
-
-  const expectedOrigin = request.nextUrl.origin;
-  const origin = request.headers.get("origin");
-  if (origin) {
-    return origin === expectedOrigin;
-  }
-
-  const referer = request.headers.get("referer");
-  if (!referer) {
-    return false;
-  }
-
-  try {
-    return new URL(referer).origin === expectedOrigin;
-  } catch (error) {
-    return false;
-  }
-}
-
 async function guardAdminRequest(request) {
   const { pathname } = request.nextUrl;
   const sessionToken = request.cookies.get(ADMIN_SESSION_COOKIE)?.value;
   const session = await verifyAdminSessionToken(sessionToken);
 
-  if (pathname === "/admin") {
-    if (!session) return null;
-    const url = request.nextUrl.clone();
-    url.pathname = "/admin/dashboard";
-    return NextResponse.redirect(url);
-  }
+  // The login page validates current database access itself. Redirecting on
+  // an unrevoked signature alone traps revoked sessions in a redirect loop.
+  if (pathname === "/admin") return null;
 
   if (pathname.startsWith("/admin/")) {
     if (session) return null;
@@ -191,8 +165,28 @@ function rewriteLegacyRequest(request) {
 }
 
 export async function middleware(request) {
+  // Rewrite before Next's public-file lookup, including legacy public uploads.
+  if (/^\/(uploads|voices)\//.test(request.nextUrl.pathname)) {
+    const url = request.nextUrl.clone();
+    url.pathname = `/api/media${url.pathname}`;
+    const response = NextResponse.rewrite(url);
+    response.headers.set("Cache-Control", "private, no-store");
+    return response;
+  }
+  // Never let the image optimizer publish a cached copy of protected uploads.
+  if (request.nextUrl.pathname === "/_next/image") {
+    const source = request.nextUrl.searchParams.get("url") || "";
+    try {
+      const imageUrl = new URL(source, request.nextUrl.origin);
+      if (/^\/(uploads|voices|api\/media)\//.test(imageUrl.pathname)) {
+        return new NextResponse("Use the original media URL", { status: 400, headers: { "Cache-Control": "no-store" } });
+      }
+    } catch { /* The optimizer handles malformed source URLs. */ }
+  }
+
   const adminResponse = await guardAdminRequest(request);
   if (adminResponse) {
+    adminResponse.headers.set("Cache-Control", "private, no-store");
     return adminResponse;
   }
 
@@ -215,7 +209,7 @@ export async function middleware(request) {
 }
 
 export const config = {
-  matcher: [
+  matcher: ["/_next/image",
     "/((?!_next/static|_next/image|favicon.ico|favicon-16x16.png|favicon-32x32.png|favicon-48x48.png|icon-192.png|icon-512.png|apple-touch-icon.png|robots.txt|sitemap.xml).*)",
   ],
 };

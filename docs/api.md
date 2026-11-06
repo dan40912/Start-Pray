@@ -42,7 +42,10 @@ locationCountry
 locationLat
 locationLng
 isPrivate
+shareToThreads
 ```
+
+`shareToThreads` is an explicit opt-in. It is rejected for private cards. If selected, an admin-only review record is created; the card itself is still created when Threads sharing is not selected.
 
 If no image is provided by the create page, the app can use the default generated thumbnail route.
 
@@ -153,3 +156,11 @@ They cover:
 - operation logs
 
 See [Admin and Moderation](admin.md) for the operational overview.
+
+### `POST /api/admin/prayfor/[id]/threads`
+
+Admin-only. Publishes a reviewed, consented public prayer card to the configured Start Pray Threads account. The request body is `{ "action": "publish", "text": "..." }`; `text` is the reviewed post preview (up to 500 characters). Use `{ "action": "skip" }` to record that the card will not be shared. Published status and the returned Threads post ID/permalink are stored with the share record. Failed posts can be retried from the admin UI.
+
+### `/api/admin/threads-settings`
+
+Admin-only `GET` returns whether Threads is enabled, the configured account ID and API version, and whether a token is stored. It never returns the token. `PATCH` saves the toggle and credentials; a blank token preserves the stored token unless `clearAccessToken: true` is sent.

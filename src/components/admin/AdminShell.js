@@ -8,10 +8,11 @@ import { usePathname, useRouter } from "next/navigation";
 import AdminRouteHints from "@/components/admin/AdminRouteHints";
 import { useAdminControlHints } from "@/components/admin/useAdminControlHints";
 
-const ADMIN_RESTRICTED_PATHS = ["/admin/users", "/admin/log", "/admin/settings"];
+const ADMIN_RESTRICTED_PATHS = ["/admin/users", "/admin/log"];
 
 const NAV_ITEMS = [
   { href: "/admin/dashboard", label: "儀表板", roles: ["SUPER", "ADMIN"] },
+  { href: "/admin/analytics", label: "流量與參與", roles: ["SUPER", "ADMIN"] },
   { href: "/admin/users", label: "使用者", roles: ["SUPER"] },
   { href: "/admin/moderation", label: "審核佇列", roles: ["SUPER", "ADMIN"] },
   { href: "/admin/prayfor", label: "禱告事項", roles: ["SUPER", "ADMIN"] },
@@ -19,12 +20,13 @@ const NAV_ITEMS = [
   { href: "/admin/content", label: "Banner 內容", roles: ["SUPER", "ADMIN"] },
   { href: "/admin/home-categories", label: "首頁分類", roles: ["SUPER", "ADMIN"] },
   { href: "/admin/log", label: "系統紀錄", roles: ["SUPER"] },
-  { href: "/admin/settings", label: "權限設定", roles: ["SUPER"] },
+  { href: "/admin/settings", label: "設定", roles: ["SUPER", "ADMIN"] },
 ];
 
 async function fetchAdminSession() {
   const response = await fetch("/api/admin/session", { cache: "no-store" });
-  if (!response.ok) return null;
+  if (response.status === 401) return null;
+  if (!response.ok) throw new Error("暫時無法確認管理權限，請稍後重試。");
   const data = await response.json();
   return data?.user ?? null;
 }
@@ -37,6 +39,7 @@ export default function AdminShell({ children }) {
   const [isReady, setIsReady] = useState(pathname === "/admin");
   const [session, setSession] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sessionError, setSessionError] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -48,7 +51,10 @@ export default function AdminShell({ children }) {
       }
 
       setIsReady(false);
-      const user = await fetchAdminSession();
+      setSessionError("");
+      let user;
+      try { user = await fetchAdminSession(); }
+      catch (error) { if (active) setSessionError(error.message); return; }
       if (!active) return;
 
       if (!user) {
@@ -93,10 +99,10 @@ export default function AdminShell({ children }) {
 
   const handleSignOut = async () => {
     try {
-      await fetch("/api/admin/session", { method: "DELETE" });
-    } finally {
+      const response = await fetch("/api/admin/session", { method: "DELETE" });
+      if (!response.ok) throw new Error("登出未完成，請重試。");
       router.replace("/admin");
-    }
+    } catch (error) { setSessionError(error.message); }
   };
 
   if (pathname === "/admin") return children;
@@ -104,7 +110,10 @@ export default function AdminShell({ children }) {
   if (!isReady) {
     return (
       <main className="admin-shell admin-shell--loading">
-        <div className="admin-shell__loading">載入管理後台中...</div>
+        <div className="admin-shell__loading" role="status">
+          {sessionError || "載入管理後台中..."}
+          {sessionError ? <button type="button" onClick={() => window.location.reload()}>重新載入</button> : null}
+        </div>
       </main>
     );
   }
@@ -151,6 +160,7 @@ export default function AdminShell({ children }) {
               <span>{profileRoleLabel}</span>
             </div>
           </div>
+          {sessionError ? <p role="alert">{sessionError}</p> : null}
           <button type="button" className="admin-shell__signout" onClick={handleSignOut}>
             登出
           </button>
@@ -182,7 +192,7 @@ export default function AdminShell({ children }) {
         </div>
 
         <div className="admin-shell__scroll">
-          <AdminRouteHints pathname={pathname} />
+          {pathname !== "/admin/dashboard" ? <AdminRouteHints pathname={pathname} /> : null}
           <div className="admin-shell__content">{children}</div>
         </div>
       </div>

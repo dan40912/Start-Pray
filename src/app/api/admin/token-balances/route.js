@@ -18,7 +18,7 @@ function clampLimit(value) {
 }
 
 export async function GET(request) {
-  const { error } = requireAdmin(request);
+  const { error } = await requireAdmin(request);
   if (error) return error;
 
   const url = new URL(request.url);

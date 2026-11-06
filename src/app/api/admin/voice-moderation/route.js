@@ -1,3 +1,4 @@
+import { redactPrivateResponsePreview } from "@/lib/admin-private-preview";
 // PRD-001 — 語音待審佇列 admin API
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
@@ -11,12 +12,12 @@ const VOICE_SELECT = {
   voiceModerationStatus: true,
   voiceAutoFlags: true,
   createdAt: true,
-  responder: { select: { id: true, name: true, email: true, username: true } },
-  homeCard: { select: { id: true, title: true } },
+  responder: { select: { id: true, name: true, username: true } },
+  homeCard: { select: { id: true, title: true, isPrivate: true } },
 };
 
 export async function GET(request) {
-  const { error } = requireAdmin(request);
+  const { error } = await requireAdmin(request);
   if (error) return error;
 
   try {
@@ -39,7 +40,7 @@ export async function GET(request) {
     ]);
 
     return NextResponse.json({
-      data: responses.map((response) => ({
+      data: responses.map((response) => redactPrivateResponsePreview({
         ...response,
         voiceUrl: resolveServerAudioUrl(response.voiceUrl),
         voiceAutoFlags: response.voiceAutoFlags ? JSON.parse(response.voiceAutoFlags) : [],
@@ -53,7 +54,7 @@ export async function GET(request) {
 }
 
 export async function PATCH(request) {
-  const { error, session } = requireAdmin(request);
+  const { error, session } = await requireAdmin(request);
   if (error) return error;
 
   try {
@@ -61,8 +62,9 @@ export async function PATCH(request) {
     const id = String(body?.id || "");
     const action = String(body?.action || "").toUpperCase();
     const remarks = typeof body?.remarks === "string" ? body.remarks.slice(0, 500) : null;
+    const expectedStatus = body?.expectedStatus;
 
-    if (!id || (action !== "APPROVE" && action !== "REJECT")) {
+    if (!id || !["PENDING", "APPROVED", "REJECTED"].includes(expectedStatus) || (action !== "APPROVE" && action !== "REJECT")) {
       return NextResponse.json({ message: "參數錯誤" }, { status: 400 });
     }
 
@@ -75,34 +77,40 @@ export async function PATCH(request) {
     }
 
     const nextStatus = action === "APPROVE" ? "APPROVED" : "REJECTED";
-    const adminId = session?.id ?? session?.sub ?? null;
+    const adminId = session.adminId;
 
-    const updated = await prisma.prayerResponse.update({
-      where: { id },
+    const updated = await prisma.$transaction(async (tx) => {
+    const changed = await tx.prayerResponse.updateMany({
+      where: { id, voiceModerationStatus: expectedStatus },
       data: {
         voiceModerationStatus: nextStatus,
         voiceModeratedAt: new Date(),
         voiceModeratedBy: adminId,
       },
-      select: { id: true, voiceModerationStatus: true },
     });
+    if (changed.count !== 1) { const conflict = new Error("審核狀態已變更，請重新整理"); conflict.status = 409; throw conflict; }
+    const updated = { id, voiceModerationStatus: nextStatus };
 
-    await prisma.adminLog.create({
+    await tx.adminLog.create({
       data: {
         category: "ACTION",
         level: "INFO",
-        message: `語音回應 ${id} 審核為 ${nextStatus}${remarks ? `（${remarks}）` : ""}`,
+        message: `語音回應 ${id} 審核為 ${nextStatus}`,
         action: `voice-moderation:${action.toLowerCase()}`,
         actorId: adminId,
-        actorEmail: session?.email ?? null,
+        actorEmail: session.username,
         targetType: "PrayerResponse",
         targetId: id,
         requestPath: "/api/admin/voice-moderation",
+        metadata: { previousStatus: expectedStatus, nextStatus, remarks },
       },
     });
 
+    return updated;
+    });
     return NextResponse.json({ data: updated });
   } catch (err) {
+    if (err?.status === 409) return NextResponse.json({ message: err.message }, { status: 409 });
     console.error("PATCH /api/admin/voice-moderation error:", err);
     return NextResponse.json({ message: "審核操作失敗" }, { status: 500 });
   }

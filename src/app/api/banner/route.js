@@ -47,7 +47,7 @@ export async function GET() {
 }
 
 export async function PUT(request) {
-  const { error } = requireAdmin(request);
+  const { error } = await requireAdmin(request);
   if (error) return error;
 
   try {

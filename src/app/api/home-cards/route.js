@@ -1,4 +1,5 @@
 ﻿import { NextResponse } from "next/server";
+import { recordAnalyticsAction } from "@/lib/server-analytics";
 
 import fallbackCards from "@/data/homeCards.json";
 import { MAX_CARD_DESCRIPTION_LENGTH, MAX_CARD_TITLE_LENGTH } from "@/lib/card-limits";
@@ -89,6 +90,7 @@ function sanitizeCreatePayload(body) {
     voiceHref: body.voiceHref?.trim(),
     categoryId: Number(body.categoryId),
     isPrivate: Boolean(body.isPrivate),
+    shareToThreads: body.shareToThreads === true,
     ...sanitizePrayerLocationPayload(body),
   };
 }
@@ -302,6 +304,12 @@ export async function POST(request) {
     const user = session?.userId ? await ensureActiveCustomer(session) : null;
     const body = await request.json();
     const payload = sanitizeCreatePayload(body);
+    if (payload.shareToThreads && payload.isPrivate) {
+      return NextResponse.json(
+        { message: "私密代禱不能提交至 Threads 審閱。" },
+        { status: 422 }
+      );
+    }
     const category = await prisma.homePrayerCategory.findFirst({
       where: { id: payload.categoryId, isActive: true },
       select: { id: true },
@@ -348,12 +356,18 @@ export async function POST(request) {
       ipHash = hashDailyIp(request);
     }
 
-    let created = await createHomeCard({
-      ...payload,
-      needsReview,
-      ownerId: user?.id ?? null,
-      guestSessionHash,
-      ipHash,
+    let created = await prisma.$transaction(async (tx) => {
+      const card = await createHomeCard({
+        ...payload,
+        needsReview,
+        ownerId: user?.id ?? null,
+        guestSessionHash,
+        ipHash,
+      }, tx);
+      if (payload.shareToThreads) {
+        await tx.prayerThreadsShare.create({ data: { cardId: card.id } });
+      }
+      return card;
     });
     const expectedDetailsHref = `/prayfor/${created.id}`;
     if (created.detailsHref !== expectedDetailsHref) {
@@ -381,6 +395,7 @@ export async function POST(request) {
         },
       }));
     }
+    if (!payload.isPrivate) await recordAnalyticsAction(request, "create");
     const result = NextResponse.json(created, { status: 201 });
     // Same cookie the response flow uses, so one guest keeps one identity
     // across both actions instead of minting a fresh one per submission.

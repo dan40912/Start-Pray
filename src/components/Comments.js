@@ -253,6 +253,7 @@ export default function Comments({ requestId, responseHeader, locale: localeProp
 
   const [submittingResponse, setSubmittingResponse] = useState(false);
   const [showVoiceOverlay, setShowVoiceOverlay] = useState(false);
+  // 語音是 Start Pray 跟一般留言板最不一樣的地方，所以預設先打開語音。
   const [responseMode, setResponseMode] = useState("text");
   const [showSuccess, setShowSuccess] = useState(false);
   const [successHasVoice, setSuccessHasVoice] = useState(false);

@@ -3,6 +3,7 @@ import { writeFile } from "node:fs/promises";
 
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { recordAnalyticsAction } from "@/lib/server-analytics";
 import { ensureActiveCustomer } from "@/lib/customer-access";
 import {
   buildMediaPublicUrl,
@@ -318,6 +319,7 @@ export async function POST(req) {
       },
     });
 
+    if (!isSelfResponse) await recordAnalyticsAction(req, voiceUrl ? "voice" : "text");
     if (moderationStatus === "APPROVED" && voiceModerationStatus === "APPROVED") {
       // 不等寄信結果，回應本身已經存好；寄信失敗只記錄，不影響送出。
       notifyCardOwnerOfResponse({
@@ -329,7 +331,6 @@ export async function POST(req) {
         console.error("notifyCardOwnerOfResponse failed:", notifyError);
       });
     }
-
     const publicResponse = toPublicPrayerResponse(response);
     const payload = { ...publicResponse, pendingReview: moderationStatus === "PENDING" };
     const result = NextResponse.json(payload, { status: 201 });

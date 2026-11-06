@@ -5,7 +5,7 @@ import { logAdminAction, logSystemError } from "@/lib/logger";
 import { requireAdmin } from "@/lib/admin-route-auth";
 
 export async function PATCH(request, { params }) {
-  const { error, session } = requireAdmin(request);
+  const { error, session } = await requireAdmin(request);
   if (error) return error;
 
   try {
@@ -13,7 +13,9 @@ export async function PATCH(request, { params }) {
     const { block } = await request.json();
 
     const numericId = Number(id);
-    const updated = await prisma.homePrayerCard.update({
+    if (typeof block !== "boolean") return NextResponse.json({ message: "請提供明確的封鎖狀態" }, { status: 400 });
+    const updated = await prisma.$transaction(async (tx) => {
+    const updated = await tx.homePrayerCard.update({
       where: { id: numericId },
       data: { isBlocked: block },
     });
@@ -27,6 +29,9 @@ export async function PATCH(request, { params }) {
       targetId: String(numericId),
       requestPath: request.url,
       metadata: { block },
+      transaction: tx, required: true,
+    });
+    return updated;
     });
 
     return NextResponse.json(updated);

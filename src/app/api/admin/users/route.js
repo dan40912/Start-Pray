@@ -1,7 +1,7 @@
 ﻿import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { logSystemError } from "@/lib/logger";
-import { requireAdmin } from "@/lib/admin-route-auth";
+import { requireAdmin, roleSet } from "@/lib/admin-route-auth";
 
 const ALLOWED_SORT_FIELDS = {
   createdAt: "createdAt",
@@ -28,7 +28,7 @@ function toNumber(value) {
 }
 
 export async function GET(request) {
-  const { error } = requireAdmin(request);
+  const { error } = await requireAdmin(request, roleSet("SUPER"));
   if (error) return error;
 
   try {
@@ -49,6 +49,8 @@ export async function GET(request) {
         search
           ? {
               OR: [
+                { id: search },
+                { username: { contains: search } },
                 { name: { contains: search } },
                 { email: { contains: search } },
               ],

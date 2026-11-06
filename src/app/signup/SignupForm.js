@@ -118,20 +118,6 @@ const COUNTRY_CATALOG = [
   { value: "其他", english: "Other", aliases: ["other"] }
 ];
 
-const POPULAR_COUNTRIES = [
-  "台灣",
-  "香港",
-  "中國",
-  "新加坡",
-  "馬來西亞",
-  "日本",
-  "韓國",
-  "美國",
-  "加拿大",
-  "澳洲",
-  "英國"
-];
-
 const normalizeLookupKey = (value) =>
   String(value ?? "")
     .trim()
@@ -160,8 +146,9 @@ function getSignupFieldErrors(form) {
 
   if (!form.fullName.trim()) errors.fullName = "請填寫顯示名稱。";
 
-  // Username 改為選填；留空時伺服器會自動產生一個。
-  if (form.username.trim() && !/^[a-z0-9_-]{4,}$/i.test(form.username.trim())) {
+  if (!form.username.trim()) {
+    errors.username = "請填寫 Username。";
+  } else if (!/^[a-z0-9_-]{4,}$/i.test(form.username.trim())) {
     errors.username = "Username 至少 4 碼，且只能包含英數、底線與減號。";
   }
 
@@ -177,6 +164,12 @@ function getSignupFieldErrors(form) {
     errors.password = "密碼至少需要 8 碼。";
   }
 
+  if (!form.confirmPassword) {
+    errors.confirmPassword = "請再次輸入密碼。";
+  } else if (form.password !== form.confirmPassword) {
+    errors.confirmPassword = "兩次輸入的密碼不一致。";
+  }
+
   if (!form.acceptedTerms) errors.acceptedTerms = "請先閱讀並同意條款。";
 
   return errors;
@@ -184,9 +177,10 @@ function getSignupFieldErrors(form) {
 
 const SIGNUP_FIELD_ORDER = [
   "fullName",
+  "username",
   "email",
   "password",
-  "username",
+  "confirmPassword",
   "acceptedTerms",
 ];
 
@@ -208,6 +202,7 @@ export default function SignupForm({ locale: localeProp = "zh-TW" }) {
   const [status, setStatus] = useState({ state: "idle", message: "" });
   const [fieldErrors, setFieldErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [capsLockOn, setCapsLockOn] = useState(false);
   const countrySuggestions = useMemo(() => {
     const keyword = normalizeLookupKey(form.country);
@@ -236,10 +231,6 @@ export default function SignupForm({ locale: localeProp = "zh-TW" }) {
     });
   };
 
-  const applyCountry = (value) => {
-    setForm((prev) => ({ ...prev, country: normalizeCountryInput(value) }));
-  };
-
   const handleCountryChange = (event) => {
     setForm((prev) => ({ ...prev, country: event.target.value }));
   };
@@ -265,13 +256,7 @@ export default function SignupForm({ locale: localeProp = "zh-TW" }) {
       .toLowerCase();
 
     const normalizedCountry = normalizeCountryInput(form.country);
-    // 只留一個密碼欄位（旁邊有「顯示密碼」可以檢查），確認密碼直接沿用。
-    const formToSend = {
-      ...form,
-      username: normalizedUsername,
-      country: normalizedCountry,
-      confirmPassword: form.password,
-    };
+    const formToSend = { ...form, username: normalizedUsername, country: normalizedCountry };
     const errors = getSignupFieldErrors(formToSend);
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
@@ -290,9 +275,6 @@ export default function SignupForm({ locale: localeProp = "zh-TW" }) {
       const inputId = firstInvalidField ? SIGNUP_FIELD_INPUT_ID[firstInvalidField] : null;
       if (inputId && typeof document !== "undefined") {
         const target = document.getElementById(inputId);
-        // 選填欄位收在「更多資料」裡，出錯時要先展開才捲得到。
-        const collapsed = target?.closest?.("details");
-        if (collapsed) collapsed.open = true;
         target?.scrollIntoView?.({ behavior: "smooth", block: "center" });
         target?.focus?.();
       }
@@ -333,7 +315,7 @@ export default function SignupForm({ locale: localeProp = "zh-TW" }) {
 
   return (
     <form className="auth-form" onSubmit={handleSubmit} noValidate>
-      <p className="form-privacy-note">{text.notifyBenefit}</p>
+      <span className="form-section-title">{text.basicInfo}</span>
       <div className="form-grid columns-2">
         <div className="form-group">
           <label className="form-label" htmlFor="full-name">
@@ -354,6 +336,76 @@ export default function SignupForm({ locale: localeProp = "zh-TW" }) {
             {fieldErrors.fullName || text.fullNameHelper}
           </span>
         </div>
+        <div className="form-group">
+          <label className="form-label" htmlFor="username">
+            {text.username} <span className="required-badge">{text.required}</span>
+          </label>
+          <input
+            className={`form-control${fieldErrors.username ? " is-invalid" : ""}`}
+            type="text"
+            id="username"
+            placeholder={text.usernamePlaceholder}
+            value={form.username}
+            onChange={updateField("username")}
+            autoComplete="username"
+            aria-invalid={fieldErrors.username ? "true" : "false"}
+            required
+          />
+          <span className={`form-helper${fieldErrors.username ? " form-helper--error" : ""}`}>
+            {fieldErrors.username || text.usernameHelper}
+          </span>
+        </div>
+      </div>
+
+      <details className="signup-optional">
+        <summary>{text.faith} / {text.country}（{text.optional}）</summary>
+        <div className="form-grid columns-2 signup-optional__fields">
+          <div className="form-group">
+            <label className="form-label" htmlFor="faith">
+              {text.faith} <span className="optional-badge">{text.optional}</span>
+            </label>
+            <select
+              className="form-select"
+              id="faith"
+              value={form.faithTradition}
+              onChange={updateField("faithTradition")}
+            >
+              <option value="">{text.faithEmpty}</option>
+              <option value="基督徒">{text.christian}</option>
+              <option value="其他信仰">{text.otherFaith}</option>
+            </select>
+            <span className="form-helper">{text.faithHelper}</span>
+          </div>
+          <div className="form-group">
+            <label className="form-label" htmlFor="country">
+              {text.country} <span className="optional-badge">{text.optional}</span>
+            </label>
+            <input
+              className="form-control"
+              type="text"
+              id="country"
+              list="country-options"
+              value={form.country}
+              onChange={handleCountryChange}
+              onBlur={handleCountryBlur}
+              placeholder={text.countryPlaceholder}
+              autoComplete="country-name"
+            />
+            <datalist id="country-options">
+              {countrySuggestions.map((item) => (
+                <option key={item.value} value={item.value} label={item.english} />
+              ))}
+            </datalist>
+            <span className="form-helper">{text.countryHelper}</span>
+          </div>
+        </div>
+      </details>
+
+      <span className="form-section-title">{text.accountInfo}</span>
+      <p className="form-privacy-note">
+        {text.privacyNote}
+      </p>
+      <div className="form-grid columns-2">
         <div className="form-group">
           <label className="form-label" htmlFor="signup-email">
             {text.email} <span className="required-badge">{text.required}</span>
@@ -403,84 +455,34 @@ export default function SignupForm({ locale: localeProp = "zh-TW" }) {
             <span className="form-helper form-helper--error">{fieldErrors.password}</span>
           ) : null}
         </div>
-      </div>
-
-      <details className="signup-more">
-        <summary>{text.moreInfo}</summary>
-        <p className="form-privacy-note">{text.privacyNote}</p>
-        <div className="form-grid columns-2">
         <div className="form-group">
-          <label className="form-label" htmlFor="username">
-            {text.username} <span className="optional-badge">{text.optional}</span>
+          <label className="form-label" htmlFor="signup-confirm">
+            {text.confirmPassword} <span className="required-badge">{text.required}</span>
           </label>
           <input
-            className={`form-control${fieldErrors.username ? " is-invalid" : ""}`}
-            type="text"
-            id="username"
-            placeholder={text.usernamePlaceholder}
-            value={form.username}
-            onChange={updateField("username")}
-            autoComplete="username"
-            aria-invalid={fieldErrors.username ? "true" : "false"}
+            className={`form-control${fieldErrors.confirmPassword ? " is-invalid" : ""}`}
+            type={showConfirmPassword ? "text" : "password"}
+            id="signup-confirm"
+            placeholder={text.confirmPasswordPlaceholder}
+            value={form.confirmPassword}
+            onChange={updateField("confirmPassword")}
+            autoComplete="new-password"
+            aria-invalid={fieldErrors.confirmPassword ? "true" : "false"}
+            required
           />
-          <span className={`form-helper${fieldErrors.username ? " form-helper--error" : ""}`}>
-            {fieldErrors.username || text.usernameHelper}
-          </span>
-        </div>
-        <div className="form-group">
-          <label className="form-label" htmlFor="faith">
-            {text.faith} <span className="optional-badge">{text.optional}</span>
-          </label>
-          <select
-            className="form-select"
-            id="faith"
-            value={form.faithTradition}
-            onChange={updateField("faithTradition")}
+          <button
+            type="button"
+            className="auth-inline-button"
+            onClick={() => setShowConfirmPassword((prev) => !prev)}
+            aria-pressed={showConfirmPassword}
           >
-            <option value="">
-              {text.faithEmpty}
-            </option>
-            <option value="基督徒">{text.christian}</option>
-            <option value="其他信仰">{text.otherFaith}</option>
-          </select>
-          <span className="form-helper">{text.faithHelper}</span>
+            {showConfirmPassword ? text.hidePassword : text.showPassword}
+          </button>
+          {fieldErrors.confirmPassword ? (
+            <span className="form-helper form-helper--error">{fieldErrors.confirmPassword}</span>
+          ) : null}
         </div>
-        <div className="form-group">
-          <label className="form-label" htmlFor="country">
-            {text.country} <span className="optional-badge">{text.optional}</span>
-          </label>
-          <input
-            className="form-control"
-            type="text"
-            id="country"
-            list="country-options"
-            value={form.country}
-            onChange={handleCountryChange}
-            onBlur={handleCountryBlur}
-            placeholder={text.countryPlaceholder}
-            autoComplete="country-name"
-          />
-          <datalist id="country-options">
-            {countrySuggestions.map((item) => (
-              <option key={item.value} value={item.value} label={item.english} />
-            ))}
-          </datalist>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.45rem", marginTop: "0.55rem" }}>
-            {POPULAR_COUNTRIES.map((country) => (
-              <button
-                key={country}
-                type="button"
-                className="home-explorer__suggestion-tag"
-                onClick={() => applyCountry(country)}
-              >
-                {country}
-              </button>
-            ))}
-          </div>
-          <span className="form-helper">{text.countryHelper}</span>
-        </div>
-        </div>
-      </details>
+      </div>
 
       <div className="form-group" style={{ display: "flex", gap: "0.6rem", alignItems: "flex-start" }}>
         <input

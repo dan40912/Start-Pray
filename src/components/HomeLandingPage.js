@@ -1,4 +1,6 @@
+import Image from "next/image";
 import Link from "next/link";
+import { Suspense } from "react";
 
 import HomeGlobeHero from "@/components/HomeGlobeHero";
 import HomePrayerExplorer from "@/components/HomePrayerExplorer";
@@ -13,6 +15,8 @@ import { getDictionary, localizePath, normalizeLocale } from "@/lib/i18n";
 import { buildPlatformStats, countLocationLights } from "@/lib/platformStats";
 import prisma from "@/lib/prisma";
 import { SITE_URL, absoluteUrl, buildPageMetadata } from "@/lib/seo";
+import styles from "@/styles/home-intro.module.css";
+import "@/styles/home-prayer-hero.css";
 
 export const dynamic = "force-dynamic";
 
@@ -210,7 +214,20 @@ function HomeFinalCta({ text = PAGE_TEXT, locale = "zh-TW" }) {
   );
 }
 
-export default async function HomeLandingPage({ locale: localeProp = "zh-TW" } = {}) {
+export default function HomeLandingPage({ locale = "zh-TW" } = {}) {
+  return (
+    <>
+      <div className={styles.intro} aria-hidden="true">
+        <Image src="/img/logo.png" alt="" width={200} height={200} priority unoptimized />
+      </div>
+      <Suspense fallback={null}>
+        <HomeLandingContent locale={locale} />
+      </Suspense>
+    </>
+  );
+}
+
+async function HomeLandingContent({ locale: localeProp }) {
   const locale = normalizeLocale(localeProp);
   const text = getDictionary(locale).home;
   const [categories, topCards, stats, globalPrayerCards, featuredPrayerCards] = await Promise.all([

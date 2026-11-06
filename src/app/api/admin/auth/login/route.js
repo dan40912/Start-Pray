@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
+import { normalizeAdminOtpCode } from "@/lib/admin-otp-input";
 
 import { createAdminSessionToken, setAdminSessionCookie } from "@/lib/admin-session";
 import { resolveAdminOtpMethod, verifyAdminOtp } from "@/lib/admin-totp";
@@ -34,7 +35,7 @@ export async function POST(request) {
     const body = await request.json();
     const username = sanitizeUsername(body.username);
     const password = typeof body.password === "string" ? body.password : "";
-    const otp = typeof body.otp === "string" ? body.otp : "";
+    const otp = normalizeAdminOtpCode(body.otp);
 
     if (!username || !password || !otp) {
       return NextResponse.json({ message: "請輸入帳號、密碼與 2FA 驗證碼" }, { status: 400 });

@@ -1,3 +1,4 @@
+import { redactPrivateResponsePreview } from "@/lib/admin-private-preview";
 ﻿// ./src/app/api/admin/prayerresponse/route.js
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
@@ -6,7 +7,7 @@ import { resolveServerAudioUrl } from "@/lib/server-audio";
 import { toAdminPrayerResponse } from "@/lib/admin-visibility";
 
 export async function GET(request) {
-  const { error } = requireAdmin(request);
+  const { error } = await requireAdmin(request);
   if (error) return error;
 
   try {
@@ -24,6 +25,7 @@ export async function GET(request) {
         search
           ? {
               OR: [
+                { id: search },
                 { message: { contains: search } },
                 { responder: { name: { contains: search } } },
                 { responder: { email: { contains: search } } },
@@ -35,7 +37,9 @@ export async function GET(request) {
           : status === "active"
           ? { isBlocked: false }
           : status === "pending"
-          ? { moderationStatus: "PENDING" }
+          ? { moderationStatus: "PENDING", isBlocked: false }
+          : status === "voice-pending"
+          ? { voiceModerationStatus: "PENDING", isBlocked: false }
           : {},
       ],
     };
@@ -45,7 +49,7 @@ export async function GET(request) {
         where,
         include: {
           responder: { select: { id: true, name: true, email: true } },
-          homeCard: { select: { id: true, title: true } },
+          homeCard: { select: { id: true, title: true, isPrivate: true } },
         },
         orderBy: { [sort]: order },
         skip,
@@ -55,7 +59,7 @@ export async function GET(request) {
     ]);
 
     return NextResponse.json({
-      data: responses.map((response) => ({
+      data: responses.map((response) => redactPrivateResponsePreview({
         ...toAdminPrayerResponse(response),
         voiceUrl: resolveServerAudioUrl(response.voiceUrl),
       })),
