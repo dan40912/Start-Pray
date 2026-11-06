@@ -1,0 +1,88 @@
+.page {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .75rem 2rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.header h1,
+.panel h2 {
+  margin: 0 0 .5rem;
+}
+
+.header p,
+.panel p,
+.note {
+  margin: 0;
+  font-size: .9rem;
+}
+
+.header select {
+  padding: .4rem;
+  font: inherit;
+}
+
+.panel {
+  min-width: 0;
+  border: 1px solid #64748b55;
+  border-radius: .75rem;
+  padding: 1rem;
+}
+
+.metrics,
+.breakdowns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+  gap: .75rem;
+}
+
+.metrics {
+  margin-bottom: 0;
+}
+
+.metrics div {
+  padding: .65rem .75rem;
+  background: #64748b15;
+  border-radius: .5rem;
+}
+
+.metrics dd {
+  margin: .25rem 0;
+  font-size: 1.55rem;
+  font-weight: 700;
+}
+
+.tableScroll {
+  overflow: auto;
+}
+
+.tableScroll table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: .9rem;
+}
+
+.tableScroll td,
+.tableScroll th {
+  padding: .45rem;
+  border-bottom: 1px solid #64748b44;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.barCell {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+}
+
+.barCell meter {
+  width: clamp(2rem, 10vw, 8rem);
+}

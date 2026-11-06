@@ -28,7 +28,8 @@ function signPayload(payloadBase64) {
 export function createAdminSessionToken(account) {
   const now = Math.floor(Date.now() / 1000);
   const payload = {
-    v: 1,
+    v: 2,
+    sessionVersion: Number(account.sessionVersion ?? 0),
     adminId: account.id,
     username: account.username,
     role: account.role,
@@ -65,6 +66,8 @@ export function verifyAdminSessionToken(token) {
   if (!payload.adminId || !payload.username || !["SUPER", "ADMIN"].includes(payload.role)) {
     return null;
   }
+
+  if (payload.sessionVersion !== undefined && (!Number.isInteger(payload.sessionVersion) || payload.sessionVersion < 0)) return null;
 
   return payload;
 }

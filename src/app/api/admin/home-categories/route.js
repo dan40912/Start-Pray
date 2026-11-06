@@ -21,7 +21,7 @@ function sanitizePayload(body) {
 }
 
 export async function GET(request) {
-  const { error } = requireAdmin(request);
+  const { error } = await requireAdmin(request);
   if (error) return error;
 
   const categories = await readAllCategories();
@@ -29,7 +29,7 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
-  const { error } = requireAdmin(request);
+  const { error } = await requireAdmin(request);
   if (error) return error;
 
   try {

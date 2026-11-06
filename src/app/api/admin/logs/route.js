@@ -19,7 +19,7 @@ function parsePositiveInt(value, fallback, max) {
 }
 
 export async function GET(request) {
-  const { error } = requireAdmin(request, SUPER_ONLY);
+  const { error } = await requireAdmin(request, SUPER_ONLY);
   if (error) return error;
 
   try {

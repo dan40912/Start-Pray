@@ -2,14 +2,7 @@
 
 import { useEffect } from "react";
 
-const CONTROL_SELECTOR = [
-  "button",
-  "a.button",
-  "a.link-button",
-  "input",
-  "select",
-  "textarea",
-].join(",");
+const CONTROL_SELECTOR = "[data-admin-hint]";
 
 function textFromLabel(control) {
   if (!control.id) return "";
@@ -47,32 +40,7 @@ function inferControlName(control) {
 }
 
 function inferHint(control) {
-  const preset = control.getAttribute("data-admin-hint");
-  if (preset) return cleanText(preset);
-
-  const name = inferControlName(control);
-  if (!name) return "";
-
-  const tagName = control.tagName.toLowerCase();
-  const type = control.getAttribute("type") || "";
-
-  if (tagName === "input" && type === "search") {
-    return `搜尋欄位：${name}。輸入關鍵字後列表會依目前條件縮小範圍。`;
-  }
-
-  if (tagName === "input" || tagName === "textarea") {
-    return `欄位：${name}。請確認內容正確後再儲存。`;
-  }
-
-  if (tagName === "select") {
-    return `選單：${name}。變更後會影響目前列表或儲存內容。`;
-  }
-
-  if (tagName === "a") {
-    return `連結：${name}。會帶你前往相關頁面查看或處理。`;
-  }
-
-  return `按鈕：${name}。點擊前請確認目前頁面與選取對象。`;
+  return cleanText(control.getAttribute("data-admin-hint"));
 }
 
 function applyHints(root) {
@@ -106,7 +74,7 @@ function applyHints(root) {
       hintNode.className = "admin-control-hint";
       control.insertAdjacentElement("afterend", hintNode);
     }
-    hintNode.textContent = hint;
+    if (hintNode.textContent !== hint) hintNode.textContent = hint;
   });
 }
 

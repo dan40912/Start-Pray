@@ -39,7 +39,7 @@ function fromAdminPayload(body) {
 }
 
 export async function GET(request) {
-  const { error } = requireAdmin(request);
+  const { error } = await requireAdmin(request);
   if (error) return error;
 
   try {
@@ -52,7 +52,7 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
-  const { error } = requireAdmin(request);
+  const { error } = await requireAdmin(request);
   if (error) return error;
 
   try {
@@ -66,7 +66,7 @@ export async function POST(request) {
 }
 
 export async function PATCH(request) {
-  const { error } = requireAdmin(request);
+  const { error } = await requireAdmin(request);
   if (error) return error;
 
   try {
@@ -80,7 +80,7 @@ export async function PATCH(request) {
 }
 
 export async function DELETE(request) {
-  const { error } = requireAdmin(request);
+  const { error } = await requireAdmin(request);
   if (error) return error;
 
   try {

@@ -3,6 +3,7 @@ node_modules/
 
 # Next.js
 .next/
+.next-admin-qa/
 .next-verification/
 .next-ogqa/
 output/og-qa/

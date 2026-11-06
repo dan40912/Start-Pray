@@ -1,4 +1,5 @@
 import "./globals.css";
+import "./not-found.css";
 import "@/styles/theme-modern.css";
 import "@/styles/fontawesome-lite.css";
 // tokens.css 必須最後載入：它收編前面各檔散落的變數名，讓舊規則跟著
@@ -10,6 +11,8 @@ import { Noto_Serif_TC } from "next/font/google";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import GlobalPlayerGate from "@/components/GlobalPlayerGate";
 import SurfaceSync from "@/components/SurfaceSync";
+import AnalyticsTracker from "@/components/AnalyticsTracker";
+import { analyticsEnabled } from "@/lib/server-analytics";
 import { AudioProvider } from "@/context/AudioContext";
 import { getDictionary, localeFromPathname } from "@/lib/i18n";
 import { readSiteSettings } from "@/lib/siteSettings";
@@ -249,6 +252,7 @@ export default async function RootLayout({ children }) {
       <body>
         <StructuredData />
         <SurfaceSync />
+        {analyticsEnabled() ? <AnalyticsTracker /> : null}
         <AudioProvider>
           {children}
           <GlobalPlayerGate />

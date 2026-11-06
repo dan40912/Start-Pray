@@ -27,6 +27,7 @@ Start Pray expects environment variables for:
 - media storage path
 - public site URL
 - email or reset-password settings, if enabled
+- a stable `SITE_SETTINGS_ENCRYPTION_KEY` when saving encrypted integration credentials in admin settings
 
 Start from:
 

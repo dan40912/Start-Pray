@@ -1,25 +1,16 @@
 import { NextResponse } from "next/server";
 
-import { readAdminSessionFromRequest } from "@/lib/admin-session";
+import { requireAdmin } from "@/lib/admin-route-auth";
 import { logAdminAction, logSystemError } from "@/lib/logger";
 import prisma from "@/lib/prisma";
 import { normalizeYoutubeUrl } from "@/lib/youtube";
 
-const ADMIN_ROLES = new Set(["SUPER", "ADMIN"]);
 const MAX_NAME_LENGTH = 80;
 const MAX_USERNAME_LENGTH = 40;
 const MAX_TEXT_LENGTH = 191;
 const MAX_BIO_LENGTH = 1000;
 const MAX_URL_LENGTH = 2048;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-function requireAdmin(request) {
-  const session = readAdminSessionFromRequest(request);
-  if (!session || !ADMIN_ROLES.has(session.role)) {
-    return { error: NextResponse.json({ message: "Unauthorized" }, { status: 401 }) };
-  }
-  return { session };
-}
 
 function normalizeString(value, maxLength) {
   if (value === null) return null;
@@ -125,7 +116,7 @@ const USER_SELECT_FIELDS = {
 };
 
 export async function GET(request, { params }) {
-  const { error } = requireAdmin(request);
+  const { error } = await requireAdmin(request);
   if (error) return error;
 
   try {
@@ -152,7 +143,7 @@ export async function GET(request, { params }) {
 }
 
 export async function PATCH(request, { params }) {
-  const { error, session } = requireAdmin(request);
+  const { error, session } = await requireAdmin(request);
   if (error) return error;
 
   try {

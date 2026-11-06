@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 
-import AdminHintPanel from "@/components/admin/AdminHintPanel";
 import { useAdminFeedback } from "@/components/admin/useAdminFeedback";
 import { HIDE_LEGACY_FINANCE_UI } from "@/lib/featureFlags";
 
@@ -40,7 +40,8 @@ function formatCurrency(value) {
 }
 
 function csvEscape(value) {
-  const text = value === null || value === undefined ? "" : String(value);
+  const raw = value === null || value === undefined ? "" : String(value);
+  const text = /^[=+@\-\t\r]/.test(raw) ? `'${raw}` : raw;
   return `"${text.replace(/"/g, '""')}"`;
 }
 
@@ -50,6 +51,8 @@ export default function AdminDashboardPage() {
   const [metricsLoading, setMetricsLoading] = useState(true);
   const [metricsError, setMetricsError] = useState("");
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [work, setWork] = useState(null);
+  const [canManageUsers, setCanManageUsers] = useState(false);
 
   const [highRiskUsers, setHighRiskUsers] = useState([]);
   const [highRiskUsersLoading, setHighRiskUsersLoading] = useState(true);
@@ -59,12 +62,9 @@ export default function AdminDashboardPage() {
   const [highRiskPrayersLoading, setHighRiskPrayersLoading] = useState(true);
   const [highRiskPrayersError, setHighRiskPrayersError] = useState("");
 
-  const [userActionId, setUserActionId] = useState(null);
-  const [prayerActionId, setPrayerActionId] = useState(null);
   const [highRiskResponses, setHighRiskResponses] = useState([]);
   const [highRiskResponsesLoading, setHighRiskResponsesLoading] = useState(true);
   const [highRiskResponsesError, setHighRiskResponsesError] = useState("");
-  const [responseActionId, setResponseActionId] = useState(null);
   const [exporting, setExporting] = useState(false);
 
   const loadMetrics = useCallback(async () => {
@@ -72,45 +72,13 @@ export default function AdminDashboardPage() {
     setMetricsError("");
 
     try {
-      const baseParams = new URLSearchParams({ limit: "1", includeSummary: "true" });
-      const blockedParams = new URLSearchParams({ limit: "1", status: "blocked" });
-      const shortParams = new URLSearchParams({ limit: "1" });
-
-      const [overallRes, blockedRes, prayersRes, responsesRes] = await Promise.all([
-        fetch(`/api/admin/users?${baseParams.toString()}`, { cache: "no-store" }),
-        fetch(`/api/admin/users?${blockedParams.toString()}`, { cache: "no-store" }),
-        fetch(`/api/admin/prayfor?${shortParams.toString()}`, { cache: "no-store" }),
-        fetch(`/api/admin/prayerresponse?${shortParams.toString()}`, { cache: "no-store" }),
-      ]);
-
-      if (!overallRes.ok || !blockedRes.ok || !prayersRes.ok || !responsesRes.ok) {
-        throw new Error("無法載入儀表板指標");
-      }
-
-      const [overallData, blockedData, prayersData, responsesData] = await Promise.all([
-        overallRes.json(),
-        blockedRes.json(),
-        prayersRes.json(),
-        responsesRes.json(),
-      ]);
-
-      const totalUsers = overallData.pagination?.total ?? overallData.summary?.totalUsers ?? 0;
-      const blockedUsers = blockedData.pagination?.total ?? overallData.summary?.blockedUsers ?? 0;
-      const totalPrayers = prayersData.pagination?.total ?? 0;
-      const totalResponses = responsesData.pagination?.total ?? 0;
-      const averageWalletRaw =
-        typeof overallData.summary?.averageWalletBalance === "number"
-          ? overallData.summary.averageWalletBalance
-          : 0;
-
-      setMetrics({
-        totalUsers,
-        blockedUsers,
-        totalPrayers,
-        totalResponses,
-        averageWallet: Number.isFinite(averageWalletRaw) ? averageWalletRaw : 0,
-      });
-      setLastUpdated(new Date());
+      const response = await fetch("/api/admin/dashboard-summary", { cache: "no-store" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "無法載入待辦摘要");
+      setMetrics({ ...INITIAL_METRICS, ...data.metrics });
+      setWork(data.work);
+      setCanManageUsers(data.canManageUsers);
+      setLastUpdated(new Date(data.updatedAt));
     } catch (error) {
       setMetricsError(error.message || "無法載入儀表板指標");
     } finally {
@@ -119,6 +87,7 @@ export default function AdminDashboardPage() {
   }, []);
 
   const loadHighRiskUsers = useCallback(async () => {
+    if (!canManageUsers) { setHighRiskUsers([]); setHighRiskUsersLoading(false); return; }
     setHighRiskUsersLoading(true);
     setHighRiskUsersError("");
 
@@ -127,20 +96,21 @@ export default function AdminDashboardPage() {
         sort: "reportCount",
         order: "desc",
         limit: "5",
+        status: "active",
       });
 
       const res = await fetch(`/api/admin/users?${params.toString()}`, { cache: "no-store" });
-      if (!res.ok) throw new Error("無法載入高風險使用者");
+      if (!res.ok) throw new Error("無法載入需查閱的使用者");
 
       const data = await res.json();
       const items = (data.data ?? []).filter((user) => (user.reportCount ?? 0) > 0);
       setHighRiskUsers(items);
     } catch (error) {
-      setHighRiskUsersError(error.message || "無法載入高風險使用者");
+      setHighRiskUsersError(error.message || "無法載入需查閱的使用者");
     } finally {
       setHighRiskUsersLoading(false);
     }
-  }, []);
+  }, [canManageUsers]);
 
   const loadHighRiskPrayers = useCallback(async () => {
     setHighRiskPrayersLoading(true);
@@ -155,13 +125,13 @@ export default function AdminDashboardPage() {
       });
 
       const res = await fetch(`/api/admin/prayfor?${params.toString()}`, { cache: "no-store" });
-      if (!res.ok) throw new Error("無法載入高風險禱告事項");
+      if (!res.ok) throw new Error("無法載入被檢舉的禱告事項");
 
       const data = await res.json();
-      const items = (data.data ?? []).filter((item) => !item.isBlocked);
+      const items = (data.data ?? []).filter((item) => !item.isBlocked && (item.reportCount ?? 0) > 0);
       setHighRiskPrayers(items);
     } catch (error) {
-      setHighRiskPrayersError(error.message || "無法載入高風險禱告事項");
+      setHighRiskPrayersError(error.message || "無法載入被檢舉的禱告事項");
     } finally {
       setHighRiskPrayersLoading(false);
     }
@@ -180,13 +150,13 @@ export default function AdminDashboardPage() {
       });
 
       const res = await fetch(`/api/admin/prayerresponse?${params.toString()}`, { cache: "no-store" });
-      if (!res.ok) throw new Error("無法載入高風險回應");
+      if (!res.ok) throw new Error("無法載入被檢舉的回應");
 
       const data = await res.json();
       const items = (data.data ?? []).filter((item) => !item.isBlocked && (item.reportCount ?? 0) > 0);
       setHighRiskResponses(items);
     } catch (error) {
-      setHighRiskResponsesError(error.message || "無法載入高風險回應");
+      setHighRiskResponsesError(error.message || "無法載入被檢舉的回應");
     } finally {
       setHighRiskResponsesLoading(false);
     }
@@ -198,63 +168,6 @@ export default function AdminDashboardPage() {
     loadHighRiskPrayers();
     loadHighRiskResponses();
   }, [loadHighRiskPrayers, loadHighRiskResponses, loadHighRiskUsers, loadMetrics]);
-
-  const handleBlockUser = async (userId, nextState) => {
-    try {
-      setUserActionId(userId);
-      const res = await fetch(`/api/admin/users/${userId}/block`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ block: nextState }),
-      });
-      if (!res.ok) throw new Error("更新使用者狀態失敗");
-
-      await Promise.all([loadHighRiskUsers(), loadMetrics()]);
-      notifySuccess(nextState ? "已封鎖使用者" : "已解除封鎖");
-    } catch (error) {
-      notifyError(error.message || "更新使用者狀態失敗");
-    } finally {
-      setUserActionId(null);
-    }
-  };
-
-  const handleBlockPrayer = async (prayerId) => {
-    try {
-      setPrayerActionId(prayerId);
-      const res = await fetch("/api/admin/prayfor", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: prayerId, block: true }),
-      });
-      if (!res.ok) throw new Error("更新禱告事項狀態失敗");
-
-      await loadHighRiskPrayers();
-      notifySuccess("已封鎖禱告事項");
-    } catch (error) {
-      notifyError(error.message || "更新禱告事項狀態失敗");
-    } finally {
-      setPrayerActionId(null);
-    }
-  };
-
-  const handleBlockResponse = async (responseId) => {
-    try {
-      setResponseActionId(responseId);
-      const res = await fetch(`/api/admin/prayerresponse/${responseId}/block`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ block: true }),
-      });
-      if (!res.ok) throw new Error("更新回應狀態失敗");
-
-      await loadHighRiskResponses();
-      notifySuccess("已封鎖回應");
-    } catch (error) {
-      notifyError(error.message || "更新回應狀態失敗");
-    } finally {
-      setResponseActionId(null);
-    }
-  };
 
   const handleExport = () => {
     if (metricsLoading || exporting) return;
@@ -272,54 +185,6 @@ export default function AdminDashboardPage() {
       }
 
       rows.push([]);
-      rows.push(["高風險使用者 Top 5"]);
-      rows.push(["姓名", "Email", "檢舉次數", "狀態"]);
-      if (highRiskUsers.length === 0) {
-        rows.push(["無資料", "", "", ""]);
-      } else {
-        highRiskUsers.forEach((user) => {
-          rows.push([
-            user.name || "未命名",
-            user.email,
-            user.reportCount ?? 0,
-            user.isBlocked ? "Blocked" : "Active",
-          ]);
-        });
-      }
-
-      rows.push([]);
-      rows.push(["高風險禱告事項 Top 5"]);
-      rows.push(["標題", "作者", "檢舉次數", "狀態"]);
-      if (highRiskPrayers.length === 0) {
-        rows.push(["無資料", "", "", ""]);
-      } else {
-        highRiskPrayers.forEach((item) => {
-          rows.push([
-            item.title,
-            item.owner?.name || item.owner?.email || "匿名",
-            item.reportCount ?? 0,
-            item.isBlocked ? "Blocked" : "Active",
-          ]);
-        });
-      }
-
-      rows.push([]);
-      rows.push(["高風險回應 Top 5"]);
-      rows.push(["訊息", "回覆者", "代禱", "檢舉次數", "狀態"]);
-      if (highRiskResponses.length === 0) {
-        rows.push(["無資料", "", "", "", ""]);
-      } else {
-        highRiskResponses.forEach((item) => {
-          rows.push([
-            item.message || (item.voiceUrl ? "語音回應" : "無文字"),
-            item.responder?.name || item.responder?.email || "匿名",
-            item.homeCard?.title || "",
-            item.reportCount ?? 0,
-            item.isBlocked ? "Blocked" : "Active",
-          ]);
-        });
-      }
-
       const csv = rows.map((row) => row.map(csvEscape).join(",")).join("\n");
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
@@ -356,11 +221,29 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="admin-section">
+      <section className="admin-work-summary" aria-label="今日待辦摘要">
+        <div className="admin-work-summary__head"><h1>先看哪些內容</h1>
+          <button type="button" className="button button--ghost" onClick={loadMetrics} disabled={metricsLoading}>更新摘要</button>
+        </div>
+        <p>以下是內容狀態與檢舉訊號，尚未代表違規判定；各組可能重複。</p>
+        {metricsError ? <p role="alert">{metricsError}{lastUpdated ? `（上次成功更新：${lastUpdated.toLocaleString()}）` : ""}</p> : null}
+        <div className="admin-work-summary__grid" aria-busy={metricsLoading}>
+          {[
+            ["待審代禱", "pendingCards", "/admin/prayfor?status=review"],
+            ["待審回應", "pendingResponses", "/admin/prayerresponse?status=pending"],
+            ["待複核語音", "pendingVoices", "/admin/prayerresponse?status=voice-pending"],
+            ["有檢舉且未封鎖的內容", "reported", "/admin/moderation"],
+          ].map(([label, key, href]) => <Link key={key} href={href}>
+            <span>{label}</span><strong>{work ? formatInteger(key === "reported" ? work.reportedCards + work.reportedResponses : work[key]) : "—"}</strong>
+            <span>閱讀與確認 →</span>
+          </Link>)}
+        </div>
+      </section>
       <header className="admin-dashboard__header">
         <div>
           <p className="admin-dashboard__eyebrow">START PRAY ADMIN</p>
-          <h1>儀表板總覽</h1>
-          <p>快速檢視平台指標與高風險名單，作為日常巡檢入口。</p>
+          <h2>平台概況</h2>
+          <p>先閱讀待審與被檢舉的內容，再依證據決定是否處置。被檢舉不代表已違規。</p>
         </div>
         <div className="admin-dashboard__header-actions">
           {lastUpdated ? <span className="admin-dashboard__timestamp">最後更新：{lastUpdated.toLocaleString()}</span> : null}
@@ -369,18 +252,13 @@ export default function AdminDashboardPage() {
             className="button button--primary"
             onClick={handleExport}
             disabled={metricsLoading || exporting}
-            data-admin-hint="匯出目前儀表板摘要與高風險名單，適合巡檢留存。"
+            data-admin-hint="匯出平台彙總統計，不含使用者名單與代禱內容。"
           >
             {exporting ? "匯出中..." : "匯出報表"}
           </button>
         </div>
       </header>
 
-      <AdminHintPanel
-        title="巡檢提示"
-        description="儀表板適合快速巡檢。若要大量處理，請進入對應管理頁操作。"
-        items={["先看高風險名單，再切到審核佇列或對應管理頁做細部處理。", "建議每日固定時間匯出報表留存。"]}
-      />
 
       <section className="admin-dashboard__kpis">
         {metricsLoading ? (
@@ -414,10 +292,11 @@ export default function AdminDashboardPage() {
       </section>
 
       <section className="admin-dashboard__grid">
+        {canManageUsers ? (
         <article className="dashboard-card">
           <header className="dashboard-card__header">
             <div>
-              <h2>高風險使用者</h2>
+              <h2>需查閱的使用者</h2>
               <p>依檢舉次數排序，最多顯示 5 筆。</p>
             </div>
           </header>
@@ -427,7 +306,7 @@ export default function AdminDashboardPage() {
           ) : highRiskUsersError ? (
             <p className="error">{highRiskUsersError}</p>
           ) : highRiskUsers.length === 0 ? (
-            <p>目前沒有高風險使用者。</p>
+            <p>目前沒有需查閱的使用者。</p>
           ) : (
             <table className="admin-table">
               <thead>
@@ -453,15 +332,7 @@ export default function AdminDashboardPage() {
                       )}
                     </td>
                     <td>
-                      <button
-                        type="button"
-                        className="link-button"
-                        onClick={() => handleBlockUser(user.id, !user.isBlocked)}
-                        disabled={userActionId === user.id}
-                        data-admin-hint={user.isBlocked ? "解除封鎖後，該使用者可恢復登入與操作。" : "封鎖後，該使用者將無法登入與操作。"}
-                      >
-                        {userActionId === user.id ? "處理中..." : user.isBlocked ? "解除封鎖" : "封鎖"}
-                      </button>
+                      <Link className="link-button" href={`/admin/users?search=${encodeURIComponent(user.id)}`}>閱讀與確認</Link>
                     </td>
                   </tr>
                 ))}
@@ -469,11 +340,12 @@ export default function AdminDashboardPage() {
             </table>
           )}
         </article>
+        ) : null}
 
         <article className="dashboard-card">
           <header className="dashboard-card__header">
             <div>
-              <h2>高風險禱告事項</h2>
+              <h2>被檢舉的禱告事項</h2>
               <p>顯示檢舉量較高且尚未封鎖的內容。</p>
             </div>
           </header>
@@ -483,7 +355,7 @@ export default function AdminDashboardPage() {
           ) : highRiskPrayersError ? (
             <p className="error">{highRiskPrayersError}</p>
           ) : highRiskPrayers.length === 0 ? (
-            <p>目前沒有高風險禱告事項。</p>
+            <p>目前沒有被檢舉的禱告事項。</p>
           ) : (
             <table className="admin-table">
               <thead>
@@ -512,15 +384,7 @@ export default function AdminDashboardPage() {
                       {item.isBlocked ? (
                         <span>已封鎖</span>
                       ) : (
-                        <button
-                          type="button"
-                          className="link-button"
-                          onClick={() => handleBlockPrayer(item.id)}
-                          disabled={prayerActionId === item.id}
-                          data-admin-hint="封鎖後，這則代禱會從公開頁面與公開 API 移除。"
-                        >
-                          {prayerActionId === item.id ? "處理中..." : "封鎖"}
-                        </button>
+                        <Link className="link-button" href={`/admin/prayfor?search=${item.id}`}>閱讀與確認</Link>
                       )}
                     </td>
                   </tr>
@@ -533,7 +397,7 @@ export default function AdminDashboardPage() {
         <article className="dashboard-card">
           <header className="dashboard-card__header">
             <div>
-              <h2>高風險回應</h2>
+              <h2>被檢舉的回應</h2>
               <p>顯示被檢舉且尚未封鎖的文字或語音回應。</p>
             </div>
           </header>
@@ -543,7 +407,7 @@ export default function AdminDashboardPage() {
           ) : highRiskResponsesError ? (
             <p className="error">{highRiskResponsesError}</p>
           ) : highRiskResponses.length === 0 ? (
-            <p>目前沒有高風險回應。</p>
+            <p>目前沒有被檢舉的回應。</p>
           ) : (
             <table className="admin-table">
               <thead>
@@ -561,15 +425,7 @@ export default function AdminDashboardPage() {
                     <td>{item.responder?.name || item.responder?.email || "匿名"}</td>
                     <td>{item.reportCount ?? 0}</td>
                     <td>
-                      <button
-                        type="button"
-                        className="link-button"
-                        onClick={() => handleBlockResponse(item.id)}
-                        disabled={responseActionId === item.id}
-                        data-admin-hint="封鎖後，這則文字或語音回應不會再公開顯示或進入播放佇列。"
-                      >
-                        {responseActionId === item.id ? "處理中..." : "封鎖"}
-                      </button>
+                      <Link className="link-button" href={`/admin/prayerresponse?search=${encodeURIComponent(item.id)}`}>閱讀與確認</Link>
                     </td>
                   </tr>
                 ))}

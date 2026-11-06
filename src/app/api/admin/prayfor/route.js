@@ -1,3 +1,4 @@
+import { redactPrivateCardPreview } from "@/lib/admin-private-preview";
 ﻿// ./src/app/api/admin/prayfor/route.js
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
@@ -7,7 +8,7 @@ import { toAdminPrayerCard } from "@/lib/admin-visibility";
 
 // 取得代禱列表，支援搜尋、狀態篩選與排序
 export async function GET(request) {
-  const { error } = requireAdmin(request);
+  const { error } = await requireAdmin(request);
   if (error) return error;
 
   try {
@@ -25,6 +26,7 @@ export async function GET(request) {
         search
           ? {
               OR: [
+                ...(Number.isSafeInteger(Number(search)) && Number(search) > 0 ? [{ id: Number(search) }] : []),
                 { title: { contains: search } },
                 { description: { contains: search } },
               ],
@@ -37,9 +39,11 @@ export async function GET(request) {
           // Low-trust submissions are held with needsReview = true and were
           // otherwise unreachable — the queue existed with no way to open it.
           : status === "review"
-          ? { needsReview: true }
+          ? { needsReview: true, isBlocked: false }
           : status === "private"
           ? { isPrivate: true }
+          : status === "threads"
+          ? { threadsShare: { is: { status: { in: ["PENDING", "FAILED"] } } } }
           : {},
       ],
     };
@@ -48,6 +52,7 @@ export async function GET(request) {
       prisma.homePrayerCard.findMany({
         where,
         include: {
+          threadsShare: true,
           owner: { select: { id: true, name: true, email: true } },
           // PRD-004 is entirely about finding cards nobody has answered, but the
           // count was only ever computed for the public wall.
@@ -69,11 +74,11 @@ export async function GET(request) {
     return NextResponse.json({
       data: cards.map((card) => {
         const { responses, _count, ...rest } = card;
-        return {
+        return redactPrivateCardPreview({
           ...toAdminPrayerCard(rest),
           responseCount: _count?.responses ?? 0,
           lastRespondedAt: responses?.[0]?.createdAt ?? null,
-        };
+        });
       }),
       pagination: {
         total,
@@ -88,7 +93,7 @@ export async function GET(request) {
       error,
       requestPath: request.url,
       metadata: {
-        query: Object.fromEntries(new URL(request.url).searchParams.entries()),
+        queryParameterNames: [...new URL(request.url).searchParams.keys()],
       },
     });
 
@@ -99,7 +104,7 @@ export async function GET(request) {
 
 // 更新禱告項目狀態
 export async function PATCH(request) {
-  const { error, session } = requireAdmin(request);
+  const { error, session } = await requireAdmin(request);
   if (error) return error;
 
   try {
@@ -110,7 +115,9 @@ export async function PATCH(request) {
     }
 
     const numericId = Number(id);
-    const updated = await prisma.homePrayerCard.update({
+    if (typeof block !== "boolean") return NextResponse.json({ message: "請提供明確的封鎖狀態" }, { status: 400 });
+    const updated = await prisma.$transaction(async (tx) => {
+    const updated = await tx.homePrayerCard.update({
       where: { id: numericId },
       data: { isBlocked: block },
     });
@@ -124,6 +131,9 @@ export async function PATCH(request) {
       targetId: String(numericId),
       requestPath: request.url,
       metadata: { block },
+      transaction: tx, required: true,
+    });
+    return updated;
     });
 
     return NextResponse.json(updated);

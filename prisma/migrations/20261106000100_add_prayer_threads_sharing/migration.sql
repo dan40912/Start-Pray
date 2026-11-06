@@ -1,0 +1,20 @@
+CREATE TABLE `prayer_threads_share` (
+  `id` INTEGER NOT NULL AUTO_INCREMENT,
+  `cardId` INTEGER NOT NULL,
+  `consentedAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `status` ENUM('PENDING', 'PUBLISHING', 'PUBLISHED', 'FAILED', 'SKIPPED') NOT NULL DEFAULT 'PENDING',
+  `postText` TEXT NULL,
+  `threadsPostId` VARCHAR(191) NULL,
+  `permalink` VARCHAR(512) NULL,
+  `attempts` INTEGER NOT NULL DEFAULT 0,
+  `lastError` TEXT NULL,
+  `lastAttemptAt` DATETIME(3) NULL,
+  `publishedAt` DATETIME(3) NULL,
+  `publishedByAdminId` VARCHAR(191) NULL,
+  `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `updatedAt` DATETIME(3) NOT NULL,
+  UNIQUE INDEX `prayer_threads_share_cardId_key` (`cardId`),
+  INDEX `prayer_threads_share_status_createdAt_idx` (`status`, `createdAt`),
+  PRIMARY KEY (`id`),
+  CONSTRAINT `prayer_threads_share_cardId_fkey` FOREIGN KEY (`cardId`) REFERENCES `home_prayer_card` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;

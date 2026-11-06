@@ -7,7 +7,7 @@ import { requireAdmin, roleSet } from "@/lib/admin-route-auth";
 const SUPER_ONLY = roleSet("SUPER");
 
 export async function GET(request) {
-  const { error } = requireAdmin(request);
+  const { error } = await requireAdmin(request);
   if (error) return error;
 
   try {
@@ -32,7 +32,7 @@ export async function GET(request) {
 }
 
 export async function PATCH(request) {
-  const { error, session } = requireAdmin(request, SUPER_ONLY);
+  const { error, session } = await requireAdmin(request, SUPER_ONLY);
   if (error) return error;
 
   try {

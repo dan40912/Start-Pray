@@ -105,13 +105,13 @@ export async function readHomeCard(id) {
   return toPublicPrayerCard(card);
 }
 
-export async function createHomeCard(payload = {}) {
+export async function createHomeCard(payload = {}, database = prisma) {
   const cardOwnerId = payload.ownerId;
   if (cardOwnerId != null && typeof cardOwnerId !== "string") {
     throw new Error("Owner ID must be a string when provided");
   }
 
-  const created = await prisma.homePrayerCard.create({
+  const created = await database.homePrayerCard.create({
     data: {
       slug: payload.slug || crypto.randomUUID(),
       image: payload.image || "/img/personal.jpg",

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { recordAnalyticsAction } from "@/lib/server-analytics";
 
 import prisma from "@/lib/prisma";
 import { readSessionUser } from "@/lib/server-session";
@@ -139,6 +140,7 @@ export async function POST(request, { params }) {
           ipHash,
         },
       });
+      await recordAnalyticsAction(request, "prayed");
     } catch (err) {
       if (err?.code !== "P2002") throw err;
     }

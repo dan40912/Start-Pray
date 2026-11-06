@@ -20,7 +20,7 @@ function toNumber(value) {
 }
 
 export async function POST(request) {
-  const { error, session } = requireAdmin(request, SUPER_ONLY);
+  const { error, session } = await requireAdmin(request, SUPER_ONLY);
   if (error) return error;
 
   let payload;

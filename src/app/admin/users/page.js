@@ -1,6 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import GainAudio from "@/components/GainAudio";
 
 import AdminHintPanel from "@/components/admin/AdminHintPanel";
@@ -80,8 +82,10 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [page, setPage] = useState(1);
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("all");
+  const searchParams = useSearchParams();
+  const requestSequence = useRef(0);
+  const [search, setSearch] = useState(() => searchParams.get("search") || "");
+  const [filter, setFilter] = useState(() => searchParams.get("status") || "all");
   const [blockActionUserId, setBlockActionUserId] = useState(null);
   const [loadingEditUserId, setLoadingEditUserId] = useState(null);
   const [savingEdit, setSavingEdit] = useState(false);
@@ -97,9 +101,16 @@ export default function AdminUsersPage() {
     totalPages: 1,
   });
 
+  useEffect(() => {
+    setSearch(searchParams.get("search") || "");
+    setFilter(searchParams.get("status") || "all");
+    setPage(1);
+  }, [searchParams]);
+
   const debouncedSearch = useDebouncedValue(search, 400);
 
   const loadUsers = useCallback(async () => {
+    const requestId = ++requestSequence.current;
     try {
       setLoading(true);
       setError("");
@@ -129,6 +140,7 @@ export default function AdminUsersPage() {
       }
 
       const data = await res.json();
+      if (requestId !== requestSequence.current) return;
       const nextPagination = data.pagination ?? {
         total: 0,
         page: 1,
@@ -144,9 +156,10 @@ export default function AdminUsersPage() {
       setUsers(data.data ?? []);
       setPagination(nextPagination);
     } catch (err) {
+      if (requestId !== requestSequence.current) return;
       setError(err.message || "無法取得使用者列表");
     } finally {
-      setLoading(false);
+      if (requestId === requestSequence.current) setLoading(false);
     }
   }, [debouncedSearch, filter, page]);
 
@@ -187,10 +200,11 @@ export default function AdminUsersPage() {
   const handleToggleBlock = useCallback(
     async (id, block) => {
       const shouldContinue = await confirmAction({
-        title: block ? "確認封鎖使用者" : "確認解除封鎖",
+        title: block ? "確認停權使用者" : "確認解除停權",
+        requireReason: true,
         message: block
-          ? "封鎖後該使用者將無法登入與操作，是否繼續？"
-          : "解除封鎖後該使用者可恢復操作，是否繼續？",
+          ? "停權將撤銷現有登入並禁止會員操作；既有內容需另外審核及隱藏。"
+          : "解除後需重新登入；仍被下架的內容不會自動公開。",
         confirmText: block ? "封鎖" : "解除封鎖",
         tone: "warning",
       });
@@ -202,7 +216,7 @@ export default function AdminUsersPage() {
         const res = await fetch(`/api/admin/users/${id}/block`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ block }),
+          body: JSON.stringify({ block, expectedBlocked: !block, reason: shouldContinue, operationId: crypto.randomUUID() }),
         });
 
         if (!res.ok) {

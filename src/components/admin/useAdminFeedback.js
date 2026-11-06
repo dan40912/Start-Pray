@@ -18,6 +18,8 @@ export function useAdminFeedback() {
   const [toasts, setToasts] = useState([]);
   const timersRef = useRef(new Map());
   const [confirmState, setConfirmState] = useState(null);
+  const confirmPanelRef = useRef(null);
+  const isConfirmOpen = Boolean(confirmState);
 
   const dismissToast = useCallback((id) => {
     const timer = timersRef.current.get(id);
@@ -56,11 +58,13 @@ export function useAdminFeedback() {
         }
 
         return {
-          title: options.title || "Please Confirm",
-          message: options.message || "This action may affect live content. Continue?",
-          confirmText: options.confirmText || "Confirm",
-          cancelText: options.cancelText || "Cancel",
+          title: options.title || "確認操作",
+          message: options.message || "這項操作會影響目前資料，請確認對象與影響。",
+          confirmText: options.confirmText || "確認",
+          cancelText: options.cancelText || "取消",
           tone: options.tone || "warning",
+          requireReason: Boolean(options.requireReason),
+          reason: "",
           resolve,
         };
       });
@@ -69,12 +73,31 @@ export function useAdminFeedback() {
 
   const closeConfirm = useCallback((accepted) => {
     setConfirmState((prev) => {
+      if (accepted && prev?.requireReason && prev.reason.trim().length < 5) return prev;
       if (prev?.resolve) {
-        prev.resolve(Boolean(accepted));
+        prev.resolve(accepted ? (prev.requireReason ? prev.reason.trim() : true) : false);
       }
       return null;
     });
   }, []);
+
+  useEffect(() => {
+    if (!isConfirmOpen) return;
+    const previousFocus = document.activeElement;
+    const panel = confirmPanelRef.current;
+    const controls = () => [...panel.querySelectorAll("button:not(:disabled), textarea, input")];
+    controls()[0]?.focus();
+    const onKey = (event) => {
+      if (event.key === "Escape") { event.preventDefault(); closeConfirm(false); }
+      if (event.key !== "Tab") return;
+      const nodes = controls();
+      const first = nodes[0], last = nodes[nodes.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+      if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+    };
+    panel.addEventListener("keydown", onKey);
+    return () => { panel.removeEventListener("keydown", onKey); previousFocus?.focus(); };
+  }, [isConfirmOpen, closeConfirm]);
 
   useEffect(() => {
     return () => {
@@ -102,7 +125,7 @@ export function useAdminFeedback() {
               <button
                 type="button"
                 className="admin-toast__close"
-                aria-label="Close notice"
+                aria-label="關閉通知"
                 onClick={() => dismissToast(toast.id)}
               >
                 ×
@@ -114,14 +137,21 @@ export function useAdminFeedback() {
         {confirmState ? (
           <div className="admin-confirm-dialog" role="dialog" aria-modal="true" aria-label={confirmState.title}>
             <div className="admin-confirm-dialog__backdrop" onClick={() => closeConfirm(false)} />
-            <div className={`admin-confirm-dialog__panel admin-confirm-dialog__panel--${confirmState.tone}`}>
+            <div ref={confirmPanelRef} className={`admin-confirm-dialog__panel admin-confirm-dialog__panel--${confirmState.tone}`}>
               <h3>{confirmState.title}</h3>
               <p>{confirmState.message}</p>
+              {confirmState.requireReason ? (
+                <label className="admin-confirm-dialog__reason">
+                  <span>處置理由（5–500 字，僅供內部稽核）</span>
+                  <textarea rows={3} maxLength={500} value={confirmState.reason}
+                    onChange={(event) => setConfirmState((prev) => prev ? { ...prev, reason: event.target.value } : prev)} />
+                </label>
+              ) : null}
               <div className="admin-confirm-dialog__actions">
                 <button type="button" className="button button--ghost" onClick={() => closeConfirm(false)}>
                   {confirmState.cancelText}
                 </button>
-                <button type="button" className="button button--primary" onClick={() => closeConfirm(true)}>
+                <button type="button" className="button button--primary" disabled={confirmState.requireReason && confirmState.reason.trim().length < 5} onClick={() => closeConfirm(true)}>
                   {confirmState.confirmText}
                 </button>
               </div>

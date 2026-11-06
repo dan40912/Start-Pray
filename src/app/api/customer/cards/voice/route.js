@@ -1,3 +1,4 @@
+import prisma from "@/lib/prisma";
 import crypto from "node:crypto";
 import path from "node:path";
 import { writeFile } from "node:fs/promises";
@@ -54,6 +55,7 @@ export async function POST(request) {
     const bytes = Buffer.from(await file.arrayBuffer());
 
     await writeFile(filePath, bytes);
+    await prisma.mediaUpload.create({ data: { url: buildMediaPublicUrl("voices", [...folderSegments, filename]), ownerId: session.userId } });
 
     return NextResponse.json({
       message: "語音留言已上傳",

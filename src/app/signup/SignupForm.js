@@ -118,20 +118,6 @@ const COUNTRY_CATALOG = [
   { value: "其他", english: "Other", aliases: ["other"] }
 ];
 
-const POPULAR_COUNTRIES = [
-  "台灣",
-  "香港",
-  "中國",
-  "新加坡",
-  "馬來西亞",
-  "日本",
-  "韓國",
-  "美國",
-  "加拿大",
-  "澳洲",
-  "英國"
-];
-
 const normalizeLookupKey = (value) =>
   String(value ?? "")
     .trim()
@@ -243,10 +229,6 @@ export default function SignupForm({ locale: localeProp = "zh-TW" }) {
       delete next[field];
       return next;
     });
-  };
-
-  const applyCountry = (value) => {
-    setForm((prev) => ({ ...prev, country: normalizeCountryInput(value) }));
   };
 
   const handleCountryChange = (event) => {
@@ -373,59 +355,51 @@ export default function SignupForm({ locale: localeProp = "zh-TW" }) {
             {fieldErrors.username || text.usernameHelper}
           </span>
         </div>
-        <div className="form-group">
-          <label className="form-label" htmlFor="faith">
-            {text.faith} <span className="optional-badge">{text.optional}</span>
-          </label>
-          <select
-            className="form-select"
-            id="faith"
-            value={form.faithTradition}
-            onChange={updateField("faithTradition")}
-          >
-            <option value="">
-              {text.faithEmpty}
-            </option>
-            <option value="基督徒">{text.christian}</option>
-            <option value="其他信仰">{text.otherFaith}</option>
-          </select>
-          <span className="form-helper">{text.faithHelper}</span>
-        </div>
-        <div className="form-group">
-          <label className="form-label" htmlFor="country">
-            {text.country} <span className="optional-badge">{text.optional}</span>
-          </label>
-          <input
-            className="form-control"
-            type="text"
-            id="country"
-            list="country-options"
-            value={form.country}
-            onChange={handleCountryChange}
-            onBlur={handleCountryBlur}
-            placeholder={text.countryPlaceholder}
-            autoComplete="country-name"
-          />
-          <datalist id="country-options">
-            {countrySuggestions.map((item) => (
-              <option key={item.value} value={item.value} label={item.english} />
-            ))}
-          </datalist>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.45rem", marginTop: "0.55rem" }}>
-            {POPULAR_COUNTRIES.map((country) => (
-              <button
-                key={country}
-                type="button"
-                className="home-explorer__suggestion-tag"
-                onClick={() => applyCountry(country)}
-              >
-                {country}
-              </button>
-            ))}
-          </div>
-          <span className="form-helper">{text.countryHelper}</span>
-        </div>
       </div>
+
+      <details className="signup-optional">
+        <summary>{text.faith} / {text.country}（{text.optional}）</summary>
+        <div className="form-grid columns-2 signup-optional__fields">
+          <div className="form-group">
+            <label className="form-label" htmlFor="faith">
+              {text.faith} <span className="optional-badge">{text.optional}</span>
+            </label>
+            <select
+              className="form-select"
+              id="faith"
+              value={form.faithTradition}
+              onChange={updateField("faithTradition")}
+            >
+              <option value="">{text.faithEmpty}</option>
+              <option value="基督徒">{text.christian}</option>
+              <option value="其他信仰">{text.otherFaith}</option>
+            </select>
+            <span className="form-helper">{text.faithHelper}</span>
+          </div>
+          <div className="form-group">
+            <label className="form-label" htmlFor="country">
+              {text.country} <span className="optional-badge">{text.optional}</span>
+            </label>
+            <input
+              className="form-control"
+              type="text"
+              id="country"
+              list="country-options"
+              value={form.country}
+              onChange={handleCountryChange}
+              onBlur={handleCountryBlur}
+              placeholder={text.countryPlaceholder}
+              autoComplete="country-name"
+            />
+            <datalist id="country-options">
+              {countrySuggestions.map((item) => (
+                <option key={item.value} value={item.value} label={item.english} />
+              ))}
+            </datalist>
+            <span className="form-helper">{text.countryHelper}</span>
+          </div>
+        </div>
+      </details>
 
       <span className="form-section-title">{text.accountInfo}</span>
       <p className="form-privacy-note">

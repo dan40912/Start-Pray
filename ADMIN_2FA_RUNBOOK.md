@@ -1,6 +1,6 @@
 # Admin 2FA Runbook
 
-Updated: 2026-03-22 (Asia/Taipei)
+Updated: 2026-10-20 (Asia/Taipei)
 
 > **2026-10 更新**：現在每位管理員可以在「後台 → 權限設定 → 我的兩步驟驗證」綁定自己的
 > 驗證器。`ADMIN_TOTP_SECRET` 只作為尚未綁定帳號的備援，全部綁定後即可移除。
@@ -40,8 +40,8 @@ const path = require('path');
 
 (async () => {
   const secret = authenticator.generateSecret();
-  const issuer = 'Prayer Coin';
-  const account = 'admin@prayer-coin.local';
+  const issuer = 'Start Pray';
+  const account = 'admin@start-pray.local';
   const otpauth = authenticator.keyuri(account, issuer, secret);
 
   const outDir = path.join(process.cwd(), 'tmp');
@@ -78,4 +78,12 @@ Expected output includes:
 
 - Missing OTP config => `503` from `/api/admin/auth/login`
 - Wrong OTP => `401`
-- Success => sets `prayer-coin-admin-session` cookie
+- Success => sets `start-pray-admin-session` cookie
+
+## Code entry and timing
+
+- The login form and API accept spaces and full-width digits in pasted codes.
+- TOTP accepts the current 30-second step and the immediately previous step to allow submission across a refresh boundary. Older and future codes are rejected.
+- Keep the phone and server clocks synchronized; this tolerance does not repair a different enrolled secret or a large clock offset.
+- When `ADMIN_TOTP_SECRET` is configured, `ADMIN_LOGIN_OTP` cannot bypass it.
+- Regression check: `node --test tests/admin-otp.test.mjs`.

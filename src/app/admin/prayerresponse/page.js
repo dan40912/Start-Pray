@@ -1,6 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import GainAudio from "@/components/GainAudio";
 
 import AdminLinkedUserEditor from "@/components/admin/AdminLinkedUserEditor";
@@ -70,8 +72,10 @@ export default function AdminPrayerResponsePage() {
   const [responses, setResponses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const searchParams = useSearchParams();
+  const requestSequence = useRef(0);
+  const [search, setSearch] = useState(() => searchParams.get("search") || "");
+  const [statusFilter, setStatusFilter] = useState(() => searchParams.get("status") || "all");
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1 });
   const [actionId, setActionId] = useState(null);
@@ -86,9 +90,16 @@ export default function AdminPrayerResponsePage() {
   const [originalForm, setOriginalForm] = useState(createEmptyForm());
   const [linkedUserEditor, setLinkedUserEditor] = useState({ id: null, role: "回覆者" });
 
+  useEffect(() => {
+    setSearch(searchParams.get("search") || "");
+    setStatusFilter(searchParams.get("status") || "all");
+    setPage(1);
+  }, [searchParams]);
+
   const debouncedSearch = useDebouncedValue(search, 400);
 
   const loadResponses = useCallback(async () => {
+    const requestId = ++requestSequence.current;
     try {
       setLoading(true);
       setError("");
@@ -109,12 +120,14 @@ export default function AdminPrayerResponsePage() {
       }
 
       const data = await res.json();
+      if (requestId !== requestSequence.current) return;
       setResponses(data.data ?? []);
       setPagination(data.pagination ?? { total: 0, totalPages: 1 });
     } catch (err) {
+      if (requestId !== requestSequence.current) return;
       setError(err.message || "無法取得回應列表");
     } finally {
-      setLoading(false);
+      if (requestId === requestSequence.current) setLoading(false);
     }
   }, [debouncedSearch, page, statusFilter]);
 
@@ -170,6 +183,7 @@ export default function AdminPrayerResponsePage() {
       setForm(nextForm);
       setOriginalForm(nextForm);
     } catch (err) {
+      if (requestId !== requestSequence.current) return;
       setEditorError(err.message || "無法取得回應詳情");
     } finally {
       setEditorLoading(false);
@@ -260,6 +274,7 @@ export default function AdminPrayerResponsePage() {
           setOriginalForm((prev) => ({ ...prev, isBlocked: Boolean(updated.isBlocked) }));
         }
       } catch (err) {
+      if (requestId !== requestSequence.current) return;
         notifyError(err.message || "更新狀態失敗");
       } finally {
         setActionId(null);
@@ -308,6 +323,7 @@ export default function AdminPrayerResponsePage() {
           setOriginalForm((prev) => ({ ...prev, moderationStatus: updated.moderationStatus }));
         }
       } catch (err) {
+      if (requestId !== requestSequence.current) return;
         notifyError(err.message || "更新審核狀態失敗");
       } finally {
         setActionId(null);
@@ -377,6 +393,7 @@ export default function AdminPrayerResponsePage() {
       );
       notifySuccess("回應已更新");
     } catch (err) {
+      if (requestId !== requestSequence.current) return;
       notifyError(err.message || "更新回應失敗");
     } finally {
       setEditorSaving(false);
@@ -446,7 +463,8 @@ export default function AdminPrayerResponsePage() {
               <option value="all">全部</option>
               <option value="active">啟用中</option>
               <option value="blocked">封鎖中</option>
-              <option value="pending">待審核</option>
+              <option value="voice-pending">語音待複核</option>
+                <option value="pending">待審核</option>
             </select>
           </div>
         </header>

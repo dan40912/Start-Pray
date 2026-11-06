@@ -13,7 +13,7 @@ function sanitizeUsername(username) {
 }
 
 export async function GET(request) {
-  const { error } = requireAdmin(request, SUPER_ONLY);
+  const { error } = await requireAdmin(request, SUPER_ONLY);
   if (error) return error;
 
   try {
@@ -39,7 +39,7 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
-  const { error, session } = requireAdmin(request, SUPER_ONLY);
+  const { error, session } = await requireAdmin(request, SUPER_ONLY);
   if (error) return error;
 
   try {

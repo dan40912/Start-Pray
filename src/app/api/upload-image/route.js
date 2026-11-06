@@ -1,3 +1,4 @@
+import prisma from "@/lib/prisma";
 import crypto from "node:crypto";
 import path from "node:path";
 import { writeFile } from "node:fs/promises";
@@ -80,6 +81,7 @@ export async function POST(request) {
     const filePath = path.join(uploadDir, filename);
 
     await writeFile(filePath, compressedBuffer);
+    await prisma.mediaUpload.create({ data: { url: buildMediaPublicUrl("uploads", [filename]), ownerId: session.userId } });
 
     return NextResponse.json({
       message: "圖片上傳成功。",

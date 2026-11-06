@@ -14,7 +14,8 @@ import crypto from "node:crypto";
 
 import { authenticator } from "otplib";
 
-import { getAdminSessionSecret } from "@/lib/session-secrets";
+import { getAdminSessionSecret } from "./session-secrets.js";
+import { normalizeAdminOtpCode } from "./admin-otp-input.js";
 
 const TOTP_ISSUER = "Start Pray Admin";
 const SETUP_TOKEN_TTL_SECONDS = 10 * 60;
@@ -63,10 +64,13 @@ function currentStep(now = Date.now()) {
  * @returns {number|null} the time step the code belongs to, or null if invalid.
  */
 export function verifyTotpCode(code, secret, now = Date.now()) {
-  const token = typeof code === "string" ? code.trim() : "";
+  const token = normalizeAdminOtpCode(code);
   if (!/^\d{6}$/.test(token) || !secret) return null;
   try {
-    const delta = authenticator.checkDelta(token, secret);
+    // Accept the previous step across a refresh boundary, but never a future code.
+    // Clone so each verification uses its own clock and window settings.
+    const verifier = authenticator.clone({ epoch: now, window: [1, 0] });
+    const delta = verifier.checkDelta(token, secret);
     return typeof delta === "number" ? currentStep(now) + delta : null;
   } catch {
     return null;
@@ -94,8 +98,9 @@ export function resolveAdminOtpMethod(account) {
     if (secret) return { kind: "personal", secret };
     console.warn(
       `admin-totp: cannot decrypt the personal 2FA secret of admin ${account.id}; ` +
-        "falling back to the shared secret. Re-enroll this admin's 2FA."
+        "personal 2FA recovery is required."
     );
+    return null;
   }
 
   const shared = sharedTotpSecret();
@@ -115,7 +120,7 @@ export function resolveAdminOtpMethod(account) {
 export function verifyAdminOtp(method, code) {
   if (!method) return { ok: false, step: null };
   if (method.kind === "static") {
-    const token = Buffer.from(typeof code === "string" ? code.trim() : "");
+    const token = Buffer.from(normalizeAdminOtpCode(code));
     const expected = Buffer.from(method.code);
     const ok = token.length === expected.length && crypto.timingSafeEqual(token, expected);
     return { ok, step: null };
